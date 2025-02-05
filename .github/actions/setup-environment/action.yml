@@ -1,0 +1,84 @@
+name: "Setup Environment"
+description: "Setup the environment for the workflow"
+inputs:
+  node-version:
+    description: "Node.js version"
+    required: true
+    default: "lts/*"
+  rustc-version:
+    description: "Rust version"
+    required: true
+    default: "stable"
+  solana-version:
+    description: "Solana version"
+    required: true
+    default: "stable"
+
+runs:
+  using: "composite"
+  steps:
+    # Yarn
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'yarn'
+    
+    - shell: bash
+      run: yarn
+
+    # Rust and Cargo
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rustc-version }}
+        components: clippy, rustfmt
+    
+    - name: Cache Cargo dependencies
+      uses: Swatinem/rust-cache@v2
+
+    # Solana
+    - name: Cache Solana CLI
+      id: cache-solana
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/solana
+        key: solana-${{ runner.os }}-${{ inputs.solana-version }}
+        restore-keys: solana-${{ runner.os }}-
+      
+    - name: Install Solana CLI (if cache is not hit)
+      shell: bash
+      if: steps.cache-solana.outputs.cache-hit != 'true'
+      run: sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+      env:
+        SOLANA_VERSION: ${{ inputs.solana-version }}
+
+    - name: Add Solana CLI to PATH
+      shell: bash
+      run: echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+    
+    - name: Create Solana Wallet
+      shell: bash
+      run: solana-keygen new --no-bip39-passphrase
+
+    # Anchor
+    - name: Install Anchor CLI
+      shell: bash
+      run: cargo install anchor-cli
+    
+    # Verifications
+    - name: Verify Yarn installation
+      shell: bash
+      run: yarn --version
+
+    - name: Verify Cargo installation
+      shell: bash
+      run: cargo version
+
+    - name: Verify Solana installation
+      shell: bash
+      run: solana --version
+
+    - name: Verify Anchor CLI installation
+      shell: bash
+      run: anchor --version
