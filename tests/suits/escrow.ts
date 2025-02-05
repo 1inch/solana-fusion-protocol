@@ -33,8 +33,7 @@ describe("Non-Custodial Escrow", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace
-    .Escrow as anchor.Program<Escrow>;
+  const program = anchor.workspace.Escrow as anchor.Program<Escrow>;
 
   const payer = (provider.wallet as NodeWallet).payer;
   debugLog(`Payer ::`, payer.publicKey.toString());
