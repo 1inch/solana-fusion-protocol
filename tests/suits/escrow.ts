@@ -7,16 +7,11 @@ import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
   buildEscrowTraits,
-  getAmountArgsSchema,
-  whitelistExtraDataSchema,
-  GetAmountArgs,
   trackReceivedTokenAndTx,
   debugLog,
   INVALIDATOR_SIZE,
   numberToBuffer,
 } from "../utils/utils";
-import { serialize } from "borsh";
-import createKeccakHash from "keccak";
 chai.use(chaiAsPromised);
 
 async function assertThrowsAsync(action, msg) {

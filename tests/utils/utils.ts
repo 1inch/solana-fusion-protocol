@@ -8,7 +8,7 @@ import {
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
 import { BanksClient, Clock, ProgramTestContext } from "solana-bankrun";
-import { Escrow } from "../../target/types/escrow";
+import { Escrow as EscrowType } from "../../target/types/escrow";
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -239,7 +239,7 @@ export class TestState {
     extensionHash = null,
     sol_receiver = this.alice.keypair.publicKey,
   }: {
-    escrowProgram: anchor.Program<Escrow>;
+    escrowProgram: anchor.Program<EscrowType>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     [key: string]: any;
