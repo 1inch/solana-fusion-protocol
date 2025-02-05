@@ -56,10 +56,7 @@ describe("Non-Custodial Escrow", () => {
     it("Execute the trade", async () => {
       const transactionPromise = () =>
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -129,10 +126,7 @@ describe("Non-Custodial Escrow", () => {
     it("Execute the trade with different taker's receiver wallet", async () => {
       const transactionPromise = () =>
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               takerXTokens:
@@ -169,10 +163,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade when maker's token account belongs to wrong mint", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               takerYTokens: state.bob.atas[state.tokens[2].toString()].address,
@@ -276,10 +267,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with exchange amount more than escow has (x_token)", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount.muln(10),
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
           .rpc()
@@ -324,10 +312,7 @@ describe("Non-Custodial Escrow", () => {
       }
 
       await program.methods
-        .accept(
-          state.escrows[0].order_id,
-          state.defaultSrcAmount,
-        )
+        .accept(state.escrows[0].order_id, state.defaultSrcAmount)
         .accounts(
           state.buildAccountsDataForAccept({
             makerYTokens: aliceAtaYToken,
@@ -447,10 +432,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong order_id", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[1].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[1].order_id, state.defaultSrcAmount)
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
           .rpc()
@@ -460,10 +442,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong escrow ata", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               escrowedXTokens: state.escrows[1].ata,
@@ -477,10 +456,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong yMint", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               yMint: state.tokens[0],
@@ -494,10 +470,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong maker receiver", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               makerReceiver: state.charlie.keypair.publicKey,
@@ -513,10 +486,7 @@ describe("Non-Custodial Escrow", () => {
     it("Execute the multiple trades", async () => {
       let transactionPromise = () =>
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount.divn(2),
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -542,10 +512,7 @@ describe("Non-Custodial Escrow", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount.divn(2),
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -785,10 +752,7 @@ describe("Non-Custodial Escrow", () => {
 
       await expect(
         program.methods
-          .accept(
-            escrow.order_id,
-            state.defaultSrcAmount.divn(2),
-          )
+          .accept(escrow.order_id, state.defaultSrcAmount.divn(2))
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
@@ -840,10 +804,7 @@ describe("Non-Custodial Escrow", () => {
 
       await expect(
         program.methods
-          .accept(
-            escrow.order_id,
-            state.defaultSrcAmount.divn(2),
-          )
+          .accept(escrow.order_id, state.defaultSrcAmount.divn(2))
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
@@ -860,10 +821,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong maker's ata", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               makerYTokens:
@@ -878,10 +836,7 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong token", async () => {
       await expect(
         program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               xMint: state.tokens[1],
@@ -897,19 +852,13 @@ describe("Non-Custodial Escrow", () => {
     it("Double accept", async () => {
       const transactionPromise = async () => {
         await program.methods
-          .accept(
-            state.escrows[0].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
           .rpc();
 
         await program.methods
-          .accept(
-            state.escrows[1].order_id,
-            state.defaultSrcAmount,
-          )
+          .accept(state.escrows[1].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               taker: state.charlie.keypair.publicKey,
@@ -962,10 +911,7 @@ describe("Non-Custodial Escrow", () => {
 
       const transactionPromise = () =>
         program.methods
-          .accept(
-            escrow.order_id,
-            state.defaultSrcAmount.divn(10),
-          )
+          .accept(escrow.order_id, state.defaultSrcAmount.divn(10))
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
@@ -992,10 +938,7 @@ describe("Non-Custodial Escrow", () => {
       const makerNativeTokenBalanceBefore =
         await provider.connection.getBalance(state.alice.keypair.publicKey);
       await program.methods
-        .accept(
-          escrow.order_id,
-          state.defaultSrcAmount.divn(10),
-        )
+        .accept(escrow.order_id, state.defaultSrcAmount.divn(10))
         .accounts(
           state.buildAccountsDataForAccept({
             escrow: escrow.escrow,

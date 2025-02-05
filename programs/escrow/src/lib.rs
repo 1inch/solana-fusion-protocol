@@ -58,11 +58,7 @@ pub mod escrow {
         Ok(())
     }
 
-    pub fn accept(
-        ctx: Context<Accept>,
-        order_id: u32,
-        amount: u64,
-    ) -> Result<()> {
+    pub fn accept(ctx: Context<Accept>, order_id: u32, amount: u64) -> Result<()> {
         // if authorized_user is not set, allow exchange with any, otherwise check it
         if let Some(auth_user) = ctx.accounts.escrow.authorized_user {
             if auth_user != ctx.accounts.taker.key() {
@@ -116,7 +112,7 @@ pub mod escrow {
         let y_amount = utils::get_y_amount(
             ctx.accounts.escrow.x_amount,
             ctx.accounts.escrow.y_amount,
-            amount
+            amount,
         );
 
         // Taker => Maker
@@ -360,4 +356,3 @@ pub struct Escrow {
     receiver: Pubkey,
     sol_receiver: Pubkey,
 }
-
