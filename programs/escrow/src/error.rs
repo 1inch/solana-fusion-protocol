@@ -10,18 +10,6 @@ pub enum EscrowError {
     PartialFillNotAllowed,
     #[msg("Not enough tokens in escrow")]
     NotEnoughTokensInEscrow,
-    #[msg("Unexpected getter program")]
-    UnexpectedGetterProgram,
-    #[msg("Predicate is not satisfied")]
-    PredicateNotSatisfied,
-    #[msg("Unexpected predicate program")]
-    UnexpectedPredicateProgram,
-    #[msg("Invalid extension")]
-    InvalidExtension,
-    #[msg("Order id already used")]
-    OrderIdAlreadyUsed,
-    #[msg("Y amount exceeded")]
-    YAmountExceeded,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
 }

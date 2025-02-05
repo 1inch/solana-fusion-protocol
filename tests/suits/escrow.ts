@@ -9,7 +9,6 @@ import {
   buildEscrowTraits,
   trackReceivedTokenAndTx,
   debugLog,
-  INVALIDATOR_SIZE,
   numberToBuffer,
 } from "../utils/utils";
 chai.use(chaiAsPromised);
@@ -59,10 +58,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
@@ -97,7 +93,7 @@ describe("Non-Custodial Escrow", () => {
       });
       const transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, true, state.defaultSrcAmount, null, null)
+          .accept(escrow.order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               makerReceiver: state.charlie.keypair.publicKey,
@@ -135,10 +131,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -178,10 +171,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -203,7 +193,7 @@ describe("Non-Custodial Escrow", () => {
 
       const transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, true, state.defaultSrcAmount, null, null)
+          .accept(escrow.order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               xMint: splToken.NATIVE_MINT,
@@ -248,7 +238,7 @@ describe("Non-Custodial Escrow", () => {
 
       const transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, true, state.defaultSrcAmount, null, null)
+          .accept(escrow.order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
               yMint: splToken.NATIVE_MINT,
@@ -288,10 +278,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount.muln(10),
-            null,
-            null
           )
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
@@ -339,10 +326,7 @@ describe("Non-Custodial Escrow", () => {
       await program.methods
         .accept(
           state.escrows[0].order_id,
-          true,
           state.defaultSrcAmount,
-          null,
-          null
         )
         .accounts(
           state.buildAccountsDataForAccept({
@@ -393,7 +377,6 @@ describe("Non-Custodial Escrow", () => {
     //     takerYTokens: state.bob.atas[state.tokens[1].toString()].address,
     //     solReceiver: state.alice.keypair.publicKey,
     //     tokenProgram: splToken.TOKEN_PROGRAM_ID,
-    //     takingAmountGetterProgram: null,
     //     associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     //     systemProgram: anchor.web3.SystemProgram.programId,
     //   })
@@ -417,14 +400,6 @@ describe("Non-Custodial Escrow", () => {
         ],
         program.programId
       );
-      const [order_invalidator] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("order_invalidator"),
-          state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id / INVALIDATOR_SIZE, 4),
-        ],
-        program.programId
-      );
 
       await program.methods
         .initialize(
@@ -433,32 +408,15 @@ describe("Non-Custodial Escrow", () => {
           state.defaultSrcAmount,
           state.defaultDstAmount,
           state.defaultTraits,
-          null,
-          null,
-          null,
-          null,
           state.alice.keypair.publicKey,
           state.alice.keypair.publicKey
         )
         .accountsPartial({
-          payer: payer.publicKey,
           maker: state.alice.keypair.publicKey,
           xMint: state.tokens[0],
           yMint: state.tokens[1],
           escrow: escrow,
-          orderInvalidator: order_invalidator,
           authorizedUser: null,
-        })
-        .signers([state.alice.keypair])
-        .rpc();
-
-      await program.methods
-        .cancel(order_id)
-        .accountsPartial({
-          maker: state.alice.keypair.publicKey,
-          xMint: state.tokens[0],
-          escrow: escrow,
-          solReceiver: state.alice.keypair.publicKey,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -471,89 +429,19 @@ describe("Non-Custodial Escrow", () => {
             state.defaultSrcAmount,
             state.defaultDstAmount,
             state.defaultTraits,
-            null,
-            null,
-            null,
-            null,
             state.alice.keypair.publicKey,
             state.alice.keypair.publicKey
           )
           .accountsPartial({
-            payer: payer.publicKey,
             maker: state.alice.keypair.publicKey,
             xMint: state.tokens[0],
             yMint: state.tokens[1],
             escrow: escrow,
-            orderInvalidator: order_invalidator,
             authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: OrderIdAlreadyUsed");
-    });
-
-    it("Creates another order invalidator account if needed", async () => {
-      const lastOrderId = state.escrows[state.escrows.length - 1].order_id;
-      const [lastOrderInvalidator] =
-        anchor.web3.PublicKey.findProgramAddressSync(
-          [
-            anchor.utils.bytes.utf8.encode("order_invalidator"),
-            state.alice.keypair.publicKey.toBuffer(),
-            numberToBuffer(lastOrderId / INVALIDATOR_SIZE, 4),
-          ],
-          program.programId
-        );
-
-      const newOrderId = lastOrderId + INVALIDATOR_SIZE;
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow6"),
-          state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(newOrderId, 4),
-        ],
-        program.programId
-      );
-      const [orderInvalidator] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("order_invalidator"),
-          state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(newOrderId / INVALIDATOR_SIZE, 4),
-        ],
-        program.programId
-      );
-      expect(orderInvalidator).to.be.not.eq(lastOrderInvalidator);
-
-      expect(
-        (await provider.connection.getParsedAccountInfo(orderInvalidator)).value
-      ).to.be.null;
-      await program.methods
-        .initialize(
-          newOrderId,
-          state.defaultExpirationTime,
-          state.defaultSrcAmount,
-          state.defaultDstAmount,
-          state.defaultTraits,
-          null,
-          null,
-          null,
-          null,
-          state.alice.keypair.publicKey,
-          state.alice.keypair.publicKey
-        )
-        .accountsPartial({
-          payer: payer.publicKey,
-          maker: state.alice.keypair.publicKey,
-          xMint: state.tokens[0],
-          yMint: state.tokens[1],
-          escrow: escrow,
-          orderInvalidator: orderInvalidator,
-          authorizedUser: null,
-        })
-        .signers([state.alice.keypair])
-        .rpc();
-      expect(
-        (await provider.connection.getParsedAccountInfo(orderInvalidator)).value
-      ).to.be.not.null;
+      ).to.be.rejectedWith("already in use");
     });
 
     it("Doesn't execute the trade with the wrong order_id", async () => {
@@ -561,10 +449,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[1].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
@@ -577,10 +462,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -597,10 +479,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -617,10 +496,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -639,10 +515,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount.divn(2),
-            null,
-            null
           )
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
@@ -671,10 +544,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount.divn(2),
-            null,
-            null
           )
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
@@ -713,7 +583,7 @@ describe("Non-Custodial Escrow", () => {
 
       let transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, true, _srcAmount.divn(2), null, null)
+          .accept(escrow.order_id, _srcAmount.divn(2))
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
@@ -744,7 +614,7 @@ describe("Non-Custodial Escrow", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, true, _srcAmount.divn(2), null, null)
+          .accept(escrow.order_id, _srcAmount.divn(2))
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
@@ -775,7 +645,7 @@ describe("Non-Custodial Escrow", () => {
       // Third trade
       transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, true, new anchor.BN(1), null, null)
+          .accept(escrow.order_id, new anchor.BN(1))
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
@@ -917,10 +787,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             escrow.order_id,
-            true,
             state.defaultSrcAmount.divn(2),
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -944,7 +811,7 @@ describe("Non-Custodial Escrow", () => {
       const solReceiverNativeTokenBalanceBefore =
         await provider.connection.getBalance(state.charlie.keypair.publicKey);
       await program.methods
-        .accept(escrow.order_id, true, state.defaultSrcAmount, null, null)
+        .accept(escrow.order_id, state.defaultSrcAmount)
         .accounts(
           state.buildAccountsDataForAccept({
             escrow: escrow.escrow,
@@ -975,10 +842,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             escrow.order_id,
-            true,
             state.defaultSrcAmount.divn(2),
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -998,10 +862,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -1019,10 +880,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -1041,10 +899,7 @@ describe("Non-Custodial Escrow", () => {
         await program.methods
           .accept(
             state.escrows[0].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(state.buildAccountsDataForAccept({}))
           .signers([state.bob.keypair])
@@ -1053,10 +908,7 @@ describe("Non-Custodial Escrow", () => {
         await program.methods
           .accept(
             state.escrows[1].order_id,
-            true,
             state.defaultSrcAmount,
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -1112,10 +964,7 @@ describe("Non-Custodial Escrow", () => {
         program.methods
           .accept(
             escrow.order_id,
-            true,
             state.defaultSrcAmount.divn(10),
-            null,
-            null
           )
           .accounts(
             state.buildAccountsDataForAccept({
@@ -1145,10 +994,7 @@ describe("Non-Custodial Escrow", () => {
       await program.methods
         .accept(
           escrow.order_id,
-          true,
           state.defaultSrcAmount.divn(10),
-          null,
-          null
         )
         .accounts(
           state.buildAccountsDataForAccept({

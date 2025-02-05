@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use borsh::BorshSerialize;
 
 pub mod constants;
 pub mod error;
@@ -17,15 +16,11 @@ pub mod escrow {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        order_id: u32,
+        _order_id: u32,
         expiration_time: u32, // Order expiration time, unix timestamp
         x_amount: u64,        // Amount of tokens maker wants to sell
         y_amount: u64,        // Amount of tokens maker wants in exchange
         escrow_traits: u8,
-        taking_amount_getter_program: Option<Pubkey>,
-        making_amount_getter_program: Option<Pubkey>,
-        predicate_program: Option<Pubkey>,
-        extension_hash: Option<[u8; 16]>,
         sol_receiver: Pubkey, // Address to receive SOL when escrow is closed
         receiver: Pubkey,     // Owner of the account which will receive y_token
     ) -> Result<()> {
@@ -36,15 +31,6 @@ pub mod escrow {
             return err!(EscrowError::OrderExpired);
         }
 
-        let order_invalidator = &mut ctx.accounts.order_invalidator;
-        // Find the index of the order id in the invalidator array
-        let idx = order_id % constants::INVALIDATOR_SIZE as u32;
-        // Check that the order id hasn't been used before or has already expired
-        if order_invalidator.invalidator[idx as usize] as i64 >= clock.unix_timestamp {
-            return err!(EscrowError::OrderIdAlreadyUsed);
-        }
-        order_invalidator.invalidator[idx as usize] = expiration_time;
-
         escrow.set_inner(Escrow {
             x_amount,                          // Amount of tokens maker wants to sell
             x_remaining: x_amount,             // Remaining amount to be filled
@@ -53,10 +39,6 @@ pub mod escrow {
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
             traits: escrow_traits,
-            taking_amount_getter_program,
-            making_amount_getter_program,
-            extension_hash,
-            predicate_program,
             sol_receiver,
             receiver,
         });
@@ -79,10 +61,7 @@ pub mod escrow {
     pub fn accept(
         ctx: Context<Accept>,
         order_id: u32,
-        is_x_amount: bool, // True if `amount` represents the asset that taker wants to get, false if it's the asset to give
         amount: u64,
-        get_amount_extra_data: Option<Vec<u8>>,
-        predicate_extra_data: Option<Vec<u8>>,
     ) -> Result<()> {
         // if authorized_user is not set, allow exchange with any, otherwise check it
         if let Some(auth_user) = ctx.accounts.escrow.authorized_user {
@@ -96,121 +75,15 @@ pub mod escrow {
             return err!(EscrowError::OrderExpired);
         }
 
-        let extension_hash =
-            utils::calculate_extension_hash(&get_amount_extra_data, &predicate_extra_data);
-
-        // Check that extension hash is the same as the one set during escrow initialization
-        if extension_hash != ctx.accounts.escrow.extension_hash {
-            return err!(EscrowError::InvalidExtension);
-        }
-
-        // Check that getter program is set if needed
-        let (expected_getter, provided_getter) = if is_x_amount {
-            (
-                ctx.accounts.escrow.taking_amount_getter_program,
-                ctx.accounts
-                    .taking_amount_getter_program
-                    .as_ref()
-                    .map(|acc| acc.key()),
-            )
-        } else {
-            (
-                ctx.accounts.escrow.making_amount_getter_program,
-                ctx.accounts
-                    .making_amount_getter_program
-                    .as_ref()
-                    .map(|acc| acc.key()),
-            )
-        };
-
-        // Check that getter program address which was set during escrow initialization
-        // corresponds to the provided program.
-        if expected_getter != provided_getter {
-            return err!(EscrowError::UnexpectedGetterProgram);
-        }
-
-        // Calculate x_amount and y_amount
-        let (x_amount, y_amount) = if is_x_amount {
-            (
-                amount,
-                utils::get_y_amount_with_getter(
-                    ctx.accounts.escrow.x_amount,
-                    ctx.accounts.escrow.y_amount,
-                    amount,
-                    provided_getter,
-                    &get_amount_extra_data,
-                ),
-            )
-        } else {
-            let mut y_amount_tmp = amount;
-            let mut x_amount_tmp = utils::get_x_amount_with_getter(
-                ctx.accounts.escrow.x_amount,
-                ctx.accounts.escrow.y_amount,
-                amount,
-                provided_getter,
-                &get_amount_extra_data,
-            );
-            if x_amount_tmp > ctx.accounts.escrow.x_remaining {
-                // Check that taking_amount_getter program address which was set during escrow initialization
-                // corresponds to the provided program
-                if ctx.accounts.escrow.taking_amount_getter_program
-                    != ctx
-                        .accounts
-                        .taking_amount_getter_program
-                        .as_ref()
-                        .map(|acc| acc.key())
-                {
-                    return err!(EscrowError::UnexpectedGetterProgram);
-                }
-                // Try to decrease y_amount because computed x_amount exceeds remaining amount
-                x_amount_tmp = ctx.accounts.escrow.x_remaining;
-                y_amount_tmp = utils::get_y_amount_with_getter(
-                    ctx.accounts.escrow.x_amount,
-                    ctx.accounts.escrow.y_amount,
-                    x_amount_tmp,
-                    ctx.accounts.escrow.taking_amount_getter_program,
-                    &get_amount_extra_data,
-                );
-                if y_amount_tmp > amount {
-                    return err!(EscrowError::YAmountExceeded);
-                }
-            }
-
-            (x_amount_tmp, y_amount_tmp)
-        };
-
-        if ctx.accounts.escrow.x_remaining < x_amount {
+        if ctx.accounts.escrow.x_remaining < amount {
             return err!(EscrowError::NotEnoughTokensInEscrow);
         }
 
         // Check if partial fills are allowed if this is the case
         if !utils::allow_partial_fills(ctx.accounts.escrow.traits)
-            && ctx.accounts.escrowed_x_tokens.amount > x_amount
+            && ctx.accounts.escrowed_x_tokens.amount > amount
         {
             return err!(EscrowError::PartialFillNotAllowed);
-        }
-
-        let expected_predicate = ctx.accounts.escrow.predicate_program;
-        let provided_predicate = ctx.accounts.predicate_program.as_ref().map(|acc| acc.key());
-        // Check that predicate program address is the same as the one set during escrow initialization
-        if expected_predicate != provided_predicate {
-            return err!(EscrowError::UnexpectedPredicateProgram);
-        }
-
-        // Call predicate program if it's set
-        if let Some(predicate_program) = ctx.accounts.escrow.predicate_program {
-            let success = bool::try_from_slice(&utils::call_program(
-                predicate_program,
-                "check_predicate",
-                PredicateArgs {
-                    taker: ctx.accounts.taker.key(),
-                    extra_data: predicate_extra_data,
-                },
-            )?)?;
-
-            if !success {
-                return err!(EscrowError::PredicateNotSatisfied);
-            }
         }
 
         // Escrow => Taker
@@ -229,16 +102,22 @@ pub mod escrow {
                     &[ctx.bumps.escrow],
                 ]],
             ),
-            x_amount,
+            amount,
         )?;
 
         // Update x_remaining
-        ctx.accounts.escrow.x_remaining -= x_amount;
+        ctx.accounts.escrow.x_remaining -= amount;
 
         // Check that owner of the account which will receive y_token is the same as the one set during escrow initialization
         if ctx.accounts.maker_receiver.key() != ctx.accounts.escrow.receiver {
             return err!(EscrowError::SellerReceiverMismatch);
         }
+
+        let y_amount = utils::get_y_amount(
+            ctx.accounts.escrow.x_amount,
+            ctx.accounts.escrow.y_amount,
+            amount
+        );
 
         // Taker => Maker
         anchor_spl::token::transfer(
@@ -261,7 +140,7 @@ pub mod escrow {
                 ctx.accounts.token_program.to_account_info(),
                 ctx.accounts.escrow.to_account_info(),
                 ctx.accounts.escrowed_x_tokens.to_account_info(),
-                ctx.accounts.escrowed_x_tokens.amount - x_amount,
+                ctx.accounts.escrowed_x_tokens.amount - amount,
                 ctx.accounts.maker_x_token.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
                 ctx.accounts.sol_receiver.to_account_info(),
@@ -296,10 +175,6 @@ pub struct Initialize<'info> {
     #[account(mut, signer)]
     maker: Signer<'info>,
 
-    /// Pays for the creation of escrow account, order invalidator account and escrow x tokens ATA
-    #[account(mut)]
-    payer: Signer<'info>,
-
     /// Maker asset
     x_mint: Box<Account<'info, Mint>>,
     /// Taker asset
@@ -318,28 +193,17 @@ pub struct Initialize<'info> {
     /// Account to store order conditions
     #[account(
         init,
-        payer = payer,
+        payer = maker,
         space = constants::DISCRIMINATOR + Escrow::INIT_SPACE,
         seeds = ["escrow6".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
         bump,
     )]
     pub escrow: Box<Account<'info, Escrow>>,
 
-    /// Account to store invalidation time of orders
-    #[account(
-        init_if_needed,
-        payer = payer,
-        space = constants::DISCRIMINATOR + OrderInvalidator::INIT_SPACE,
-        // One OrderInvalidator account for INVALIDATOR_SIZE orders
-        seeds = ["order_invalidator".as_bytes(), maker.key().as_ref(), (order_id / constants::INVALIDATOR_SIZE as u32).to_be_bytes().as_ref()],
-        bump,
-    )]
-    order_invalidator: Box<Account<'info, OrderInvalidator>>,
-
     /// ATA of x_mint to store escrowed tokens
     #[account(
         init,
-        payer = payer,
+        payer = maker,
         associated_token::mint = x_mint,
         associated_token::authority = escrow,
     )]
@@ -435,12 +299,6 @@ pub struct Accept<'info> {
 
     pub token_program: Program<'info, Token>,
 
-    pub taking_amount_getter_program: Option<AccountInfo<'info>>,
-
-    pub making_amount_getter_program: Option<AccountInfo<'info>>,
-
-    pub predicate_program: Option<AccountInfo<'info>>,
-
     system_program: Program<'info, System>,
     associated_token_program: Program<'info, AssociatedToken>,
 }
@@ -499,23 +357,7 @@ pub struct Escrow {
     expiration_time: u32,
     traits: u8,
     authorized_user: Option<Pubkey>,
-    // TODO move these pubkeys to 'extension_hash' to do it as it's done in Solidity implementation
     receiver: Pubkey,
-    taking_amount_getter_program: Option<Pubkey>,
-    making_amount_getter_program: Option<Pubkey>,
-    predicate_program: Option<Pubkey>,
-    extension_hash: Option<[u8; 16]>,
     sol_receiver: Pubkey,
 }
 
-#[account]
-#[derive(InitSpace)]
-pub struct OrderInvalidator {
-    invalidator: [u32; constants::INVALIDATOR_SIZE],
-}
-
-#[derive(BorshSerialize)]
-pub struct PredicateArgs {
-    pub taker: Pubkey,
-    pub extra_data: Option<Vec<u8>>,
-}

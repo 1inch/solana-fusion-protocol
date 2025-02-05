@@ -7,7 +7,7 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
-import { BanksClient, Clock, ProgramTestContext } from "solana-bankrun";
+import { BanksClient } from "solana-bankrun";
 import { Escrow as EscrowType } from "../../target/types/escrow";
 
 export type User = {
@@ -21,36 +21,6 @@ export type Escrow = {
   escrow: anchor.web3.PublicKey;
   order_id: number;
   ata: anchor.web3.PublicKey;
-};
-
-export class GetAmountArgs {
-  initial_rate_bump: number;
-  auction_start_time: number;
-  auction_finish_time: number;
-
-  constructor(properties: {
-    initial_rate_bump: number;
-    auction_start_time: number;
-    auction_finish_time: number;
-  }) {
-    this.initial_rate_bump = properties.initial_rate_bump;
-    this.auction_start_time = properties.auction_start_time;
-    this.auction_finish_time = properties.auction_finish_time;
-  }
-}
-
-export const getAmountArgsSchema = {
-  struct: {
-    initial_rate_bump: "u32",
-    auction_start_time: "u32",
-    auction_finish_time: "u32",
-  },
-};
-
-export const whitelistExtraDataSchema = {
-  struct: {
-    whitelist: { array: { type: { array: { type: "u8", len: 32 } } } },
-  },
 };
 
 export const INVALIDATOR_SIZE = 128;
@@ -193,9 +163,6 @@ export class TestState {
     takerYTokens = this.bob.atas[this.tokens[1].toString()].address,
     solReceiver = this.alice.keypair.publicKey,
     tokenProgram = splToken.TOKEN_PROGRAM_ID,
-    takingAmountGetterProgram = null,
-    makingAmountGetterProgram = null,
-    predicateProgram = null,
     associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     systemProgram = anchor.web3.SystemProgram.programId,
   }): any {
@@ -213,9 +180,6 @@ export class TestState {
       takerYTokens,
       solReceiver,
       tokenProgram,
-      takingAmountGetterProgram,
-      makingAmountGetterProgram,
-      predicateProgram,
       associatedTokenProgram,
       systemProgram,
     };
@@ -233,10 +197,6 @@ export class TestState {
     escrow_traits = this.defaultTraits,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
-    takingAmountGetterProgram = null,
-    makingAmountGetterProgram = null,
-    predicateProgram = null,
-    extensionHash = null,
     sol_receiver = this.alice.keypair.publicKey,
   }: {
     escrowProgram: anchor.Program<EscrowType>;
@@ -250,16 +210,6 @@ export class TestState {
         anchor.utils.bytes.utf8.encode("escrow6"),
         this.alice.keypair.publicKey.toBuffer(),
         numberToBuffer(this.order_id, 4),
-      ],
-      escrowProgram.programId
-    );
-
-    // Derive order_invalidator address
-    const [order_invalidator] = anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        anchor.utils.bytes.utf8.encode("order_invalidator"),
-        this.alice.keypair.publicKey.toBuffer(),
-        numberToBuffer(this.order_id / INVALIDATOR_SIZE, 4),
       ],
       escrowProgram.programId
     );
@@ -297,20 +247,14 @@ export class TestState {
         srcAmount,
         dstAmount,
         escrow_traits,
-        takingAmountGetterProgram,
-        makingAmountGetterProgram,
-        predicateProgram,
-        extensionHash,
         sol_receiver,
         makerReceiver
       )
       .accountsPartial({
-        payer: payer.publicKey,
         maker: this.alice.keypair.publicKey,
         xMint,
         yMint,
         escrow,
-        orderInvalidator: order_invalidator,
         authorizedUser,
       })
       .signers([this.alice.keypair])
@@ -454,36 +398,6 @@ async function prepareNativeTokens({ amount, user, provider, payer }) {
 
 export function numberToBuffer(n: number, bufSize: number) {
   return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
-}
-
-export enum Period {
-  Finality = 0,
-  Withdrawal = 1,
-  PublicWithdrawal = 2,
-  Cancellation = 3,
-  PublicCancellation = 4,
-}
-
-export const defaultPeriodDuration = 100;
-export const aLittleTime = 5;
-
-export async function setCurrentPeriod(
-  context: ProgramTestContext,
-  banksClient: BanksClient,
-  period: Period
-) {
-  const currentClock = await banksClient.getClock();
-  context.setClock(
-    new Clock(
-      currentClock.slot,
-      currentClock.epochStartTimestamp,
-      currentClock.epoch,
-      currentClock.leaderScheduleEpoch,
-      currentClock.unixTimestamp +
-        BigInt(defaultPeriodDuration * period) +
-        BigInt(aLittleTime)
-    )
-  );
 }
 
 // Bankrun test fails with "Could not find <pubkey>" error when account does not exist
