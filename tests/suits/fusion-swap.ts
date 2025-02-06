@@ -166,12 +166,12 @@ describe("Fusion Swap", () => {
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              takerDstAta: state.bob.atas[state.tokens[2].toString()].address,
+              makerDstAta: state.alice.atas[state.tokens[2].toString()].address,
             })
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: ConstraintAssociated");
+      ).to.be.rejectedWith("Error Code: ConstraintTokenMint");
     });
 
     it("Execute the trade with native tokens => tokens", async () => {
