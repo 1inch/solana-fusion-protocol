@@ -95,8 +95,8 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForAccept({
               makerReceiver: state.charlie.keypair.publicKey,
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-              makerYTokens:
+              escrowSrcAta: escrow.ata,
+              makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -129,7 +129,7 @@ describe("Fusion Swap", () => {
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              takerXTokens:
+              takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
             })
           )
@@ -166,7 +166,7 @@ describe("Fusion Swap", () => {
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              takerYTokens: state.bob.atas[state.tokens[2].toString()].address,
+              takerDstAta: state.bob.atas[state.tokens[2].toString()].address,
             })
           )
           .signers([state.bob.keypair])
@@ -179,7 +179,7 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        xMint: splToken.NATIVE_MINT,
+        srcMint: splToken.NATIVE_MINT,
       });
 
       const transactionPromise = () =>
@@ -187,12 +187,12 @@ describe("Fusion Swap", () => {
           .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              xMint: splToken.NATIVE_MINT,
+              srcMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-              makerXTokens:
+              escrowSrcAta: escrow.ata,
+              makerSrcAta:
                 state.alice.atas[splToken.NATIVE_MINT.toString()].address,
-              takerXTokens:
+              takerSrcAta:
                 state.bob.atas[splToken.NATIVE_MINT.toString()].address,
             })
           )
@@ -224,7 +224,7 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        yMint: splToken.NATIVE_MINT,
+        dstMint: splToken.NATIVE_MINT,
       });
 
       const transactionPromise = () =>
@@ -232,12 +232,12 @@ describe("Fusion Swap", () => {
           .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              yMint: splToken.NATIVE_MINT,
+              dstMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-              makerYTokens:
+              escrowSrcAta: escrow.ata,
+              makerDstAta:
                 state.alice.atas[splToken.NATIVE_MINT.toString()].address,
-              takerYTokens:
+              takerDstAta:
                 state.bob.atas[splToken.NATIVE_MINT.toString()].address,
             })
           )
@@ -315,7 +315,7 @@ describe("Fusion Swap", () => {
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accounts(
           state.buildAccountsDataForAccept({
-            makerYTokens: aliceAtaYToken,
+            makerDstAta: aliceAtaYToken,
           })
         )
         .signers([state.bob.keypair])
@@ -353,13 +353,13 @@ describe("Fusion Swap", () => {
     //   .accounts({
     //     taker: state.bob.keypair.publicKey,
     //     maker: state.alice.keypair.publicKey,
-    //     xMint: state.tokens[0],
-    //     yMint: state.tokens[1],
+    //     srcMint: state.tokens[0],
+    //     dstMint: state.tokens[1],
     //     escrow: state.escrows[0].escrow,
-    //     escrowedXTokens: state.escrows[0].ata,
-    //     makerYTokens: state.alice.atas[state.tokens[1].toString()].address,
-    //     takerXTokens: state.bobAtaXToken,
-    //     takerYTokens: state.bob.atas[state.tokens[1].toString()].address,
+    //     escrowSrcAta: state.escrows[0].ata,
+    //     makerDstAta: state.alice.atas[state.tokens[1].toString()].address,
+    //     takerSrcAta: state.bobAtaXToken,
+    //     takerDstAta: state.bob.atas[state.tokens[1].toString()].address,
     //     solReceiver: state.alice.keypair.publicKey,
     //     tokenProgram: splToken.TOKEN_PROGRAM_ID,
     //     associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -398,8 +398,8 @@ describe("Fusion Swap", () => {
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
-          xMint: state.tokens[0],
-          yMint: state.tokens[1],
+          srcMint: state.tokens[0],
+          dstMint: state.tokens[1],
           escrow: escrow,
           authorizedUser: null,
         })
@@ -419,8 +419,8 @@ describe("Fusion Swap", () => {
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
-            yMint: state.tokens[1],
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
             escrow: escrow,
             authorizedUser: null,
           })
@@ -445,7 +445,7 @@ describe("Fusion Swap", () => {
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              escrowedXTokens: state.escrows[1].ata,
+              escrowSrcAta: state.escrows[1].ata,
             })
           )
           .signers([state.bob.keypair])
@@ -453,13 +453,13 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintTokenOwner");
     });
 
-    it("Doesn't execute the trade with the wrong yMint", async () => {
+    it("Doesn't execute the trade with the wrong dstMint", async () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              yMint: state.tokens[0],
+              dstMint: state.tokens[0],
             })
           )
           .signers([state.bob.keypair])
@@ -474,7 +474,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               makerReceiver: state.charlie.keypair.publicKey,
-              makerYTokens:
+              makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -554,7 +554,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -585,7 +585,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -616,7 +616,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -647,7 +647,7 @@ describe("Fusion Swap", () => {
           .cancel(state.escrows[0].order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
             solReceiver: state.alice.keypair.publicKey,
           })
@@ -670,7 +670,7 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        xMint: splToken.NATIVE_MINT,
+        srcMint: splToken.NATIVE_MINT,
       });
 
       const transactionPromise = () =>
@@ -678,7 +678,7 @@ describe("Fusion Swap", () => {
           .cancel(escrow.order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: splToken.NATIVE_MINT,
+            srcMint: splToken.NATIVE_MINT,
             escrow: escrow.escrow,
             solReceiver: state.alice.keypair.publicKey,
           })
@@ -702,7 +702,7 @@ describe("Fusion Swap", () => {
           .cancel(state.escrows[1].order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
             solReceiver: state.alice.keypair.publicKey,
           })
@@ -717,9 +717,9 @@ describe("Fusion Swap", () => {
           .cancel(state.escrows[0].order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            escrowedXTokens: state.escrows[1].ata,
+            escrowSrcAta: state.escrows[1].ata,
             solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
@@ -733,7 +733,7 @@ describe("Fusion Swap", () => {
           .cancel(state.escrows[0].order_id)
           .accountsPartial({
             maker: state.charlie.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
             solReceiver: state.alice.keypair.publicKey,
           })
@@ -756,7 +756,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -779,7 +779,7 @@ describe("Fusion Swap", () => {
         .accounts(
           state.buildAccountsDataForAccept({
             escrow: escrow.escrow,
-            escrowedXTokens: escrow.ata,
+            escrowSrcAta: escrow.ata,
             solReceiver: state.charlie.keypair.publicKey,
           })
         )
@@ -808,7 +808,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -824,7 +824,7 @@ describe("Fusion Swap", () => {
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              makerYTokens:
+              makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -839,7 +839,7 @@ describe("Fusion Swap", () => {
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForAccept({
-              xMint: state.tokens[1],
+              srcMint: state.tokens[1],
             })
           )
           .signers([state.bob.keypair])
@@ -863,10 +863,10 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForAccept({
               taker: state.charlie.keypair.publicKey,
               escrow: state.escrows[1].escrow,
-              escrowedXTokens: state.escrows[1].ata,
-              takerXTokens:
+              escrowSrcAta: state.escrows[1].ata,
+              takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
-              takerYTokens:
+              takerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -915,7 +915,7 @@ describe("Fusion Swap", () => {
           .accounts(
             state.buildAccountsDataForAccept({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -942,7 +942,7 @@ describe("Fusion Swap", () => {
         .accounts(
           state.buildAccountsDataForAccept({
             escrow: escrow.escrow,
-            escrowedXTokens: escrow.ata,
+            escrowSrcAta: escrow.ata,
           })
         )
         .signers([state.bob.keypair])

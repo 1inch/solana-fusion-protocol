@@ -18,11 +18,11 @@ pub mod fusion_swap {
         ctx: Context<Initialize>,
         _order_id: u32,
         expiration_time: u32, // Order expiration time, unix timestamp
-        x_amount: u64,        // Amount of tokens maker wants to sell
-        y_amount: u64,        // Amount of tokens maker wants in exchange
+        src_amount: u64,      // Amount of tokens maker wants to sell
+        dst_amount: u64,      // Amount of tokens maker wants in exchange
         escrow_traits: u8,
         sol_receiver: Pubkey, // Address to receive SOL when escrow is closed
-        receiver: Pubkey,     // Owner of the account which will receive y_token
+        receiver: Pubkey,     // Owner of the account which will receive dst_token
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
@@ -32,10 +32,10 @@ pub mod fusion_swap {
         }
 
         escrow.set_inner(Escrow {
-            x_amount,                          // Amount of tokens maker wants to sell
-            x_remaining: x_amount,             // Remaining amount to be filled
-            y_amount,                          // Amount of tokens maker wants in exchange
-            y_mint: ctx.accounts.y_mint.key(), // token maker wants in exchange
+            src_amount,                            // Amount of tokens maker wants to sell
+            src_remaining: src_amount,             // Remaining amount to be filled
+            dst_amount,                            // Amount of tokens maker wants in exchange
+            dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
             traits: escrow_traits,
@@ -48,12 +48,12 @@ pub mod fusion_swap {
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
                 anchor_spl::token::Transfer {
-                    from: ctx.accounts.maker_x_token.to_account_info(),
-                    to: ctx.accounts.escrowed_x_tokens.to_account_info(),
+                    from: ctx.accounts.maker_src_ata.to_account_info(),
+                    to: ctx.accounts.escrow_src_ata.to_account_info(),
                     authority: ctx.accounts.maker.to_account_info(),
                 },
             ),
-            x_amount,
+            src_amount,
         )?;
         Ok(())
     }
@@ -71,13 +71,13 @@ pub mod fusion_swap {
             return err!(EscrowError::OrderExpired);
         }
 
-        if ctx.accounts.escrow.x_remaining < amount {
+        if ctx.accounts.escrow.src_remaining < amount {
             return err!(EscrowError::NotEnoughTokensInEscrow);
         }
 
         // Check if partial fills are allowed if this is the case
         if !utils::allow_partial_fills(ctx.accounts.escrow.traits)
-            && ctx.accounts.escrowed_x_tokens.amount > amount
+            && ctx.accounts.escrow_src_ata.amount > amount
         {
             return err!(EscrowError::PartialFillNotAllowed);
         }
@@ -87,8 +87,8 @@ pub mod fusion_swap {
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 anchor_spl::token::Transfer {
-                    from: ctx.accounts.escrowed_x_tokens.to_account_info(),
-                    to: ctx.accounts.taker_x_tokens.to_account_info(),
+                    from: ctx.accounts.escrow_src_ata.to_account_info(),
+                    to: ctx.accounts.taker_src_ata.to_account_info(),
                     authority: ctx.accounts.escrow.to_account_info(),
                 },
                 &[&[
@@ -101,17 +101,17 @@ pub mod fusion_swap {
             amount,
         )?;
 
-        // Update x_remaining
-        ctx.accounts.escrow.x_remaining -= amount;
+        // Update src_remaining
+        ctx.accounts.escrow.src_remaining -= amount;
 
-        // Check that owner of the account which will receive y_token is the same as the one set during escrow initialization
+        // Check that owner of the account which will receive dst_token is the same as the one set during escrow initialization
         if ctx.accounts.maker_receiver.key() != ctx.accounts.escrow.receiver {
             return err!(EscrowError::SellerReceiverMismatch);
         }
 
-        let y_amount = utils::get_y_amount(
-            ctx.accounts.escrow.x_amount,
-            ctx.accounts.escrow.y_amount,
+        let dst_amount = utils::get_dst_amount(
+            ctx.accounts.escrow.src_amount,
+            ctx.accounts.escrow.dst_amount,
             amount,
         );
 
@@ -120,24 +120,24 @@ pub mod fusion_swap {
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
                 anchor_spl::token::Transfer {
-                    from: ctx.accounts.taker_y_tokens.to_account_info(),
-                    to: ctx.accounts.maker_y_tokens.to_account_info(),
+                    from: ctx.accounts.taker_dst_ata.to_account_info(),
+                    to: ctx.accounts.maker_dst_ata.to_account_info(),
                     authority: ctx.accounts.taker.to_account_info(),
                 },
             ),
-            y_amount,
+            dst_amount,
         )?;
 
         // Close escrow if multiple fills are not allowed or if all tokens are filled
         if !utils::allow_multiple_fills(ctx.accounts.escrow.traits)
-            || ctx.accounts.escrow.x_remaining == 0
+            || ctx.accounts.escrow.src_remaining == 0
         {
             utils::close(
                 ctx.accounts.token_program.to_account_info(),
                 ctx.accounts.escrow.to_account_info(),
-                ctx.accounts.escrowed_x_tokens.to_account_info(),
-                ctx.accounts.escrowed_x_tokens.amount - amount,
-                ctx.accounts.maker_x_token.to_account_info(),
+                ctx.accounts.escrow_src_ata.to_account_info(),
+                ctx.accounts.escrow_src_ata.amount - amount,
+                ctx.accounts.maker_src_ata.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
                 ctx.accounts.sol_receiver.to_account_info(),
                 order_id,
@@ -152,9 +152,9 @@ pub mod fusion_swap {
         utils::close(
             ctx.accounts.token_program.to_account_info(),
             ctx.accounts.escrow.to_account_info(),
-            ctx.accounts.escrowed_x_tokens.to_account_info(),
-            ctx.accounts.escrowed_x_tokens.amount,
-            ctx.accounts.maker_x_token.to_account_info(),
+            ctx.accounts.escrow_src_ata.to_account_info(),
+            ctx.accounts.escrow_src_ata.amount,
+            ctx.accounts.maker_src_ata.to_account_info(),
             ctx.accounts.maker.to_account_info(),
             ctx.accounts.sol_receiver.to_account_info(),
             order_id,
@@ -167,24 +167,24 @@ pub mod fusion_swap {
 #[derive(Accounts)]
 #[instruction(order_id: u32)]
 pub struct Initialize<'info> {
-    /// `maker`, who is willing to sell token_x for token_y
+    /// `maker`, who is willing to sell src token for dst token
     #[account(mut, signer)]
     maker: Signer<'info>,
 
     /// Maker asset
-    x_mint: Box<Account<'info, Mint>>,
+    src_mint: Box<Account<'info, Mint>>,
     /// Taker asset
-    y_mint: Box<Account<'info, Mint>>,
+    dst_mint: Box<Account<'info, Mint>>,
     /// Account allowed to fill the order
     authorized_user: Option<AccountInfo<'info>>,
 
-    /// Maker's ATA of x_mint
+    /// Maker's ATA of src_mint
     #[account(
         mut,
-        associated_token::mint = x_mint,
+        associated_token::mint = src_mint,
         associated_token::authority = maker
     )]
-    maker_x_token: Box<Account<'info, TokenAccount>>,
+    maker_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// Account to store order conditions
     #[account(
@@ -196,14 +196,14 @@ pub struct Initialize<'info> {
     )]
     escrow: Box<Account<'info, Escrow>>,
 
-    /// ATA of x_mint to store escrowed tokens
+    /// ATA of src_mint to store escrowed tokens
     #[account(
         init,
         payer = maker,
-        associated_token::mint = x_mint,
+        associated_token::mint = src_mint,
         associated_token::authority = escrow,
     )]
-    escrowed_x_tokens: Box<Account<'info, TokenAccount>>,
+    escrow_src_ata: Box<Account<'info, TokenAccount>>,
 
     associated_token_program: Program<'info, AssociatedToken>,
     token_program: Program<'info, Token>,
@@ -214,23 +214,23 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 #[instruction(order_id: u32)]
 pub struct Fill<'info> {
-    /// `taker`, who buys `x_mint` for `y_mint`
+    /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut)]
     taker: Signer<'info>,
 
     /// CHECK: check is not necessary as maker is only used as an input to escrow address calculation
     maker: AccountInfo<'info>,
 
-    /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_y_tokens
+    /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_dst_ata
     maker_receiver: AccountInfo<'info>,
 
     /// Maker asset
-    x_mint: Box<Account<'info, Mint>>,
+    src_mint: Box<Account<'info, Mint>>,
     /// Taker asset
     #[account(
-        constraint = escrow.y_mint == y_mint.key(),
+        constraint = escrow.dst_mint == dst_mint.key(),
     )]
-    y_mint: Box<Account<'info, Mint>>,
+    dst_mint: Box<Account<'info, Mint>>,
 
     /// Account to store order conditions
     #[account(
@@ -240,21 +240,21 @@ pub struct Fill<'info> {
     )]
     escrow: Box<Account<'info, Escrow>>,
 
-    /// ATA of x_mint to store escrowed tokens
+    /// ATA of src_mint to store escrowed tokens
     #[account(
         mut,
-        associated_token::mint = x_mint,
+        associated_token::mint = src_mint,
         associated_token::authority = escrow,
     )]
-    escrowed_x_tokens: Box<Account<'info, TokenAccount>>,
+    escrow_src_ata: Box<Account<'info, TokenAccount>>,
 
-    /// Maker's ATA of x_mint
+    /// Maker's ATA of src_mint
     #[account(
         mut,
-        associated_token::mint = x_mint,
+        associated_token::mint = src_mint,
         associated_token::authority = maker
     )]
-    maker_x_token: Box<Account<'info, TokenAccount>>,
+    maker_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: check is not necessary as sol_receiver is only used as an input to escrow address calculation
     /// This account will receive SOL when escrow is closed
@@ -264,34 +264,34 @@ pub struct Fill<'info> {
     )]
     sol_receiver: AccountInfo<'info>,
 
-    /// Maker's ATA of y_mint
+    /// Maker's ATA of dst_mint
     #[account(
         init_if_needed,
         payer = taker,
-        associated_token::mint = y_mint,
+        associated_token::mint = dst_mint,
         associated_token::authority = maker_receiver
     )]
-    maker_y_tokens: Box<Account<'info, TokenAccount>>,
+    maker_dst_ata: Box<Account<'info, TokenAccount>>,
 
-    // TODO initialize this account as well as 'maker_y_tokens'
+    // TODO initialize this account as well as 'maker_dst_ata'
     // this needs providing receiver address and adding
-    // associated_token::mint = y_mint,
+    // associated_token::mint = dst_mint,
     // associated_token::authority = receiver
     // constraint
-    /// Taker's ATA of x_mint
+    /// Taker's ATA of src_mint
     #[account(
         mut,
-        constraint = taker_x_tokens.mint.key() == x_mint.key()
+        constraint = taker_src_ata.mint.key() == src_mint.key()
     )]
-    taker_x_tokens: Box<Account<'info, TokenAccount>>,
+    taker_src_ata: Box<Account<'info, TokenAccount>>,
 
-    /// Taker's ATA of y_mint
+    /// Taker's ATA of dst_mint
     #[account(
         mut,
-        associated_token::mint = y_mint,
+        associated_token::mint = dst_mint,
         associated_token::authority = taker
     )]
-    taker_y_tokens: Box<Account<'info, TokenAccount>>,
+    taker_dst_ata: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
 
@@ -306,7 +306,7 @@ pub struct Cancel<'info> {
     maker: Signer<'info>,
 
     /// Maker asset
-    x_mint: Account<'info, Mint>,
+    src_mint: Account<'info, Mint>,
 
     /// Account to store order conditions
     #[account(
@@ -317,21 +317,21 @@ pub struct Cancel<'info> {
     )]
     escrow: Box<Account<'info, Escrow>>,
 
-    /// ATA of x_mint to store escrowed tokens
+    /// ATA of src_mint to store escrowed tokens
     #[account(
         mut,
-        associated_token::mint = x_mint,
+        associated_token::mint = src_mint,
         associated_token::authority = escrow,
     )]
-    escrowed_x_tokens: Account<'info, TokenAccount>,
+    escrow_src_ata: Account<'info, TokenAccount>,
 
-    /// Maker's ATA of x_mint
+    /// Maker's ATA of src_mint
     #[account(
         mut,
-        associated_token::mint = x_mint,
+        associated_token::mint = src_mint,
         associated_token::authority = maker
     )]
-    maker_x_token: Account<'info, TokenAccount>,
+    maker_src_ata: Account<'info, TokenAccount>,
 
     /// CHECK: check is not necessary as sol_receiver is only used to receive SOL when escrow is closed
     #[account(
@@ -346,10 +346,10 @@ pub struct Cancel<'info> {
 #[account]
 #[derive(InitSpace)]
 pub struct Escrow {
-    y_mint: Pubkey,
-    y_amount: u64,
-    x_amount: u64,
-    x_remaining: u64,
+    dst_mint: Pubkey,
+    dst_amount: u64,
+    src_amount: u64,
+    src_remaining: u64,
     expiration_time: u32,
     traits: u8,
     authorized_user: Option<Pubkey>,

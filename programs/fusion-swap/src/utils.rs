@@ -15,22 +15,22 @@ pub fn allow_multiple_fills(traits: u8) -> bool {
 pub fn close<'info>(
     token_program: AccountInfo<'info>,
     escrow: AccountInfo<'info>,
-    escrowed_x_tokens: AccountInfo<'info>,
-    escrowed_x_tokens_amount: u64,
-    maker_x_token: AccountInfo<'info>,
+    escrowed_src_tokens: AccountInfo<'info>,
+    escrowed_src_tokens_amount: u64,
+    maker_src_token: AccountInfo<'info>,
     maker: AccountInfo<'info>,
     sol_receiver: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
-    // return maker's x_token back to account
-    if escrowed_x_tokens_amount > 0 {
+    // return maker's src_token back to account
+    if escrowed_src_tokens_amount > 0 {
         anchor_spl::token::transfer(
             CpiContext::new_with_signer(
                 token_program.clone(),
                 anchor_spl::token::Transfer {
-                    from: escrowed_x_tokens.to_account_info(),
-                    to: maker_x_token,
+                    from: escrowed_src_tokens.to_account_info(),
+                    to: maker_src_token,
                     authority: escrow.clone(),
                 },
                 &[&[
@@ -40,15 +40,15 @@ pub fn close<'info>(
                     &[escrow_bump],
                 ]],
             ),
-            escrowed_x_tokens_amount,
+            escrowed_src_tokens_amount,
         )?;
     }
 
-    // Close escrowed_x_tokens account
+    // Close escrowed_src_tokens account
     anchor_spl::token::close_account(CpiContext::new_with_signer(
         token_program.clone(),
         anchor_spl::token::CloseAccount {
-            account: escrowed_x_tokens.to_account_info(),
+            account: escrowed_src_tokens.to_account_info(),
             destination: sol_receiver.to_account_info(),
             authority: escrow.clone(),
         },
@@ -80,7 +80,7 @@ pub fn close_account<'info>(
     info.realloc(0, false).map_err(Into::into)
 }
 
-// Function to get amount of `y_mint` tokens that the taker should pay to the maker using the default formula
-pub fn get_y_amount(escrow_x_amount: u64, escrow_y_amount: u64, swap_amount: u64) -> u64 {
-    (swap_amount * escrow_y_amount).div_ceil(escrow_x_amount)
+// Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
+pub fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u64) -> u64 {
+    (swap_amount * escrow_dst_amount).div_ceil(escrow_src_amount)
 }

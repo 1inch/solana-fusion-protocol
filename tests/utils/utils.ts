@@ -153,14 +153,14 @@ export class TestState {
     taker = this.bob.keypair.publicKey,
     maker = this.alice.keypair.publicKey,
     makerReceiver = this.alice.keypair.publicKey,
-    xMint = this.tokens[0],
-    yMint = this.tokens[1],
+    srcMint = this.tokens[0],
+    dstMint = this.tokens[1],
     escrow = this.escrows[0].escrow,
-    escrowedXTokens = this.escrows[0].ata,
-    makerXTokens = this.alice.atas[this.tokens[0].toString()].address,
-    makerYTokens = this.alice.atas[this.tokens[1].toString()].address,
-    takerXTokens = this.bob.atas[this.tokens[0].toString()].address,
-    takerYTokens = this.bob.atas[this.tokens[1].toString()].address,
+    escrowSrcAta = this.escrows[0].ata,
+    makerSrcAta = this.alice.atas[this.tokens[0].toString()].address,
+    makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
+    takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
+    takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
     solReceiver = this.alice.keypair.publicKey,
     tokenProgram = splToken.TOKEN_PROGRAM_ID,
     associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -170,14 +170,14 @@ export class TestState {
       taker,
       maker,
       makerReceiver,
-      xMint,
-      yMint,
+      srcMint,
+      dstMint,
       escrow,
-      escrowedXTokens,
-      makerXTokens,
-      makerYTokens,
-      takerXTokens,
-      takerYTokens,
+      escrowSrcAta,
+      makerSrcAta,
+      makerDstAta,
+      takerSrcAta,
+      takerDstAta,
       solReceiver,
       tokenProgram,
       associatedTokenProgram,
@@ -192,8 +192,8 @@ export class TestState {
     expirationTime = this.defaultExpirationTime,
     srcAmount = this.defaultSrcAmount,
     dstAmount = this.defaultDstAmount,
-    xMint = this.tokens[0],
-    yMint = this.tokens[1],
+    srcMint = this.tokens[0],
+    dstMint = this.tokens[1],
     escrow_traits = this.defaultTraits,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
@@ -215,14 +215,14 @@ export class TestState {
     );
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
-      xMint,
+      srcMint,
       escrow,
       true
     );
 
     if (provider instanceof anchor.AnchorProvider) {
       // TODO: research Bankrun native token support if needed
-      if (xMint == splToken.NATIVE_MINT) {
+      if (srcMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
           amount: srcAmount,
           user: this.alice,
@@ -230,7 +230,7 @@ export class TestState {
           payer,
         });
       }
-      if (yMint == splToken.NATIVE_MINT) {
+      if (dstMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
           amount: dstAmount,
           user: this.bob,
@@ -252,8 +252,8 @@ export class TestState {
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
-        xMint,
-        yMint,
+        srcMint,
+        dstMint,
         escrow,
         authorizedUser,
       })
