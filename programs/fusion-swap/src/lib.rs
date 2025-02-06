@@ -9,7 +9,7 @@ pub mod utils;
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
 
 #[program]
-pub mod escrow {
+pub mod fusion_swap {
     use error::EscrowError;
 
     use super::*;
@@ -58,7 +58,7 @@ pub mod escrow {
         Ok(())
     }
 
-    pub fn accept(ctx: Context<Accept>, order_id: u32, amount: u64) -> Result<()> {
+    pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
         // if authorized_user is not set, allow exchange with any, otherwise check it
         if let Some(auth_user) = ctx.accounts.escrow.authorized_user {
             if auth_user != ctx.accounts.taker.key() {
@@ -92,7 +92,7 @@ pub mod escrow {
                     authority: ctx.accounts.escrow.to_account_info(),
                 },
                 &[&[
-                    "escrow6".as_bytes(),
+                    "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
                     order_id.to_be_bytes().as_ref(),
                     &[ctx.bumps.escrow],
@@ -191,10 +191,10 @@ pub struct Initialize<'info> {
         init,
         payer = maker,
         space = constants::DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow6".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
         bump,
     )]
-    pub escrow: Box<Account<'info, Escrow>>,
+    escrow: Box<Account<'info, Escrow>>,
 
     /// ATA of x_mint to store escrowed tokens
     #[account(
@@ -213,32 +213,32 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 #[instruction(order_id: u32)]
-pub struct Accept<'info> {
+pub struct Fill<'info> {
     /// `taker`, who buys `x_mint` for `y_mint`
     #[account(mut)]
-    pub taker: Signer<'info>,
+    taker: Signer<'info>,
 
     /// CHECK: check is not necessary as maker is only used as an input to escrow address calculation
-    pub maker: AccountInfo<'info>,
+    maker: AccountInfo<'info>,
 
     /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_y_tokens
-    pub maker_receiver: AccountInfo<'info>,
+    maker_receiver: AccountInfo<'info>,
 
     /// Maker asset
-    pub x_mint: Box<Account<'info, Mint>>,
+    x_mint: Box<Account<'info, Mint>>,
     /// Taker asset
     #[account(
         constraint = escrow.y_mint == y_mint.key(),
     )]
-    pub y_mint: Box<Account<'info, Mint>>,
+    y_mint: Box<Account<'info, Mint>>,
 
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow6".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
         bump,
     )]
-    pub escrow: Box<Account<'info, Escrow>>,
+    escrow: Box<Account<'info, Escrow>>,
 
     /// ATA of x_mint to store escrowed tokens
     #[account(
@@ -246,7 +246,7 @@ pub struct Accept<'info> {
         associated_token::mint = x_mint,
         associated_token::authority = escrow,
     )]
-    pub escrowed_x_tokens: Box<Account<'info, TokenAccount>>,
+    escrowed_x_tokens: Box<Account<'info, TokenAccount>>,
 
     /// Maker's ATA of x_mint
     #[account(
@@ -254,7 +254,7 @@ pub struct Accept<'info> {
         associated_token::mint = x_mint,
         associated_token::authority = maker
     )]
-    pub maker_x_token: Box<Account<'info, TokenAccount>>,
+    maker_x_token: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: check is not necessary as sol_receiver is only used as an input to escrow address calculation
     /// This account will receive SOL when escrow is closed
@@ -262,7 +262,7 @@ pub struct Accept<'info> {
         mut,
         constraint = escrow.sol_receiver == sol_receiver.key(),
     )]
-    pub sol_receiver: AccountInfo<'info>,
+    sol_receiver: AccountInfo<'info>,
 
     /// Maker's ATA of y_mint
     #[account(
@@ -271,7 +271,7 @@ pub struct Accept<'info> {
         associated_token::mint = y_mint,
         associated_token::authority = maker_receiver
     )]
-    pub maker_y_tokens: Box<Account<'info, TokenAccount>>,
+    maker_y_tokens: Box<Account<'info, TokenAccount>>,
 
     // TODO initialize this account as well as 'maker_y_tokens'
     // this needs providing receiver address and adding
@@ -283,7 +283,7 @@ pub struct Accept<'info> {
         mut,
         constraint = taker_x_tokens.mint.key() == x_mint.key()
     )]
-    pub taker_x_tokens: Box<Account<'info, TokenAccount>>,
+    taker_x_tokens: Box<Account<'info, TokenAccount>>,
 
     /// Taker's ATA of y_mint
     #[account(
@@ -291,9 +291,9 @@ pub struct Accept<'info> {
         associated_token::mint = y_mint,
         associated_token::authority = taker
     )]
-    pub taker_y_tokens: Box<Account<'info, TokenAccount>>,
+    taker_y_tokens: Box<Account<'info, TokenAccount>>,
 
-    pub token_program: Program<'info, Token>,
+    token_program: Program<'info, Token>,
 
     system_program: Program<'info, System>,
     associated_token_program: Program<'info, AssociatedToken>,
@@ -303,19 +303,19 @@ pub struct Accept<'info> {
 #[instruction(order_id: u32)]
 pub struct Cancel<'info> {
     /// Account that created the escrow
-    pub maker: Signer<'info>,
+    maker: Signer<'info>,
 
     /// Maker asset
-    pub x_mint: Account<'info, Mint>,
+    x_mint: Account<'info, Mint>,
 
     /// Account to store order conditions
     #[account(
         mut,
         close = maker,
-        seeds = ["escrow6".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
         bump,
     )]
-    pub escrow: Box<Account<'info, Escrow>>,
+    escrow: Box<Account<'info, Escrow>>,
 
     /// ATA of x_mint to store escrowed tokens
     #[account(
@@ -323,7 +323,7 @@ pub struct Cancel<'info> {
         associated_token::mint = x_mint,
         associated_token::authority = escrow,
     )]
-    pub escrowed_x_tokens: Account<'info, TokenAccount>,
+    escrowed_x_tokens: Account<'info, TokenAccount>,
 
     /// Maker's ATA of x_mint
     #[account(
@@ -338,7 +338,7 @@ pub struct Cancel<'info> {
         mut,
         constraint = escrow.sol_receiver == sol_receiver.key(),
     )]
-    pub sol_receiver: AccountInfo<'info>,
+    sol_receiver: AccountInfo<'info>,
 
     token_program: Program<'info, Token>,
 }

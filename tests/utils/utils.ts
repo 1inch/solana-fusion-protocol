@@ -8,7 +8,7 @@ import {
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
 import { BanksClient } from "solana-bankrun";
-import { Escrow as EscrowType } from "../../target/types/escrow";
+import { FusionSwap } from "../../target/types/fusion_swap";
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -199,7 +199,7 @@ export class TestState {
     authorizedUser = null,
     sol_receiver = this.alice.keypair.publicKey,
   }: {
-    escrowProgram: anchor.Program<EscrowType>;
+    escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     [key: string]: any;
@@ -207,7 +207,7 @@ export class TestState {
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
-        anchor.utils.bytes.utf8.encode("escrow6"),
+        anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
         numberToBuffer(this.order_id, 4),
       ],

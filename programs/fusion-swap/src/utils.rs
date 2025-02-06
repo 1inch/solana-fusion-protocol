@@ -34,7 +34,7 @@ pub fn close<'info>(
                     authority: escrow.clone(),
                 },
                 &[&[
-                    "escrow6".as_bytes(),
+                    "escrow".as_bytes(),
                     maker.key().as_ref(),
                     order_id.to_be_bytes().as_ref(),
                     &[escrow_bump],
@@ -53,7 +53,7 @@ pub fn close<'info>(
             authority: escrow.clone(),
         },
         &[&[
-            "escrow6".as_bytes(),
+            "escrow".as_bytes(),
             maker.key().as_ref(),
             order_id.to_be_bytes().as_ref(),
             &[escrow_bump],
