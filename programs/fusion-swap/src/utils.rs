@@ -19,7 +19,6 @@ pub fn close<'info>(
     escrowed_src_tokens_amount: u64,
     maker_src_token: AccountInfo<'info>,
     maker: AccountInfo<'info>,
-    sol_receiver: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
@@ -49,7 +48,7 @@ pub fn close<'info>(
         token_program.clone(),
         anchor_spl::token::CloseAccount {
             account: escrowed_src_tokens.to_account_info(),
-            destination: sol_receiver.to_account_info(),
+            destination: maker.to_account_info(),
             authority: escrow.clone(),
         },
         &[&[
@@ -61,7 +60,7 @@ pub fn close<'info>(
     ))?;
 
     // Close escrow account
-    close_account(escrow, sol_receiver)?;
+    close_account(escrow, maker)?;
 
     Ok(())
 }

@@ -57,7 +57,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForAccept({}))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -92,7 +92,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -128,7 +128,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
             })
@@ -165,7 +165,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               makerDstAta: state.alice.atas[state.tokens[2].toString()].address,
             })
           )
@@ -186,7 +186,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               srcMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -231,7 +231,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               dstMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -268,7 +268,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
-          .accounts(state.buildAccountsDataForAccept({}))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
@@ -314,7 +314,7 @@ describe("Fusion Swap", () => {
       await program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accounts(
-          state.buildAccountsDataForAccept({
+          state.buildAccountsDataForFill({
             makerDstAta: aliceAtaYToken,
           })
         )
@@ -360,7 +360,6 @@ describe("Fusion Swap", () => {
     //     makerDstAta: state.alice.atas[state.tokens[1].toString()].address,
     //     takerSrcAta: state.bobAtaXToken,
     //     takerDstAta: state.bob.atas[state.tokens[1].toString()].address,
-    //     solReceiver: state.alice.keypair.publicKey,
     //     tokenProgram: splToken.TOKEN_PROGRAM_ID,
     //     associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     //     systemProgram: anchor.web3.SystemProgram.programId,
@@ -393,7 +392,6 @@ describe("Fusion Swap", () => {
           state.defaultSrcAmount,
           state.defaultDstAmount,
           state.defaultTraits,
-          state.alice.keypair.publicKey,
           state.alice.keypair.publicKey
         )
         .accountsPartial({
@@ -414,7 +412,6 @@ describe("Fusion Swap", () => {
             state.defaultSrcAmount,
             state.defaultDstAmount,
             state.defaultTraits,
-            state.alice.keypair.publicKey,
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -433,7 +430,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[1].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForAccept({}))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
@@ -444,7 +441,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrowSrcAta: state.escrows[1].ata,
             })
           )
@@ -458,7 +455,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               dstMint: state.tokens[0],
             })
           )
@@ -472,7 +469,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
@@ -487,7 +484,7 @@ describe("Fusion Swap", () => {
       let transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForAccept({}))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -513,7 +510,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForAccept({}))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -552,7 +549,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, _srcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
             })
@@ -583,7 +580,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, _srcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
             })
@@ -614,7 +611,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, new anchor.BN(1))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
             })
@@ -649,7 +646,6 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -680,7 +676,6 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: splToken.NATIVE_MINT,
             escrow: escrow.escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -704,7 +699,6 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -720,7 +714,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
             escrowSrcAta: state.escrows[1].ata,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -735,7 +728,6 @@ describe("Fusion Swap", () => {
             maker: state.charlie.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.charlie.keypair])
           .rpc()
@@ -754,7 +746,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
             })
@@ -769,25 +761,23 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        sol_receiver: state.charlie.keypair.publicKey,
       });
 
       const solReceiverNativeTokenBalanceBefore =
-        await provider.connection.getBalance(state.charlie.keypair.publicKey);
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
       await program.methods
         .fill(escrow.order_id, state.defaultSrcAmount)
         .accounts(
-          state.buildAccountsDataForAccept({
+          state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
-            solReceiver: state.charlie.keypair.publicKey,
           })
         )
         .signers([state.bob.keypair])
         .rpc();
 
       const solReceiverNativeTokenBalanceAfter =
-        await provider.connection.getBalance(state.charlie.keypair.publicKey);
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
       // check that escrow closed and native tokens sent to maker
       expect(solReceiverNativeTokenBalanceAfter).to.be.gt(
         solReceiverNativeTokenBalanceBefore
@@ -806,7 +796,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
             })
@@ -823,7 +813,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
@@ -838,7 +828,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               srcMint: state.tokens[1],
             })
           )
@@ -853,14 +843,14 @@ describe("Fusion Swap", () => {
       const transactionPromise = async () => {
         await program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForAccept({}))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
         await program.methods
           .fill(state.escrows[1].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               taker: state.charlie.keypair.publicKey,
               escrow: state.escrows[1].escrow,
               escrowSrcAta: state.escrows[1].ata,
@@ -913,7 +903,7 @@ describe("Fusion Swap", () => {
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(10))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
             })
@@ -940,7 +930,7 @@ describe("Fusion Swap", () => {
       await program.methods
         .fill(escrow.order_id, state.defaultSrcAmount.divn(10))
         .accounts(
-          state.buildAccountsDataForAccept({
+          state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
           })

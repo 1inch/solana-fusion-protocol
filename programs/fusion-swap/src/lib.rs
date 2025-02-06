@@ -21,8 +21,7 @@ pub mod fusion_swap {
         src_amount: u64,      // Amount of tokens maker wants to sell
         dst_amount: u64,      // Amount of tokens maker wants in exchange
         escrow_traits: u8,
-        sol_receiver: Pubkey, // Address to receive SOL when escrow is closed
-        receiver: Pubkey,     // Owner of the account which will receive dst_token
+        receiver: Pubkey, // Owner of the account which will receive dst_token
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
@@ -39,7 +38,6 @@ pub mod fusion_swap {
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
             traits: escrow_traits,
-            sol_receiver,
             receiver,
         });
 
@@ -139,7 +137,6 @@ pub mod fusion_swap {
                 ctx.accounts.escrow_src_ata.amount - amount,
                 ctx.accounts.maker_src_ata.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
-                ctx.accounts.sol_receiver.to_account_info(),
                 order_id,
                 ctx.bumps.escrow,
             )?;
@@ -156,7 +153,6 @@ pub mod fusion_swap {
             ctx.accounts.escrow_src_ata.amount,
             ctx.accounts.maker_src_ata.to_account_info(),
             ctx.accounts.maker.to_account_info(),
-            ctx.accounts.sol_receiver.to_account_info(),
             order_id,
             ctx.bumps.escrow,
         )?;
@@ -219,6 +215,7 @@ pub struct Fill<'info> {
     taker: Signer<'info>,
 
     /// CHECK: check is not necessary as maker is only used as an input to escrow address calculation
+    #[account(mut)]
     maker: AccountInfo<'info>,
 
     /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_dst_ata
@@ -255,14 +252,6 @@ pub struct Fill<'info> {
         associated_token::authority = maker
     )]
     maker_src_ata: Box<Account<'info, TokenAccount>>,
-
-    /// CHECK: check is not necessary as sol_receiver is only used as an input to escrow address calculation
-    /// This account will receive SOL when escrow is closed
-    #[account(
-        mut,
-        constraint = escrow.sol_receiver == sol_receiver.key(),
-    )]
-    sol_receiver: AccountInfo<'info>,
 
     /// Maker's ATA of dst_mint
     #[account(
@@ -303,6 +292,7 @@ pub struct Fill<'info> {
 #[instruction(order_id: u32)]
 pub struct Cancel<'info> {
     /// Account that created the escrow
+    #[account(mut)]
     maker: Signer<'info>,
 
     /// Maker asset
@@ -333,13 +323,6 @@ pub struct Cancel<'info> {
     )]
     maker_src_ata: Account<'info, TokenAccount>,
 
-    /// CHECK: check is not necessary as sol_receiver is only used to receive SOL when escrow is closed
-    #[account(
-        mut,
-        constraint = escrow.sol_receiver == sol_receiver.key(),
-    )]
-    sol_receiver: AccountInfo<'info>,
-
     token_program: Program<'info, Token>,
 }
 
@@ -354,5 +337,4 @@ pub struct Escrow {
     traits: u8,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
-    sol_receiver: Pubkey,
 }

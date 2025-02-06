@@ -149,7 +149,7 @@ export class TestState {
     return instance;
   }
 
-  buildAccountsDataForAccept({
+  buildAccountsDataForFill({
     taker = this.bob.keypair.publicKey,
     maker = this.alice.keypair.publicKey,
     makerReceiver = this.alice.keypair.publicKey,
@@ -161,7 +161,6 @@ export class TestState {
     makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
     takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
-    solReceiver = this.alice.keypair.publicKey,
     tokenProgram = splToken.TOKEN_PROGRAM_ID,
     associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     systemProgram = anchor.web3.SystemProgram.programId,
@@ -178,7 +177,6 @@ export class TestState {
       makerDstAta,
       takerSrcAta,
       takerDstAta,
-      solReceiver,
       tokenProgram,
       associatedTokenProgram,
       systemProgram,
@@ -197,7 +195,6 @@ export class TestState {
     escrow_traits = this.defaultTraits,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
-    sol_receiver = this.alice.keypair.publicKey,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -247,7 +244,6 @@ export class TestState {
         srcAmount,
         dstAmount,
         escrow_traits,
-        sol_receiver,
         makerReceiver
       )
       .accountsPartial({
