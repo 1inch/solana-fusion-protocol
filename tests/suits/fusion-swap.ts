@@ -13,16 +13,6 @@ import {
 } from "../utils/utils";
 chai.use(chaiAsPromised);
 
-async function assertThrowsAsync(action, msg) {
-  try {
-    await action();
-  } catch (e) {
-    expect(e.toString().indexOf(msg)).to.be.not.eq(-1);
-    return;
-  }
-  throw new Error("Should have thrown an error but didn't");
-}
-
 describe("Fusion Swap", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -889,67 +879,6 @@ describe("Fusion Swap", () => {
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
-    });
-
-    it("Execute the trade with allow_multiple_fill=false only once", async () => {
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        escrow_traits: buildEscrowTraits({ isMultipleFill: false }),
-      });
-
-      const transactionPromise = () =>
-        program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount.divn(10))
-          .accounts(
-            state.buildAccountsDataForFill({
-              escrow: escrow.escrow,
-              escrowSrcAta: escrow.ata,
-            })
-          )
-          .signers([state.bob.keypair])
-          .rpc();
-
-      await transactionPromise();
-      await expect(transactionPromise()).to.be.rejectedWith(
-        "Error Code: AccountNotInitialized"
-      );
-    });
-
-    it("Execute the trade with allow_multiple_fill=false should close escrow", async () => {
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        escrow_traits: buildEscrowTraits({ isMultipleFill: false }),
-      });
-
-      const makerNativeTokenBalanceBefore =
-        await provider.connection.getBalance(state.alice.keypair.publicKey);
-      await program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount.divn(10))
-        .accounts(
-          state.buildAccountsDataForFill({
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
-          })
-        )
-        .signers([state.bob.keypair])
-        .rpc();
-
-      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
-        state.alice.keypair.publicKey
-      );
-      // check that escrow closed and native tokens sent to maker
-      expect(makerNativeTokenBalanceAfter).to.be.gt(
-        makerNativeTokenBalanceBefore
-      );
-      await assertThrowsAsync(
-        () => splToken.getAccount(provider.connection, escrow.ata),
-        "TokenAccountNotFoundError"
-      );
-      expect(await provider.connection.getBalance(escrow.escrow)).to.be.eq(0);
     });
   });
 });

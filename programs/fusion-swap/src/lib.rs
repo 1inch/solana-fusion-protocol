@@ -127,9 +127,7 @@ pub mod fusion_swap {
         )?;
 
         // Close escrow if multiple fills are not allowed or if all tokens are filled
-        if !utils::allow_multiple_fills(ctx.accounts.escrow.traits)
-            || ctx.accounts.escrow.src_remaining == 0
-        {
+        if ctx.accounts.escrow.src_remaining == 0 {
             utils::close(
                 ctx.accounts.token_program.to_account_info(),
                 ctx.accounts.escrow.to_account_info(),

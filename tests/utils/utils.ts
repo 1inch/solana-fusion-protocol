@@ -25,16 +25,10 @@ export type Escrow = {
 
 export const INVALIDATOR_SIZE = 128;
 
-export function buildEscrowTraits({
-  isPartialFill = true,
-  isMultipleFill = true,
-}): number {
+export function buildEscrowTraits({ isPartialFill = true }): number {
   let traits = 0;
   if (isPartialFill) {
     traits |= 1;
-  }
-  if (isMultipleFill) {
-    traits |= 2;
   }
   return traits;
 }

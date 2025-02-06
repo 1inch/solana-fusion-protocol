@@ -6,11 +6,6 @@ pub fn allow_partial_fills(traits: u8) -> bool {
     traits & 0b00000001 != 0
 }
 
-// Flag that defines if the order can be filled multiple times
-pub fn allow_multiple_fills(traits: u8) -> bool {
-    traits & 0b00000010 != 0
-}
-
 // Function to close the escrow account
 pub fn close<'info>(
     token_program: AccountInfo<'info>,
