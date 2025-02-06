@@ -10,21 +10,21 @@ pub fn allow_partial_fills(traits: u8) -> bool {
 pub fn close<'info>(
     token_program: AccountInfo<'info>,
     escrow: AccountInfo<'info>,
-    escrowed_src_tokens: AccountInfo<'info>,
-    escrowed_src_tokens_amount: u64,
-    maker_src_token: AccountInfo<'info>,
+    escrow_src_ata: AccountInfo<'info>,
+    remaining_amount: u64,
+    maker_src_ata: AccountInfo<'info>,
     maker: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
     // return maker's src_token back to account
-    if escrowed_src_tokens_amount > 0 {
+    if remaining_amount > 0 {
         anchor_spl::token::transfer(
             CpiContext::new_with_signer(
                 token_program.clone(),
                 anchor_spl::token::Transfer {
-                    from: escrowed_src_tokens.to_account_info(),
-                    to: maker_src_token,
+                    from: escrow_src_ata.to_account_info(),
+                    to: maker_src_ata,
                     authority: escrow.clone(),
                 },
                 &[&[
@@ -34,15 +34,15 @@ pub fn close<'info>(
                     &[escrow_bump],
                 ]],
             ),
-            escrowed_src_tokens_amount,
+            remaining_amount,
         )?;
     }
 
-    // Close escrowed_src_tokens account
+    // Close escrow_src_ata account
     anchor_spl::token::close_account(CpiContext::new_with_signer(
         token_program.clone(),
         anchor_spl::token::CloseAccount {
-            account: escrowed_src_tokens.to_account_info(),
+            account: escrow_src_ata.to_account_info(),
             destination: maker.to_account_info(),
             authority: escrow.clone(),
         },

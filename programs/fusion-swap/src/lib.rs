@@ -6,12 +6,12 @@ pub mod constants;
 pub mod error;
 pub mod utils;
 
+use error::EscrowError;
+
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
 
 #[program]
 pub mod fusion_swap {
-    use error::EscrowError;
-
     use super::*;
 
     pub fn initialize(
@@ -57,6 +57,7 @@ pub mod fusion_swap {
     }
 
     pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
+        // TODO: Check that signer has KYC token instead
         // if authorized_user is not set, allow exchange with any, otherwise check it
         if let Some(auth_user) = ctx.accounts.escrow.authorized_user {
             if auth_user != ctx.accounts.taker.key() {
@@ -102,11 +103,6 @@ pub mod fusion_swap {
         // Update src_remaining
         ctx.accounts.escrow.src_remaining -= amount;
 
-        // Check that owner of the account which will receive dst_token is the same as the one set during escrow initialization
-        if ctx.accounts.maker_receiver.key() != ctx.accounts.escrow.receiver {
-            return err!(EscrowError::SellerReceiverMismatch);
-        }
-
         let dst_amount = utils::get_dst_amount(
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.dst_amount,
@@ -126,7 +122,7 @@ pub mod fusion_swap {
             dst_amount,
         )?;
 
-        // Close escrow if multiple fills are not allowed or if all tokens are filled
+        // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
             utils::close(
                 ctx.accounts.token_program.to_account_info(),
@@ -165,9 +161,9 @@ pub struct Initialize<'info> {
     #[account(mut, signer)]
     maker: Signer<'info>,
 
-    /// Maker asset
+    /// Source asset
     src_mint: Box<Account<'info, Mint>>,
-    /// Taker asset
+    /// Destination asset
     dst_mint: Box<Account<'info, Mint>>,
     /// Account allowed to fill the order
     authorized_user: Option<AccountInfo<'info>>,
@@ -209,17 +205,21 @@ pub struct Initialize<'info> {
 #[instruction(order_id: u32)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
-    #[account(mut)]
+    #[account(mut, signer)]
     taker: Signer<'info>,
 
-    /// CHECK: check is not necessary as maker is only used as an input to escrow address calculation
+    /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]
     maker: AccountInfo<'info>,
 
     /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_dst_ata
+    #[account(
+        constraint = escrow.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
+    )]
     maker_receiver: AccountInfo<'info>,
 
     /// Maker asset
+    // TODO: Add src_mint to escrow or seeds
     src_mint: Box<Account<'info, Mint>>,
     /// Taker asset
     #[account(
@@ -281,7 +281,6 @@ pub struct Fill<'info> {
     taker_dst_ata: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
-
     system_program: Program<'info, System>,
     associated_token_program: Program<'info, AssociatedToken>,
 }
@@ -290,10 +289,11 @@ pub struct Fill<'info> {
 #[instruction(order_id: u32)]
 pub struct Cancel<'info> {
     /// Account that created the escrow
-    #[account(mut)]
+    #[account(mut, signer)]
     maker: Signer<'info>,
 
     /// Maker asset
+    // TODO: Add src_mint to escrow or seeds
     src_mint: Account<'info, Mint>,
 
     /// Account to store order conditions
