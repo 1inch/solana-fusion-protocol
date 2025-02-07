@@ -395,7 +395,7 @@ describe("Non-Custodial Escrow", () => {
           state.defaultTraits,
           state.alice.keypair.publicKey,
           state.alice.keypair.publicKey,
-          null,
+          null
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
@@ -416,7 +416,7 @@ describe("Non-Custodial Escrow", () => {
             state.defaultTraits,
             state.alice.keypair.publicKey,
             state.alice.keypair.publicKey,
-            null,
+            null
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
