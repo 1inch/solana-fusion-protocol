@@ -23,6 +23,10 @@ pub mod fusion_swap {
         allow_partial_fills: bool,
         receiver: Pubkey, // Owner of the account which will receive dst_token
     ) -> Result<()> {
+        if src_amount == 0 || dst_amount == 0 {
+            return err!(EscrowError::InvalidAmount);
+        }
+
         let escrow = &mut ctx.accounts.escrow;
 
         let clock: Clock = Clock::get()?;

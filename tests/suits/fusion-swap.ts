@@ -363,6 +363,62 @@ describe("Fusion Swap", () => {
 
     // TODO: Add a test for the case of accepting an expired order
 
+    it("Fails to init with zero amounts", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      // srcAmount = 0
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            new anchor.BN(0), // srcAmount
+            state.defaultDstAmount,
+            false, // Allow partial fills
+            state.alice.keypair.publicKey
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidAmount");
+
+      // dstAmount = 0
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            state.defaultSrcAmount,
+            new anchor.BN(0), // dstAmount
+            false, // Allow partial fills
+            state.alice.keypair.publicKey
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidAmount");
+    });
+
     it("Fails to init if escrow has been initialized", async () => {
       const order_id = state.increaseOrderID();
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
