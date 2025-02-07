@@ -55,8 +55,7 @@ pub mod fusion_swap {
                 },
             ),
             src_amount,
-        )?;
-        Ok(())
+        )
     }
 
     pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
@@ -150,8 +149,7 @@ pub mod fusion_swap {
             ctx.accounts.maker.to_account_info(),
             order_id,
             ctx.bumps.escrow,
-        )?;
-        Ok(())
+        )
     }
 }
 
