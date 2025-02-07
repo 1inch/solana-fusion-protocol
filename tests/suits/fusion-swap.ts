@@ -6,7 +6,6 @@ import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
-  buildEscrowTraits,
   trackReceivedTokenAndTx,
   debugLog,
   numberToBuffer,
@@ -381,7 +380,7 @@ describe("Fusion Swap", () => {
           state.defaultExpirationTime,
           state.defaultSrcAmount,
           state.defaultDstAmount,
-          state.defaultTraits,
+          false, // Allow partial fills
           state.alice.keypair.publicKey
         )
         .accountsPartial({
@@ -401,7 +400,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            state.defaultTraits,
+            false, // Allow partial fills
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -779,7 +778,7 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        escrow_traits: buildEscrowTraits({ isPartialFill: false }),
+        allowPartialFills: false,
       });
 
       await expect(

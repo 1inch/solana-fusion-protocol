@@ -25,14 +25,6 @@ export type Escrow = {
 
 export const INVALIDATOR_SIZE = 128;
 
-export function buildEscrowTraits({ isPartialFill = true }): number {
-  let traits = 0;
-  if (isPartialFill) {
-    traits |= 1;
-  }
-  return traits;
-}
-
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
     console.log(message, ...optionalParams);
@@ -66,7 +58,6 @@ export class TestState {
   charlie: User;
   tokens: Array<anchor.web3.PublicKey> = [];
   escrows: Array<Escrow> = [];
-  defaultTraits = buildEscrowTraits({});
   order_id = 0;
   defaultSrcAmount = new anchor.BN(100);
   defaultDstAmount = new anchor.BN(30);
@@ -186,7 +177,7 @@ export class TestState {
     dstAmount = this.defaultDstAmount,
     srcMint = this.tokens[0],
     dstMint = this.tokens[1],
-    escrow_traits = this.defaultTraits,
+    allowPartialFills = true,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
   }: {
@@ -237,7 +228,7 @@ export class TestState {
         expirationTime,
         srcAmount,
         dstAmount,
-        escrow_traits,
+        allowPartialFills,
         makerReceiver
       )
       .accountsPartial({

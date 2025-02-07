@@ -1,11 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::system_program;
 
-// Flag that defines if the order can be filled partially
-pub fn allow_partial_fills(traits: u8) -> bool {
-    traits & 0b00000001 != 0
-}
-
 // Function to close the escrow account
 pub fn close<'info>(
     token_program: AccountInfo<'info>,

@@ -20,7 +20,7 @@ pub mod fusion_swap {
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
         dst_amount: u64,      // Amount of tokens maker wants in exchange
-        escrow_traits: u8,
+        allow_partial_fills: bool,
         receiver: Pubkey, // Owner of the account which will receive dst_token
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
@@ -37,7 +37,7 @@ pub mod fusion_swap {
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
-            traits: escrow_traits,
+            allow_partial_fills,
             receiver,
         });
 
@@ -75,9 +75,7 @@ pub mod fusion_swap {
         }
 
         // Check if partial fills are allowed if this is the case
-        if !utils::allow_partial_fills(ctx.accounts.escrow.traits)
-            && ctx.accounts.escrow_src_ata.amount > amount
-        {
+        if ctx.accounts.escrow_src_ata.amount > amount && !ctx.accounts.escrow.allow_partial_fills {
             return err!(EscrowError::PartialFillNotAllowed);
         }
 
@@ -332,7 +330,7 @@ pub struct Escrow {
     src_amount: u64,
     src_remaining: u64,
     expiration_time: u32,
-    traits: u8,
+    allow_partial_fills: bool,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
 }
