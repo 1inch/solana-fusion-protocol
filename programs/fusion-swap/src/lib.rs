@@ -4,7 +4,6 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 pub mod constants;
 pub mod error;
-pub mod utils;
 
 use error::EscrowError;
 
@@ -105,7 +104,7 @@ pub mod fusion_swap {
         // Update src_remaining
         ctx.accounts.escrow.src_remaining -= amount;
 
-        let dst_amount = utils::get_dst_amount(
+        let dst_amount = get_dst_amount(
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.dst_amount,
             amount,
@@ -126,9 +125,9 @@ pub mod fusion_swap {
 
         // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
-            utils::close(
+            close_escrow(
                 ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.escrow.to_account_info(),
+                &ctx.accounts.escrow,
                 ctx.accounts.escrow_src_ata.to_account_info(),
                 ctx.accounts.escrow_src_ata.amount - amount,
                 ctx.accounts.maker_src_ata.to_account_info(),
@@ -142,9 +141,9 @@ pub mod fusion_swap {
     }
 
     pub fn cancel(ctx: Context<Cancel>, order_id: u32) -> Result<()> {
-        utils::close(
+        close_escrow(
             ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.escrow.to_account_info(),
+            &ctx.accounts.escrow,
             ctx.accounts.escrow_src_ata.to_account_info(),
             ctx.accounts.escrow_src_ata.amount,
             ctx.accounts.maker_src_ata.to_account_info(),
@@ -301,7 +300,6 @@ pub struct Cancel<'info> {
     /// Account to store order conditions
     #[account(
         mut,
-        close = maker,
         seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
         bump,
     )]
@@ -337,4 +335,61 @@ pub struct Escrow {
     allow_partial_fills: bool,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
+}
+
+// Function to close the escrow account
+fn close_escrow<'info>(
+    token_program: AccountInfo<'info>,
+    escrow: &Account<'info, Escrow>,
+    escrow_src_ata: AccountInfo<'info>,
+    remaining_amount: u64,
+    maker_src_ata: AccountInfo<'info>,
+    maker: AccountInfo<'info>,
+    order_id: u32,
+    escrow_bump: u8,
+) -> Result<()> {
+    // return maker's src_token back to account
+    if remaining_amount > 0 {
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(
+                token_program.clone(),
+                anchor_spl::token::Transfer {
+                    from: escrow_src_ata.to_account_info(),
+                    to: maker_src_ata,
+                    authority: escrow.to_account_info(),
+                },
+                &[&[
+                    "escrow".as_bytes(),
+                    maker.key().as_ref(),
+                    order_id.to_be_bytes().as_ref(),
+                    &[escrow_bump],
+                ]],
+            ),
+            remaining_amount,
+        )?;
+    }
+
+    // Close escrow_src_ata account
+    anchor_spl::token::close_account(CpiContext::new_with_signer(
+        token_program.clone(),
+        anchor_spl::token::CloseAccount {
+            account: escrow_src_ata.to_account_info(),
+            destination: maker.to_account_info(),
+            authority: escrow.to_account_info(),
+        },
+        &[&[
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            order_id.to_be_bytes().as_ref(),
+            &[escrow_bump],
+        ]],
+    ))?;
+
+    // Close escrow account
+    escrow.close(maker)
+}
+
+// Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
+fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u64) -> u64 {
+    (swap_amount * escrow_dst_amount).div_ceil(escrow_src_amount)
 }
