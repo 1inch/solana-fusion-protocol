@@ -50,9 +50,7 @@ pub fn close<'info>(
     ))?;
 
     // Close escrow account
-    close_account(escrow, maker)?;
-
-    Ok(())
+    close_account(escrow, maker)
 }
 
 pub fn close_account<'info>(
