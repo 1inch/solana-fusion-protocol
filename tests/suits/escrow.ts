@@ -394,14 +394,14 @@ describe("Non-Custodial Escrow", () => {
           state.defaultDstAmount,
           state.defaultTraits,
           state.alice.keypair.publicKey,
-          state.alice.keypair.publicKey
+          state.alice.keypair.publicKey,
+          null,
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
           xMint: state.tokens[0],
           yMint: state.tokens[1],
           escrow: escrow,
-          authorizedUser: null,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -415,14 +415,14 @@ describe("Non-Custodial Escrow", () => {
             state.defaultDstAmount,
             state.defaultTraits,
             state.alice.keypair.publicKey,
-            state.alice.keypair.publicKey
+            state.alice.keypair.publicKey,
+            null,
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             xMint: state.tokens[0],
             yMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()

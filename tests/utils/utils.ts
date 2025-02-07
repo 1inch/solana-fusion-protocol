@@ -248,14 +248,14 @@ export class TestState {
         dstAmount,
         escrow_traits,
         sol_receiver,
-        makerReceiver
+        makerReceiver,
+        authorizedUser
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
         xMint,
         yMint,
         escrow,
-        authorizedUser,
       })
       .signers([this.alice.keypair])
       .rpc();

@@ -23,6 +23,7 @@ pub mod escrow {
         escrow_traits: u8,
         sol_receiver: Pubkey, // Address to receive SOL when escrow is closed
         receiver: Pubkey,     // Owner of the account which will receive y_token
+        authorized_user: Option<Pubkey>,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
@@ -36,7 +37,7 @@ pub mod escrow {
             x_remaining: x_amount,             // Remaining amount to be filled
             y_amount,                          // Amount of tokens maker wants in exchange
             y_mint: ctx.accounts.y_mint.key(), // token maker wants in exchange
-            authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
+            authorized_user,
             expiration_time,
             traits: escrow_traits,
             sol_receiver,
@@ -175,8 +176,6 @@ pub struct Initialize<'info> {
     x_mint: Box<Account<'info, Mint>>,
     /// Taker asset
     y_mint: Box<Account<'info, Mint>>,
-    /// Account allowed to fill the order
-    authorized_user: Option<AccountInfo<'info>>,
 
     /// Maker's ATA of x_mint
     #[account(
