@@ -484,16 +484,18 @@ pub fn get_fee_amounts(
         .ok_or(EscrowError::IntegerOverflow)?
         .div_ceil(denominator);
     let mut protocol_fee_amount = dst_amount
-    .checked_mul(protocol_fee)
-    .ok_or(EscrowError::IntegerOverflow)?
-    .div_ceil(denominator);
+        .checked_mul(protocol_fee)
+        .ok_or(EscrowError::IntegerOverflow)?
+        .div_ceil(denominator);
 
     let actual_dst_amount = dst_amount - protocol_fee_amount - integrator_fee_amount;
 
     if estimated_dst_amount
         .checked_mul(src_amount)
         .ok_or(EscrowError::IntegerOverflow)?
-        .div_ceil(amount) < dst_amount {
+        .div_ceil(amount)
+        < dst_amount
+    {
         return Err(EscrowError::InvalidEstimatedTakingAmount.into());
     }
 
@@ -501,8 +503,7 @@ pub fn get_fee_amounts(
         if surplus_percentage > constants::_BASE_1E2 {
             return Err(EscrowError::InvalidProtocolSurplusFee.into());
         }
-        protocol_fee_amount +=
-            (actual_dst_amount - estimated_dst_amount)
+        protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
             .checked_mul(surplus_percentage)
             .ok_or(EscrowError::IntegerOverflow)?
             / constants::_BASE_1E2;

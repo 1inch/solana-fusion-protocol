@@ -387,7 +387,7 @@ describe("Fusion Swap", () => {
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata
             null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
+            state.defaultDstAmount // estimated_dst_amount
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -413,7 +413,7 @@ describe("Fusion Swap", () => {
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata
             null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
+            state.defaultDstAmount // estimated_dst_amount
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -449,7 +449,7 @@ describe("Fusion Swap", () => {
           new anchor.BN(0), // compact_fees
           null, // protocol_dst_ata
           null, // integrator_dst_ata
-          state.defaultDstAmount, // estimated_dst_amount
+          state.defaultDstAmount // estimated_dst_amount
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
@@ -473,7 +473,7 @@ describe("Fusion Swap", () => {
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata
             null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
+            state.defaultDstAmount // estimated_dst_amount
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
