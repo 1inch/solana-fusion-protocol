@@ -892,6 +892,122 @@ describe("Fusion Swap", () => {
           .rpc()
       ).to.be.rejectedWith("Error Code: PartialFillNotAllowed");
     });
+
+    it("Fails to init if native_dst_asset = true but mint is different from native mint", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            state.defaultSrcAmount,
+            state.defaultDstAmount,
+            buildEscrowTraits({ isPartialFill: false, isNativeDstAsset: true }),
+            state.alice.keypair.publicKey
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InconsistentNativeDstTrait.");
+    });
+
+    it("Execute the trade and transfer wSOL if native_dst_asset = false and native dst mint is provided", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        dstMint: splToken.NATIVE_MINT,
+        useNativeDstAsset: false,
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              dstMint: splToken.NATIVE_MINT,
+              makerDstAta:
+                state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+              takerDstAta:
+                state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+        ],
+        transactionPromise
+      );
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+
+      expect(results).to.be.deep.eq([
+        BigInt(state.defaultDstAmount.toNumber()),
+        BigInt(state.defaultSrcAmount.toNumber()),
+        -BigInt(state.defaultDstAmount.toNumber()),
+      ]);
+    });
+
+    it("Execute the trade with partial fill if allowed", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        allowPartialFills: true,
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[state.tokens[1].toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[state.tokens[1].toString()].address,
+        ],
+        transactionPromise
+      );
+
+      expect(results).to.be.deep.eq([
+        BigInt(state.defaultDstAmount.divn(2).toNumber()),
+        BigInt(state.defaultSrcAmount.divn(2).toNumber()),
+        -BigInt(state.defaultDstAmount.divn(2).toNumber()),
+      ]);
+    });
   });
 
   describe("Optional tests", () => {
