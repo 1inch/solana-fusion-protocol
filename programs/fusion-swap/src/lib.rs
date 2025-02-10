@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 
 pub mod constants;
 pub mod error;
@@ -26,7 +26,7 @@ pub mod fusion_swap {
             return err!(EscrowError::InvalidAmount);
         }
 
-        if ctx.accounts.dst_mint.key() != constants::NATIVE_MINT && native_dst_asset(traits) {
+        if ctx.accounts.dst_mint.key() != spl_token::native_mint::id() && native_dst_asset(traits) {
             return err!(EscrowError::InconsistentNativeDstTrait);
         }
 
