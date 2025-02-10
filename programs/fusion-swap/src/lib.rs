@@ -128,8 +128,6 @@ pub mod fusion_swap {
                 ctx.accounts.token_program.to_account_info(),
                 &ctx.accounts.escrow,
                 ctx.accounts.escrow_src_ata.to_account_info(),
-                0,
-                None,
                 ctx.accounts.maker.to_account_info(),
                 order_id,
                 ctx.bumps.escrow,
@@ -140,12 +138,29 @@ pub mod fusion_swap {
     }
 
     pub fn cancel(ctx: Context<Cancel>, order_id: u32) -> Result<()> {
+        // return remaining src tokens back to maker
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Transfer {
+                    from: ctx.accounts.escrow_src_ata.to_account_info(),
+                    to: ctx.accounts.maker_src_ata.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                &[&[
+                    "escrow".as_bytes(),
+                    ctx.accounts.maker.key().as_ref(),
+                    order_id.to_be_bytes().as_ref(),
+                    &[ctx.bumps.escrow],
+                ]],
+            ),
+            ctx.accounts.escrow_src_ata.amount,
+        )?;
+
         close_escrow(
             ctx.accounts.token_program.to_account_info(),
             &ctx.accounts.escrow,
             ctx.accounts.escrow_src_ata.to_account_info(),
-            ctx.accounts.escrow_src_ata.amount,
-            Some(ctx.accounts.maker_src_ata.to_account_info()),
             ctx.accounts.maker.to_account_info(),
             order_id,
             ctx.bumps.escrow,
@@ -332,33 +347,10 @@ fn close_escrow<'info>(
     token_program: AccountInfo<'info>,
     escrow: &Account<'info, Escrow>,
     escrow_src_ata: AccountInfo<'info>,
-    remaining_amount: u64,
-    maker_src_ata: Option<AccountInfo<'info>>,
     maker: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
-    // return maker's src_token back to account
-    if remaining_amount > 0 {
-        anchor_spl::token::transfer(
-            CpiContext::new_with_signer(
-                token_program.clone(),
-                anchor_spl::token::Transfer {
-                    from: escrow_src_ata.to_account_info(),
-                    to: maker_src_ata.unwrap(),
-                    authority: escrow.to_account_info(),
-                },
-                &[&[
-                    "escrow".as_bytes(),
-                    maker.key().as_ref(),
-                    order_id.to_be_bytes().as_ref(),
-                    &[escrow_bump],
-                ]],
-            ),
-            remaining_amount,
-        )?;
-    }
-
     // Close escrow_src_ata account
     anchor_spl::token::close_account(CpiContext::new_with_signer(
         token_program.clone(),
