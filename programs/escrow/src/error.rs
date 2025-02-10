@@ -12,4 +12,6 @@ pub enum EscrowError {
     NotEnoughTokensInEscrow,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
+    #[msg("Dutch auction data not provided")]
+    DutchAuctionDataNotProvided,
 }

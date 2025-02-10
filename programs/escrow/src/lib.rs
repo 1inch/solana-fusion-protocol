@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use utils::DutchAuctionData;
 
 pub mod constants;
 pub mod error;
@@ -23,6 +24,7 @@ pub mod escrow {
         escrow_traits: u8,
         sol_receiver: Pubkey, // Address to receive SOL when escrow is closed
         receiver: Pubkey,     // Owner of the account which will receive y_token
+        dutch_auction_data: Option<DutchAuctionData>,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
@@ -41,6 +43,7 @@ pub mod escrow {
             traits: escrow_traits,
             sol_receiver,
             receiver,
+            dutch_auction_data,
         });
 
         // Maker => Escrow
@@ -113,7 +116,8 @@ pub mod escrow {
             ctx.accounts.escrow.x_amount,
             ctx.accounts.escrow.y_amount,
             amount,
-        );
+            ctx.accounts.escrow.dutch_auction_data.clone(), // TODO: fix using reference
+        )?;
 
         // Taker => Maker
         anchor_spl::token::transfer(
@@ -355,4 +359,5 @@ pub struct Escrow {
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
     sol_receiver: Pubkey,
+    dutch_auction_data: Option<DutchAuctionData>
 }

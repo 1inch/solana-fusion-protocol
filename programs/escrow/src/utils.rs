@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::system_program;
 
+use crate::constants::BASE_POINTS;
+use crate::error::EscrowError;
+
 // Flag that defines if the order can be filled partially
 pub fn allow_partial_fills(traits: u8) -> bool {
     traits & 0b00000001 != 0
@@ -81,6 +84,50 @@ pub fn close_account<'info>(
 }
 
 // Function to get amount of `y_mint` tokens that the taker should pay to the maker using the default formula
-pub fn get_y_amount(escrow_x_amount: u64, escrow_y_amount: u64, swap_amount: u64) -> u64 {
-    (swap_amount * escrow_y_amount).div_ceil(escrow_x_amount)
+pub fn get_y_amount(escrow_x_amount: u64, escrow_y_amount: u64, swap_amount: u64, opt_data: Option<DutchAuctionData>) -> Result<u64> {
+    if let Some(data) = opt_data {
+        let rate_bump = calculate_rate_bump(
+            Clock::get()?.unix_timestamp as u64,
+            data.auction_start_time as u64,
+            data.auction_finish_time as u64,
+            data.initial_rate_bump as u64,
+        );
+
+        let result = (escrow_y_amount * swap_amount).div_ceil(escrow_x_amount);
+        let result = (result * (BASE_POINTS + rate_bump)).div_ceil(BASE_POINTS);
+        Ok(result)
+    } else {
+        Err(EscrowError::DutchAuctionDataNotProvided.into())
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct PointsAndTimeDeltas {
+    rate_bump: u32,
+    point_time: u16,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct DutchAuctionData {
+    pub auction_start_time: u32,
+    pub auction_finish_time: u32,
+    pub initial_rate_bump: u32,
+    #[max_len(5)]
+    pub points_and_time_deltas: Vec<PointsAndTimeDeltas>,
+}
+
+pub fn calculate_rate_bump(
+    cur_timestamp: u64,
+    auction_start_time: u64,
+    auction_finish_time: u64,
+    initial_rate_bump: u64,
+) -> u64 {
+    if cur_timestamp <= auction_start_time {
+        initial_rate_bump
+    } else if cur_timestamp < auction_finish_time {
+        (auction_finish_time - cur_timestamp) * initial_rate_bump
+            / (auction_finish_time - auction_start_time)
+    } else {
+        0
+    }
 }
