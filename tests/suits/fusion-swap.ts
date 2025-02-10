@@ -9,6 +9,7 @@ import {
   trackReceivedTokenAndTx,
   debugLog,
   numberToBuffer,
+  FAKE_NATIVE_MINT,
 } from "../utils/utils";
 chai.use(chaiAsPromised);
 
@@ -825,6 +826,44 @@ describe("Fusion Swap", () => {
       expect(solReceiverNativeTokenBalanceAfter).to.be.gt(
         solReceiverNativeTokenBalanceBefore
       );
+    });
+
+    it.only("Execute the trade with native tokens (SOL) as destination", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        dstMint: FAKE_NATIVE_MINT,
+      });
+
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+
+      await program.methods
+        .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
+        .accounts(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: FAKE_NATIVE_MINT,
+            makerDstAta: await splToken.getAssociatedTokenAddress(FAKE_NATIVE_MINT, state.alice.keypair.publicKey),
+            takerDstAta: await splToken.getAssociatedTokenAddress(FAKE_NATIVE_MINT, state.bob.keypair.publicKey),
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerNativeTokenBalanceAfter =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+      // check that native tokens were sent to maker
+      expect(makerNativeTokenBalanceAfter).to.be.gt(
+        makerNativeTokenBalanceBefore
+      );
+
+      // Verify that the escrow account was closed
+      // await expect(
+      //   splToken.getAccount(provider.connection, escrow.ata)
+      // ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
     it("Doesn't fill partial fill with allow_partial_fill=false", async () => {

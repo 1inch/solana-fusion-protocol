@@ -23,6 +23,8 @@ export type Escrow = {
   ata: anchor.web3.PublicKey;
 };
 
+export const FAKE_NATIVE_MINT = new PublicKey('SoNative11111111111111111111111111111111111');
+
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
     console.log(message, ...optionalParams);

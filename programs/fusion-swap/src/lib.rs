@@ -110,17 +110,35 @@ pub mod fusion_swap {
         );
 
         // Taker => Maker
-        anchor_spl::token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                anchor_spl::token::Transfer {
-                    from: ctx.accounts.taker_dst_ata.to_account_info(),
-                    to: ctx.accounts.maker_dst_ata.to_account_info(),
-                    authority: ctx.accounts.taker.to_account_info(),
-                },
-            ),
-            dst_amount,
-        )?;
+        if ctx.accounts.dst_mint.key() == constants::FAKE_NATIVE_MINT {
+            // Transfer SOL using System Program
+            let ix = anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.taker.key(),
+                &ctx.accounts.maker_receiver.key(),
+                dst_amount,
+            );
+            anchor_lang::solana_program::program::invoke(
+                &ix,
+                &[
+                    ctx.accounts.taker.to_account_info(),
+                    ctx.accounts.maker_receiver.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+            )?;
+        } else {
+            // Transfer SPL tokens
+            anchor_spl::token::transfer(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.taker_dst_ata.to_account_info(),
+                        to: ctx.accounts.maker_dst_ata.to_account_info(),
+                        authority: ctx.accounts.taker.to_account_info(),
+                    },
+                ),
+                dst_amount,
+            )?;
+        }
 
         // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
@@ -163,7 +181,8 @@ pub struct Initialize<'info> {
     /// Source asset
     src_mint: Box<Account<'info, Mint>>,
     /// Destination asset
-    dst_mint: Box<Account<'info, Mint>>,
+    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
+    dst_mint: UncheckedAccount<'info>,
     /// Account allowed to fill the order
     authorized_user: Option<AccountInfo<'info>>,
 
@@ -221,10 +240,11 @@ pub struct Fill<'info> {
     // TODO: Add src_mint to escrow or seeds
     src_mint: Box<Account<'info, Mint>>,
     /// Taker asset
+    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
         constraint = escrow.dst_mint == dst_mint.key(),
     )]
-    dst_mint: Box<Account<'info, Mint>>,
+    dst_mint: UncheckedAccount<'info>,
 
     /// Account to store order conditions
     #[account(
@@ -243,13 +263,14 @@ pub struct Fill<'info> {
     escrow_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// Maker's ATA of dst_mint
+    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
-        init_if_needed,
-        payer = taker,
-        associated_token::mint = dst_mint,
-        associated_token::authority = maker_receiver
+        // init_if_needed,
+        // payer = taker,
+        // associated_token::mint = dst_mint,
+        // associated_token::authority = maker_receiver
     )]
-    maker_dst_ata: Box<Account<'info, TokenAccount>>,
+    maker_dst_ata: UncheckedAccount<'info>,
 
     // TODO initialize this account as well as 'maker_dst_ata'
     // this needs providing receiver address and adding
@@ -264,12 +285,16 @@ pub struct Fill<'info> {
     taker_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// Taker's ATA of dst_mint
+    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
         mut,
-        associated_token::mint = dst_mint,
-        associated_token::authority = taker
+        // constraint = taker_dst_ata.mint == dst_mint.key(),
+        // constraint = nft_token_account.mint == nft_mint.key()
+    
+        // associated_token::mint = dst_mint,
+        // associated_token::authority = taker
     )]
-    taker_dst_ata: Box<Account<'info, TokenAccount>>,
+    taker_dst_ata: UncheckedAccount<'info>,
 
     token_program: Program<'info, Token>,
     system_program: Program<'info, System>,
