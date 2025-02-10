@@ -7,9 +7,9 @@ import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
   trackReceivedTokenAndTx,
+  buildEscrowTraits,
   debugLog,
   numberToBuffer,
-  FAKE_NATIVE_MINT,
 } from "../utils/utils";
 chai.use(chaiAsPromised);
 
@@ -381,7 +381,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             new anchor.BN(0), // srcAmount
             state.defaultDstAmount,
-            false, // Allow partial fills
+            buildEscrowTraits({ isPartialFill: false }),
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -403,7 +403,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             new anchor.BN(0), // dstAmount
-            false, // Allow partial fills
+            buildEscrowTraits({ isPartialFill: false }),
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -435,7 +435,7 @@ describe("Fusion Swap", () => {
           state.defaultExpirationTime,
           state.defaultSrcAmount,
           state.defaultDstAmount,
-          false, // Allow partial fills
+          buildEscrowTraits({ isPartialFill: false }),
           state.alice.keypair.publicKey
         )
         .accountsPartial({
@@ -455,7 +455,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            false, // Allow partial fills
+            buildEscrowTraits({ isPartialFill: false }),
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -828,12 +828,13 @@ describe("Fusion Swap", () => {
       );
     });
 
-    it.only("Execute the trade with native tokens (SOL) as destination", async () => {
+    it("Execute the trade with native tokens (SOL) as destination", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
         provider,
-        dstMint: FAKE_NATIVE_MINT,
+        dstMint: splToken.NATIVE_MINT,
+        useNativeDstAsset: true,
       });
 
       const makerNativeTokenBalanceBefore =
@@ -845,9 +846,9 @@ describe("Fusion Swap", () => {
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
-            dstMint: FAKE_NATIVE_MINT,
-            makerDstAta: await splToken.getAssociatedTokenAddress(FAKE_NATIVE_MINT, state.alice.keypair.publicKey),
-            takerDstAta: await splToken.getAssociatedTokenAddress(FAKE_NATIVE_MINT, state.bob.keypair.publicKey),
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta: state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            takerDstAta: state.bob.atas[splToken.NATIVE_MINT.toString()].address,
           })
         )
         .signers([state.bob.keypair])

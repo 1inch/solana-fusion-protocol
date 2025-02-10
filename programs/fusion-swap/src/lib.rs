@@ -19,11 +19,15 @@ pub mod fusion_swap {
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
         dst_amount: u64,      // Amount of tokens maker wants in exchange
-        allow_partial_fills: bool,
+        traits: u8,
         receiver: Pubkey, // Owner of the account which will receive dst_token
     ) -> Result<()> {
         if src_amount == 0 || dst_amount == 0 {
             return err!(EscrowError::InvalidAmount);
+        }
+
+        if ctx.accounts.dst_mint.key() != constants::NATIVE_MINT && native_dst_asset(traits) {
+            return err!(EscrowError::InconsistentNativeDstTrait);
         }
 
         let escrow = &mut ctx.accounts.escrow;
@@ -40,7 +44,7 @@ pub mod fusion_swap {
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
-            allow_partial_fills,
+            traits,
             receiver,
         });
 
@@ -77,7 +81,7 @@ pub mod fusion_swap {
         }
 
         // Check if partial fills are allowed if this is the case
-        if ctx.accounts.escrow_src_ata.amount > amount && !ctx.accounts.escrow.allow_partial_fills {
+        if ctx.accounts.escrow_src_ata.amount > amount && !allow_partial_fills(ctx.accounts.escrow.traits) {
             return err!(EscrowError::PartialFillNotAllowed);
         }
 
@@ -110,7 +114,7 @@ pub mod fusion_swap {
         );
 
         // Taker => Maker
-        if ctx.accounts.dst_mint.key() == constants::FAKE_NATIVE_MINT {
+        if ctx.accounts.dst_mint.key() == constants::NATIVE_MINT && native_dst_asset(ctx.accounts.escrow.traits) {
             // Transfer SOL using System Program
             let ix = anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.taker.key(),
@@ -181,8 +185,7 @@ pub struct Initialize<'info> {
     /// Source asset
     src_mint: Box<Account<'info, Mint>>,
     /// Destination asset
-    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
-    dst_mint: UncheckedAccount<'info>,
+    dst_mint: Box<Account<'info, Mint>>,
     /// Account allowed to fill the order
     authorized_user: Option<AccountInfo<'info>>,
 
@@ -240,11 +243,10 @@ pub struct Fill<'info> {
     // TODO: Add src_mint to escrow or seeds
     src_mint: Box<Account<'info, Mint>>,
     /// Taker asset
-    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
         constraint = escrow.dst_mint == dst_mint.key(),
     )]
-    dst_mint: UncheckedAccount<'info>,
+    dst_mint: Box<Account<'info, Mint>>,
 
     /// Account to store order conditions
     #[account(
@@ -263,14 +265,13 @@ pub struct Fill<'info> {
     escrow_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// Maker's ATA of dst_mint
-    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
-        // init_if_needed,
-        // payer = taker,
-        // associated_token::mint = dst_mint,
-        // associated_token::authority = maker_receiver
+        init_if_needed,
+        payer = taker,
+        associated_token::mint = dst_mint,
+        associated_token::authority = maker_receiver
     )]
-    maker_dst_ata: UncheckedAccount<'info>,
+    maker_dst_ata: Box<Account<'info, TokenAccount>>,
 
     // TODO initialize this account as well as 'maker_dst_ata'
     // this needs providing receiver address and adding
@@ -288,13 +289,10 @@ pub struct Fill<'info> {
     /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
         mut,
-        // constraint = taker_dst_ata.mint == dst_mint.key(),
-        // constraint = nft_token_account.mint == nft_mint.key()
-    
-        // associated_token::mint = dst_mint,
-        // associated_token::authority = taker
+        associated_token::mint = dst_mint,
+        associated_token::authority = taker
     )]
-    taker_dst_ata: UncheckedAccount<'info>,
+    taker_dst_ata: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
     system_program: Program<'info, System>,
@@ -347,7 +345,7 @@ pub struct Escrow {
     src_amount: u64,
     src_remaining: u64,
     expiration_time: u32,
-    allow_partial_fills: bool,
+    traits: u8,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
 }
@@ -407,4 +405,14 @@ fn close_escrow<'info>(
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
 fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u64) -> u64 {
     (swap_amount * escrow_dst_amount).div_ceil(escrow_src_amount)
+}
+
+// Flag that defines if the order can be filled partially
+pub fn allow_partial_fills(traits: u8) -> bool {
+    traits & 0b00000001 != 0
+}
+
+// Flag that defines if the dst asset should be sent as native token
+pub fn native_dst_asset(traits: u8) -> bool {
+    traits & 0b00000010 != 0
 }
