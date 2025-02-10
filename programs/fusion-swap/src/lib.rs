@@ -235,7 +235,7 @@ pub struct Fill<'info> {
     #[account(mut)]
     maker: AccountInfo<'info>,
 
-    /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_dst_ata
+    /// CHECK: maker_receiver only has to be equal to escrow parameter
     #[account(
         constraint = escrow.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
     )]
