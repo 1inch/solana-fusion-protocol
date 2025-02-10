@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 
 pub mod constants;
 pub mod error;
@@ -19,11 +19,15 @@ pub mod fusion_swap {
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
         dst_amount: u64,      // Amount of tokens maker wants in exchange
-        allow_partial_fills: bool,
+        traits: u8,
         receiver: Pubkey, // Owner of the account which will receive dst_token
     ) -> Result<()> {
         if src_amount == 0 || dst_amount == 0 {
             return err!(EscrowError::InvalidAmount);
+        }
+
+        if ctx.accounts.dst_mint.key() != spl_token::native_mint::id() && native_dst_asset(traits) {
+            return err!(EscrowError::InconsistentNativeDstTrait);
         }
 
         let escrow = &mut ctx.accounts.escrow;
@@ -40,7 +44,7 @@ pub mod fusion_swap {
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
-            allow_partial_fills,
+            traits,
             receiver,
         });
 
@@ -77,7 +81,9 @@ pub mod fusion_swap {
         }
 
         // Check if partial fills are allowed if this is the case
-        if ctx.accounts.escrow_src_ata.amount > amount && !ctx.accounts.escrow.allow_partial_fills {
+        if ctx.accounts.escrow_src_ata.amount > amount
+            && !allow_partial_fills(ctx.accounts.escrow.traits)
+        {
             return err!(EscrowError::PartialFillNotAllowed);
         }
 
@@ -110,17 +116,35 @@ pub mod fusion_swap {
         );
 
         // Taker => Maker
-        anchor_spl::token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                anchor_spl::token::Transfer {
-                    from: ctx.accounts.taker_dst_ata.to_account_info(),
-                    to: ctx.accounts.maker_dst_ata.to_account_info(),
-                    authority: ctx.accounts.taker.to_account_info(),
-                },
-            ),
-            dst_amount,
-        )?;
+        if native_dst_asset(ctx.accounts.escrow.traits) {
+            // Transfer SOL using System Program
+            let ix = anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.taker.key(),
+                &ctx.accounts.maker_receiver.key(),
+                dst_amount,
+            );
+            anchor_lang::solana_program::program::invoke(
+                &ix,
+                &[
+                    ctx.accounts.taker.to_account_info(),
+                    ctx.accounts.maker_receiver.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+            )?;
+        } else {
+            // Transfer SPL tokens
+            anchor_spl::token::transfer(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.taker_dst_ata.to_account_info(),
+                        to: ctx.accounts.maker_dst_ata.to_account_info(),
+                        authority: ctx.accounts.taker.to_account_info(),
+                    },
+                ),
+                dst_amount,
+            )?;
+        }
 
         // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
@@ -226,7 +250,7 @@ pub struct Fill<'info> {
     #[account(mut)]
     maker: AccountInfo<'info>,
 
-    /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_dst_ata
+    /// CHECK: maker_receiver only has to be equal to escrow parameter
     #[account(
         constraint = escrow.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
     )]
@@ -337,7 +361,7 @@ pub struct Escrow {
     src_amount: u64,
     src_remaining: u64,
     expiration_time: u32,
-    allow_partial_fills: bool,
+    traits: u8,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
 }
@@ -374,4 +398,14 @@ fn close_escrow<'info>(
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
 fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u64) -> u64 {
     (swap_amount * escrow_dst_amount).div_ceil(escrow_src_amount)
+}
+
+// Flag that defines if the order can be filled partially
+pub fn allow_partial_fills(traits: u8) -> bool {
+    traits & 0b00000001 != 0
+}
+
+// Flag that defines if the dst asset should be sent as native token
+pub fn native_dst_asset(traits: u8) -> bool {
+    traits & 0b00000010 != 0
 }

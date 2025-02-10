@@ -7,6 +7,7 @@ import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
   trackReceivedTokenAndTx,
+  buildEscrowTraits,
   debugLog,
   numberToBuffer,
 } from "../utils/utils";
@@ -380,7 +381,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             new anchor.BN(0), // srcAmount
             state.defaultDstAmount,
-            false, // Allow partial fills
+            buildEscrowTraits({ isPartialFill: false }),
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -402,7 +403,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             new anchor.BN(0), // dstAmount
-            false, // Allow partial fills
+            buildEscrowTraits({ isPartialFill: false }),
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -434,7 +435,7 @@ describe("Fusion Swap", () => {
           state.defaultExpirationTime,
           state.defaultSrcAmount,
           state.defaultDstAmount,
-          false, // Allow partial fills
+          buildEscrowTraits({ isPartialFill: false }),
           state.alice.keypair.publicKey
         )
         .accountsPartial({
@@ -454,7 +455,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            false, // Allow partial fills
+            buildEscrowTraits({ isPartialFill: false }),
             state.alice.keypair.publicKey
           )
           .accountsPartial({
@@ -827,6 +828,49 @@ describe("Fusion Swap", () => {
       );
     });
 
+    it("Execute the trade with native tokens (SOL) as destination", async () => {
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        dstMint: splToken.NATIVE_MINT,
+        useNativeDstAsset: true,
+      });
+
+      await program.methods
+        .fill(escrow.order_id, state.defaultSrcAmount)
+        .accounts(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta:
+              state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            takerDstAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.alice.keypair.publicKey
+      );
+
+      // check that native tokens were sent to maker
+      expect(makerNativeTokenBalanceAfter).to.be.eq(
+        makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber()
+      );
+
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
     it("Doesn't fill partial fill with allow_partial_fill=false", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
@@ -847,6 +891,85 @@ describe("Fusion Swap", () => {
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: PartialFillNotAllowed");
+    });
+
+    it("Fails to init if native_dst_asset = true but mint is different from native mint", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            state.defaultSrcAmount,
+            state.defaultDstAmount,
+            buildEscrowTraits({ isPartialFill: false, isNativeDstAsset: true }),
+            state.alice.keypair.publicKey
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InconsistentNativeDstTrait.");
+    });
+
+    it("Execute the trade and transfer wSOL if native_dst_asset = false and native dst mint is provided", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        dstMint: splToken.NATIVE_MINT,
+        useNativeDstAsset: false,
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              dstMint: splToken.NATIVE_MINT,
+              makerDstAta:
+                state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+              takerDstAta:
+                state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+        ],
+        transactionPromise
+      );
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+
+      expect(results).to.be.deep.eq([
+        BigInt(state.defaultDstAmount.toNumber()),
+        BigInt(state.defaultSrcAmount.toNumber()),
+        -BigInt(state.defaultDstAmount.toNumber()),
+      ]);
     });
   });
 

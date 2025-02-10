@@ -23,6 +23,20 @@ export type Escrow = {
   ata: anchor.web3.PublicKey;
 };
 
+export function buildEscrowTraits({
+  isPartialFill = true,
+  isNativeDstAsset = false,
+}): number {
+  let traits = 0;
+  if (isPartialFill) {
+    traits |= 1;
+  }
+  if (isNativeDstAsset) {
+    traits |= 2;
+  }
+  return traits;
+}
+
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
     console.log(message, ...optionalParams);
@@ -174,6 +188,7 @@ export class TestState {
     srcMint = this.tokens[0],
     dstMint = this.tokens[1],
     allowPartialFills = true,
+    useNativeDstAsset = false,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
   }: {
@@ -224,7 +239,10 @@ export class TestState {
         expirationTime,
         srcAmount,
         dstAmount,
-        allowPartialFills,
+        buildEscrowTraits({
+          isPartialFill: allowPartialFills,
+          isNativeDstAsset: useNativeDstAsset,
+        }),
         makerReceiver
       )
       .accountsPartial({
