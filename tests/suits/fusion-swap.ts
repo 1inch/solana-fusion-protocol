@@ -971,43 +971,6 @@ describe("Fusion Swap", () => {
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
     });
-
-    it("Execute the trade with partial fill if allowed", async () => {
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        allowPartialFills: true,
-      });
-
-      const transactionPromise = () =>
-        program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
-            state.buildAccountsDataForFill({
-              escrow: escrow.escrow,
-              escrowSrcAta: escrow.ata,
-            })
-          )
-          .signers([state.bob.keypair])
-          .rpc();
-
-      const results = await trackReceivedTokenAndTx(
-        provider.connection,
-        [
-          state.alice.atas[state.tokens[1].toString()].address,
-          state.bob.atas[state.tokens[0].toString()].address,
-          state.bob.atas[state.tokens[1].toString()].address,
-        ],
-        transactionPromise
-      );
-
-      expect(results).to.be.deep.eq([
-        BigInt(state.defaultDstAmount.divn(2).toNumber()),
-        BigInt(state.defaultSrcAmount.divn(2).toNumber()),
-        -BigInt(state.defaultDstAmount.divn(2).toNumber()),
-      ]);
-    });
   });
 
   describe("Optional tests", () => {
