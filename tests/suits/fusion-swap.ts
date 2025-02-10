@@ -800,32 +800,65 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: PrivateOrder");
     });
 
-    it("Execute the trade and close escow after fullfill", async () => {
+    it("Execute the partial fill and close escow after", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
         provider,
       });
 
-      const solReceiverNativeTokenBalanceBefore =
-        await provider.connection.getBalance(state.alice.keypair.publicKey);
-      await program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount)
-        .accounts(
-          state.buildAccountsDataForFill({
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
-          })
-        )
-        .signers([state.bob.keypair])
-        .rpc();
+      // Fill the trade partially
+      const transactionPromiseFill = () =>
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
 
-      const solReceiverNativeTokenBalanceAfter =
-        await provider.connection.getBalance(state.alice.keypair.publicKey);
-      // check that escrow closed and native tokens sent to maker
-      expect(solReceiverNativeTokenBalanceAfter).to.be.gt(
-        solReceiverNativeTokenBalanceBefore
+      const resultsFill = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          escrow.ata,
+          state.alice.atas[state.tokens[1].toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[state.tokens[1].toString()].address,
+        ],
+        transactionPromiseFill
       );
+
+      expect(resultsFill).to.be.deep.eq([
+        -BigInt(state.defaultSrcAmount.divn(2).toNumber()),
+        BigInt(state.defaultDstAmount.divn(2).toNumber()),
+        BigInt(state.defaultSrcAmount.divn(2).toNumber()),
+        -BigInt(state.defaultDstAmount.divn(2).toNumber()),
+      ]);
+
+      // Cancel the trade
+      const transactionPromiseCancel = () =>
+        program.methods
+          .cancel(escrow.order_id)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            escrow: escrow.escrow,
+          })
+          .signers([state.alice.keypair])
+          .rpc();
+
+      const resultsCancel = await trackReceivedTokenAndTx(
+        provider.connection,
+        [state.alice.atas[state.tokens[0].toString()].address],
+        transactionPromiseCancel
+      );
+
+      expect(resultsCancel).to.be.deep.eq([
+        BigInt(state.defaultSrcAmount.divn(2).toNumber()),
+      ]);
     });
 
     it("Execute the trade with native tokens (SOL) as destination", async () => {
