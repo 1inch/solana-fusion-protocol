@@ -23,8 +23,6 @@ export type Escrow = {
   ata: anchor.web3.PublicKey;
 };
 
-export const INVALIDATOR_SIZE = 128;
-
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
     console.log(message, ...optionalParams);
@@ -142,7 +140,6 @@ export class TestState {
     dstMint = this.tokens[1],
     escrow = this.escrows[0].escrow,
     escrowSrcAta = this.escrows[0].ata,
-    makerSrcAta = this.alice.atas[this.tokens[0].toString()].address,
     makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
     takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
@@ -158,7 +155,6 @@ export class TestState {
       dstMint,
       escrow,
       escrowSrcAta,
-      makerSrcAta,
       makerDstAta,
       takerSrcAta,
       takerDstAta,

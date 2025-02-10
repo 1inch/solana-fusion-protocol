@@ -128,8 +128,8 @@ pub mod fusion_swap {
                 ctx.accounts.token_program.to_account_info(),
                 &ctx.accounts.escrow,
                 ctx.accounts.escrow_src_ata.to_account_info(),
-                ctx.accounts.escrow_src_ata.amount - amount,
-                ctx.accounts.maker_src_ata.to_account_info(),
+                0,
+                None,
                 ctx.accounts.maker.to_account_info(),
                 order_id,
                 ctx.bumps.escrow,
@@ -145,7 +145,7 @@ pub mod fusion_swap {
             &ctx.accounts.escrow,
             ctx.accounts.escrow_src_ata.to_account_info(),
             ctx.accounts.escrow_src_ata.amount,
-            ctx.accounts.maker_src_ata.to_account_info(),
+            Some(ctx.accounts.maker_src_ata.to_account_info()),
             ctx.accounts.maker.to_account_info(),
             order_id,
             ctx.bumps.escrow,
@@ -242,14 +242,6 @@ pub struct Fill<'info> {
     )]
     escrow_src_ata: Box<Account<'info, TokenAccount>>,
 
-    /// Maker's ATA of src_mint
-    #[account(
-        mut,
-        associated_token::mint = src_mint,
-        associated_token::authority = maker
-    )]
-    maker_src_ata: Box<Account<'info, TokenAccount>>,
-
     /// Maker's ATA of dst_mint
     #[account(
         init_if_needed,
@@ -341,7 +333,7 @@ fn close_escrow<'info>(
     escrow: &Account<'info, Escrow>,
     escrow_src_ata: AccountInfo<'info>,
     remaining_amount: u64,
-    maker_src_ata: AccountInfo<'info>,
+    maker_src_ata: Option<AccountInfo<'info>>,
     maker: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
@@ -353,7 +345,7 @@ fn close_escrow<'info>(
                 token_program.clone(),
                 anchor_spl::token::Transfer {
                     from: escrow_src_ata.to_account_info(),
-                    to: maker_src_ata,
+                    to: maker_src_ata.unwrap(),
                     authority: escrow.to_account_info(),
                 },
                 &[&[
