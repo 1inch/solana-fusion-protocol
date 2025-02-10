@@ -383,7 +383,11 @@ describe("Fusion Swap", () => {
             new anchor.BN(0), // srcAmount
             state.defaultDstAmount,
             false, // Allow partial fills
-            state.alice.keypair.publicKey
+            state.alice.keypair.publicKey,
+            new anchor.BN(0), // compact_fees
+            null, // protocol_dst_ata
+            null, // integrator_dst_ata
+            state.defaultDstAmount, // estimated_dst_amount
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -405,7 +409,11 @@ describe("Fusion Swap", () => {
             state.defaultSrcAmount,
             new anchor.BN(0), // dstAmount
             false, // Allow partial fills
-            state.alice.keypair.publicKey
+            state.alice.keypair.publicKey,
+            new anchor.BN(0), // compact_fees
+            null, // protocol_dst_ata
+            null, // integrator_dst_ata
+            state.defaultDstAmount, // estimated_dst_amount
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -437,7 +445,11 @@ describe("Fusion Swap", () => {
           state.defaultSrcAmount,
           state.defaultDstAmount,
           false, // Allow partial fills
-          state.alice.keypair.publicKey
+          state.alice.keypair.publicKey,
+          new anchor.BN(0), // compact_fees
+          null, // protocol_dst_ata
+          null, // integrator_dst_ata
+          state.defaultDstAmount, // estimated_dst_amount
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
@@ -457,7 +469,11 @@ describe("Fusion Swap", () => {
             state.defaultSrcAmount,
             state.defaultDstAmount,
             false, // Allow partial fills
-            state.alice.keypair.publicKey
+            state.alice.keypair.publicKey,
+            new anchor.BN(0), // compact_fees
+            null, // protocol_dst_ata
+            null, // integrator_dst_ata
+            state.defaultDstAmount, // estimated_dst_amount
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,

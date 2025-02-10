@@ -14,4 +14,14 @@ pub enum EscrowError {
     PrivateOrder,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
+    #[msg("Invalid estimated taking amount")]
+    InvalidEstimatedTakingAmount,
+    #[msg("Protocol surplus fee too high")]
+    InvalidProtocolSurplusFee,
+    #[msg("Protocol fee address is invalid")]
+    InvalidProtocolFeeAta,
+    #[msg("Integrator fee address is invalid")]
+    InvalidIntegratorFeeAta,
+    #[msg("Integer overflow")]
+    IntegerOverflow,
 }

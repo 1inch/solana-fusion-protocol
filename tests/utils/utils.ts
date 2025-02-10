@@ -149,6 +149,8 @@ export class TestState {
     tokenProgram = splToken.TOKEN_PROGRAM_ID,
     associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     systemProgram = anchor.web3.SystemProgram.programId,
+    protocolDstAta = null,
+    integratorDstAta = null,
   }): any {
     return {
       taker,
@@ -165,6 +167,8 @@ export class TestState {
       tokenProgram,
       associatedTokenProgram,
       systemProgram,
+      protocolDstAta,
+      integratorDstAta,
     };
   }
 
@@ -180,6 +184,10 @@ export class TestState {
     allowPartialFills = true,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
+    compactFees = new anchor.BN(0),
+    protocolDstAta = null,
+    integratorDstAta = null,
+    estimatedDstAmount = this.defaultDstAmount,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -229,7 +237,11 @@ export class TestState {
         srcAmount,
         dstAmount,
         allowPartialFills,
-        makerReceiver
+        makerReceiver,
+        compactFees,
+        protocolDstAta,
+        integratorDstAta,
+        estimatedDstAmount
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
