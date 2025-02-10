@@ -8,7 +8,7 @@ import {
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
 import { BanksClient } from "solana-bankrun";
-import { Escrow as EscrowType } from "../../target/types/escrow";
+import { FusionSwap } from "../../target/types/fusion_swap";
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -24,20 +24,6 @@ export type Escrow = {
 };
 
 export const INVALIDATOR_SIZE = 128;
-
-export function buildEscrowTraits({
-  isPartialFill = true,
-  isMultipleFill = true,
-}): number {
-  let traits = 0;
-  if (isPartialFill) {
-    traits |= 1;
-  }
-  if (isMultipleFill) {
-    traits |= 2;
-  }
-  return traits;
-}
 
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
@@ -72,7 +58,6 @@ export class TestState {
   charlie: User;
   tokens: Array<anchor.web3.PublicKey> = [];
   escrows: Array<Escrow> = [];
-  defaultTraits = buildEscrowTraits({});
   order_id = 0;
   defaultSrcAmount = new anchor.BN(100);
   defaultDstAmount = new anchor.BN(30);
@@ -149,19 +134,18 @@ export class TestState {
     return instance;
   }
 
-  buildAccountsDataForAccept({
+  buildAccountsDataForFill({
     taker = this.bob.keypair.publicKey,
     maker = this.alice.keypair.publicKey,
     makerReceiver = this.alice.keypair.publicKey,
-    xMint = this.tokens[0],
-    yMint = this.tokens[1],
+    srcMint = this.tokens[0],
+    dstMint = this.tokens[1],
     escrow = this.escrows[0].escrow,
-    escrowedXTokens = this.escrows[0].ata,
-    makerXTokens = this.alice.atas[this.tokens[0].toString()].address,
-    makerYTokens = this.alice.atas[this.tokens[1].toString()].address,
-    takerXTokens = this.bob.atas[this.tokens[0].toString()].address,
-    takerYTokens = this.bob.atas[this.tokens[1].toString()].address,
-    solReceiver = this.alice.keypair.publicKey,
+    escrowSrcAta = this.escrows[0].ata,
+    makerSrcAta = this.alice.atas[this.tokens[0].toString()].address,
+    makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
+    takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
+    takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
     tokenProgram = splToken.TOKEN_PROGRAM_ID,
     associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     systemProgram = anchor.web3.SystemProgram.programId,
@@ -170,15 +154,14 @@ export class TestState {
       taker,
       maker,
       makerReceiver,
-      xMint,
-      yMint,
+      srcMint,
+      dstMint,
       escrow,
-      escrowedXTokens,
-      makerXTokens,
-      makerYTokens,
-      takerXTokens,
-      takerYTokens,
-      solReceiver,
+      escrowSrcAta,
+      makerSrcAta,
+      makerDstAta,
+      takerSrcAta,
+      takerDstAta,
       tokenProgram,
       associatedTokenProgram,
       systemProgram,
@@ -192,14 +175,13 @@ export class TestState {
     expirationTime = this.defaultExpirationTime,
     srcAmount = this.defaultSrcAmount,
     dstAmount = this.defaultDstAmount,
-    xMint = this.tokens[0],
-    yMint = this.tokens[1],
-    escrow_traits = this.defaultTraits,
+    srcMint = this.tokens[0],
+    dstMint = this.tokens[1],
+    allowPartialFills = true,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
-    sol_receiver = this.alice.keypair.publicKey,
   }: {
-    escrowProgram: anchor.Program<EscrowType>;
+    escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     [key: string]: any;
@@ -207,7 +189,7 @@ export class TestState {
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
-        anchor.utils.bytes.utf8.encode("escrow6"),
+        anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
         numberToBuffer(this.order_id, 4),
       ],
@@ -215,14 +197,14 @@ export class TestState {
     );
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
-      xMint,
+      srcMint,
       escrow,
       true
     );
 
     if (provider instanceof anchor.AnchorProvider) {
       // TODO: research Bankrun native token support if needed
-      if (xMint == splToken.NATIVE_MINT) {
+      if (srcMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
           amount: srcAmount,
           user: this.alice,
@@ -230,7 +212,7 @@ export class TestState {
           payer,
         });
       }
-      if (yMint == splToken.NATIVE_MINT) {
+      if (dstMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
           amount: dstAmount,
           user: this.bob,
@@ -246,14 +228,13 @@ export class TestState {
         expirationTime,
         srcAmount,
         dstAmount,
-        escrow_traits,
-        sol_receiver,
+        allowPartialFills,
         makerReceiver
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
-        xMint,
-        yMint,
+        srcMint,
+        dstMint,
         escrow,
         authorizedUser,
       })

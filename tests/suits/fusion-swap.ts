@@ -1,33 +1,22 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
-import { Escrow } from "../../target/types/escrow";
+import { FusionSwap } from "../../target/types/fusion_swap";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
-  buildEscrowTraits,
   trackReceivedTokenAndTx,
   debugLog,
   numberToBuffer,
 } from "../utils/utils";
 chai.use(chaiAsPromised);
 
-async function assertThrowsAsync(action, msg) {
-  try {
-    await action();
-  } catch (e) {
-    expect(e.toString().indexOf(msg)).to.be.not.eq(-1);
-    return;
-  }
-  throw new Error("Should have thrown an error but didn't");
-}
-
-describe("Non-Custodial Escrow", () => {
+describe("Fusion Swap", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.Escrow as anchor.Program<Escrow>;
+  const program = anchor.workspace.FusionSwap as anchor.Program<FusionSwap>;
 
   const payer = (provider.wallet as NodeWallet).payer;
   debugLog(`Payer ::`, payer.publicKey.toString());
@@ -56,8 +45,8 @@ describe("Non-Custodial Escrow", () => {
     it("Execute the trade", async () => {
       const transactionPromise = () =>
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForAccept({}))
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -90,13 +79,13 @@ describe("Non-Custodial Escrow", () => {
       });
       const transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-              makerYTokens:
+              escrowSrcAta: escrow.ata,
+              makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -126,10 +115,10 @@ describe("Non-Custodial Escrow", () => {
     it("Execute the trade with different taker's receiver wallet", async () => {
       const transactionPromise = () =>
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              takerXTokens:
+            state.buildAccountsDataForFill({
+              takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
             })
           )
@@ -163,15 +152,15 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade when maker's token account belongs to wrong mint", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              takerYTokens: state.bob.atas[state.tokens[2].toString()].address,
+            state.buildAccountsDataForFill({
+              makerDstAta: state.alice.atas[state.tokens[2].toString()].address,
             })
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: ConstraintAssociated");
+      ).to.be.rejectedWith("Error Code: ConstraintTokenMint");
     });
 
     it("Execute the trade with native tokens => tokens", async () => {
@@ -179,20 +168,20 @@ describe("Non-Custodial Escrow", () => {
         escrowProgram: program,
         payer,
         provider,
-        xMint: splToken.NATIVE_MINT,
+        srcMint: splToken.NATIVE_MINT,
       });
 
       const transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              xMint: splToken.NATIVE_MINT,
+            state.buildAccountsDataForFill({
+              srcMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-              makerXTokens:
+              escrowSrcAta: escrow.ata,
+              makerSrcAta:
                 state.alice.atas[splToken.NATIVE_MINT.toString()].address,
-              takerXTokens:
+              takerSrcAta:
                 state.bob.atas[splToken.NATIVE_MINT.toString()].address,
             })
           )
@@ -224,20 +213,20 @@ describe("Non-Custodial Escrow", () => {
         escrowProgram: program,
         payer,
         provider,
-        yMint: splToken.NATIVE_MINT,
+        dstMint: splToken.NATIVE_MINT,
       });
 
       const transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              yMint: splToken.NATIVE_MINT,
+            state.buildAccountsDataForFill({
+              dstMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-              makerYTokens:
+              escrowSrcAta: escrow.ata,
+              makerDstAta:
                 state.alice.atas[splToken.NATIVE_MINT.toString()].address,
-              takerYTokens:
+              takerDstAta:
                 state.bob.atas[splToken.NATIVE_MINT.toString()].address,
             })
           )
@@ -267,8 +256,8 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with exchange amount more than escow has (x_token)", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
-          .accounts(state.buildAccountsDataForAccept({}))
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
@@ -312,10 +301,10 @@ describe("Non-Custodial Escrow", () => {
       }
 
       await program.methods
-        .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+        .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accounts(
-          state.buildAccountsDataForAccept({
-            makerYTokens: aliceAtaYToken,
+          state.buildAccountsDataForFill({
+            makerDstAta: aliceAtaYToken,
           })
         )
         .signers([state.bob.keypair])
@@ -349,18 +338,17 @@ describe("Non-Custodial Escrow", () => {
     //     expect(e.toString().includes("TokenAccountNotFoundError"));
     //   }
 
-    //   await program.methods.accept(state.escrows[0].order_id, state.defaultSrcAmount)
+    //   await program.methods.fill(state.escrows[0].order_id, state.defaultSrcAmount)
     //   .accounts({
     //     taker: state.bob.keypair.publicKey,
     //     maker: state.alice.keypair.publicKey,
-    //     xMint: state.tokens[0],
-    //     yMint: state.tokens[1],
+    //     srcMint: state.tokens[0],
+    //     dstMint: state.tokens[1],
     //     escrow: state.escrows[0].escrow,
-    //     escrowedXTokens: state.escrows[0].ata,
-    //     makerYTokens: state.alice.atas[state.tokens[1].toString()].address,
-    //     takerXTokens: state.bobAtaXToken,
-    //     takerYTokens: state.bob.atas[state.tokens[1].toString()].address,
-    //     solReceiver: state.alice.keypair.publicKey,
+    //     escrowSrcAta: state.escrows[0].ata,
+    //     makerDstAta: state.alice.atas[state.tokens[1].toString()].address,
+    //     takerSrcAta: state.bobAtaXToken,
+    //     takerDstAta: state.bob.atas[state.tokens[1].toString()].address,
     //     tokenProgram: splToken.TOKEN_PROGRAM_ID,
     //     associatedTokenProgram: splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     //     systemProgram: anchor.web3.SystemProgram.programId,
@@ -375,11 +363,67 @@ describe("Non-Custodial Escrow", () => {
 
     // TODO: Add a test for the case of accepting an expired order
 
+    it("Fails to init with zero amounts", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      // srcAmount = 0
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            new anchor.BN(0), // srcAmount
+            state.defaultDstAmount,
+            false, // Allow partial fills
+            state.alice.keypair.publicKey
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidAmount");
+
+      // dstAmount = 0
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            state.defaultSrcAmount,
+            new anchor.BN(0), // dstAmount
+            false, // Allow partial fills
+            state.alice.keypair.publicKey
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidAmount");
+    });
+
     it("Fails to init if escrow has been initialized", async () => {
       const order_id = state.increaseOrderID();
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
-          anchor.utils.bytes.utf8.encode("escrow6"),
+          anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
         ],
@@ -392,14 +436,13 @@ describe("Non-Custodial Escrow", () => {
           state.defaultExpirationTime,
           state.defaultSrcAmount,
           state.defaultDstAmount,
-          state.defaultTraits,
-          state.alice.keypair.publicKey,
+          false, // Allow partial fills
           state.alice.keypair.publicKey
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
-          xMint: state.tokens[0],
-          yMint: state.tokens[1],
+          srcMint: state.tokens[0],
+          dstMint: state.tokens[1],
           escrow: escrow,
           authorizedUser: null,
         })
@@ -413,14 +456,13 @@ describe("Non-Custodial Escrow", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            state.defaultTraits,
-            state.alice.keypair.publicKey,
+            false, // Allow partial fills
             state.alice.keypair.publicKey
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
-            yMint: state.tokens[1],
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
             escrow: escrow,
             authorizedUser: null,
           })
@@ -432,8 +474,8 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong order_id", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[1].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForAccept({}))
+          .fill(state.escrows[1].order_id, state.defaultSrcAmount)
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
@@ -442,10 +484,10 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong escrow ata", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              escrowedXTokens: state.escrows[1].ata,
+            state.buildAccountsDataForFill({
+              escrowSrcAta: state.escrows[1].ata,
             })
           )
           .signers([state.bob.keypair])
@@ -453,13 +495,13 @@ describe("Non-Custodial Escrow", () => {
       ).to.be.rejectedWith("Error Code: ConstraintTokenOwner");
     });
 
-    it("Doesn't execute the trade with the wrong yMint", async () => {
+    it("Doesn't execute the trade with the wrong dstMint", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              yMint: state.tokens[0],
+            state.buildAccountsDataForFill({
+              dstMint: state.tokens[0],
             })
           )
           .signers([state.bob.keypair])
@@ -470,11 +512,11 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong maker receiver", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
-              makerYTokens:
+              makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -486,8 +528,8 @@ describe("Non-Custodial Escrow", () => {
     it("Execute the multiple trades", async () => {
       let transactionPromise = () =>
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForAccept({}))
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -512,8 +554,8 @@ describe("Non-Custodial Escrow", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForAccept({}))
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -550,11 +592,11 @@ describe("Non-Custodial Escrow", () => {
 
       let transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, _srcAmount.divn(2))
+          .fill(escrow.order_id, _srcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -581,11 +623,11 @@ describe("Non-Custodial Escrow", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, _srcAmount.divn(2))
+          .fill(escrow.order_id, _srcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -612,11 +654,11 @@ describe("Non-Custodial Escrow", () => {
       // Third trade
       transactionPromise = () =>
         program.methods
-          .accept(escrow.order_id, new anchor.BN(1))
+          .fill(escrow.order_id, new anchor.BN(1))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -647,9 +689,8 @@ describe("Non-Custodial Escrow", () => {
           .cancel(state.escrows[0].order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -670,7 +711,7 @@ describe("Non-Custodial Escrow", () => {
         escrowProgram: program,
         payer,
         provider,
-        xMint: splToken.NATIVE_MINT,
+        srcMint: splToken.NATIVE_MINT,
       });
 
       const transactionPromise = () =>
@@ -678,9 +719,8 @@ describe("Non-Custodial Escrow", () => {
           .cancel(escrow.order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: splToken.NATIVE_MINT,
+            srcMint: splToken.NATIVE_MINT,
             escrow: escrow.escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -702,9 +742,8 @@ describe("Non-Custodial Escrow", () => {
           .cancel(state.escrows[1].order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -717,10 +756,9 @@ describe("Non-Custodial Escrow", () => {
           .cancel(state.escrows[0].order_id)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            escrowedXTokens: state.escrows[1].ata,
-            solReceiver: state.alice.keypair.publicKey,
+            escrowSrcAta: state.escrows[1].ata,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -733,9 +771,8 @@ describe("Non-Custodial Escrow", () => {
           .cancel(state.escrows[0].order_id)
           .accountsPartial({
             maker: state.charlie.keypair.publicKey,
-            xMint: state.tokens[0],
+            srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
-            solReceiver: state.alice.keypair.publicKey,
           })
           .signers([state.charlie.keypair])
           .rpc()
@@ -752,11 +789,11 @@ describe("Non-Custodial Escrow", () => {
 
       await expect(
         program.methods
-          .accept(escrow.order_id, state.defaultSrcAmount.divn(2))
+          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -769,46 +806,44 @@ describe("Non-Custodial Escrow", () => {
         escrowProgram: program,
         payer,
         provider,
-        sol_receiver: state.charlie.keypair.publicKey,
       });
 
       const solReceiverNativeTokenBalanceBefore =
-        await provider.connection.getBalance(state.charlie.keypair.publicKey);
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
       await program.methods
-        .accept(escrow.order_id, state.defaultSrcAmount)
+        .fill(escrow.order_id, state.defaultSrcAmount)
         .accounts(
-          state.buildAccountsDataForAccept({
+          state.buildAccountsDataForFill({
             escrow: escrow.escrow,
-            escrowedXTokens: escrow.ata,
-            solReceiver: state.charlie.keypair.publicKey,
+            escrowSrcAta: escrow.ata,
           })
         )
         .signers([state.bob.keypair])
         .rpc();
 
       const solReceiverNativeTokenBalanceAfter =
-        await provider.connection.getBalance(state.charlie.keypair.publicKey);
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
       // check that escrow closed and native tokens sent to maker
       expect(solReceiverNativeTokenBalanceAfter).to.be.gt(
         solReceiverNativeTokenBalanceBefore
       );
     });
 
-    it("Doesn't accept partial fill with allow_partial_fill=false", async () => {
+    it("Doesn't fill partial fill with allow_partial_fill=false", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
         provider,
-        escrow_traits: buildEscrowTraits({ isPartialFill: false }),
+        allowPartialFills: false,
       });
 
       await expect(
         program.methods
-          .accept(escrow.order_id, state.defaultSrcAmount.divn(2))
+          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
+              escrowSrcAta: escrow.ata,
             })
           )
           .signers([state.bob.keypair])
@@ -821,10 +856,10 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong maker's ata", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              makerYTokens:
+            state.buildAccountsDataForFill({
+              makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -836,10 +871,10 @@ describe("Non-Custodial Escrow", () => {
     it("Doesn't execute the trade with the wrong token", async () => {
       await expect(
         program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
-              xMint: state.tokens[1],
+            state.buildAccountsDataForFill({
+              srcMint: state.tokens[1],
             })
           )
           .signers([state.bob.keypair])
@@ -849,24 +884,24 @@ describe("Non-Custodial Escrow", () => {
   });
 
   describe("Multiple escrows", () => {
-    it("Double accept", async () => {
+    it("Double fill", async () => {
       const transactionPromise = async () => {
         await program.methods
-          .accept(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForAccept({}))
+          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .accounts(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
         await program.methods
-          .accept(state.escrows[1].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[1].order_id, state.defaultSrcAmount)
           .accounts(
-            state.buildAccountsDataForAccept({
+            state.buildAccountsDataForFill({
               taker: state.charlie.keypair.publicKey,
               escrow: state.escrows[1].escrow,
-              escrowedXTokens: state.escrows[1].ata,
-              takerXTokens:
+              escrowSrcAta: state.escrows[1].ata,
+              takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
-              takerYTokens:
+              takerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -899,67 +934,6 @@ describe("Non-Custodial Escrow", () => {
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
-    });
-
-    it("Execute the trade with allow_multiple_fill=false only once", async () => {
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        escrow_traits: buildEscrowTraits({ isMultipleFill: false }),
-      });
-
-      const transactionPromise = () =>
-        program.methods
-          .accept(escrow.order_id, state.defaultSrcAmount.divn(10))
-          .accounts(
-            state.buildAccountsDataForAccept({
-              escrow: escrow.escrow,
-              escrowedXTokens: escrow.ata,
-            })
-          )
-          .signers([state.bob.keypair])
-          .rpc();
-
-      await transactionPromise();
-      await expect(transactionPromise()).to.be.rejectedWith(
-        "Error Code: AccountNotInitialized"
-      );
-    });
-
-    it("Execute the trade with allow_multiple_fill=false should close escrow", async () => {
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        escrow_traits: buildEscrowTraits({ isMultipleFill: false }),
-      });
-
-      const makerNativeTokenBalanceBefore =
-        await provider.connection.getBalance(state.alice.keypair.publicKey);
-      await program.methods
-        .accept(escrow.order_id, state.defaultSrcAmount.divn(10))
-        .accounts(
-          state.buildAccountsDataForAccept({
-            escrow: escrow.escrow,
-            escrowedXTokens: escrow.ata,
-          })
-        )
-        .signers([state.bob.keypair])
-        .rpc();
-
-      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
-        state.alice.keypair.publicKey
-      );
-      // check that escrow closed and native tokens sent to maker
-      expect(makerNativeTokenBalanceAfter).to.be.gt(
-        makerNativeTokenBalanceBefore
-      );
-      await assertThrowsAsync(
-        () => splToken.getAccount(provider.connection, escrow.ata),
-        "TokenAccountNotFoundError"
-      );
-      expect(await provider.connection.getBalance(escrow.escrow)).to.be.eq(0);
     });
   });
 });

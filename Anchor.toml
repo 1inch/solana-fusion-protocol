@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-escrow = "AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg"
+fusion_swap = "AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg"
 
 
 [registry]
