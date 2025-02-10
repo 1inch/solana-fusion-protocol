@@ -230,7 +230,7 @@ export class TestState {
         dstAmount,
         allowPartialFills,
         makerReceiver,
-        null,
+        null
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,

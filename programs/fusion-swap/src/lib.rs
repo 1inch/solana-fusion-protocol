@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use utils::{DutchAuctionData, get_dst_amount};
+use utils::{get_dst_amount, DutchAuctionData};
 
 pub mod constants;
 pub mod error;
@@ -338,7 +338,7 @@ pub struct Escrow {
     allow_partial_fills: bool,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
-    dutch_auction_data: Option<DutchAuctionData>
+    dutch_auction_data: Option<DutchAuctionData>,
 }
 
 // Function to close the escrow account

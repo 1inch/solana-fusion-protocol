@@ -3,7 +3,12 @@ use anchor_lang::prelude::*;
 use crate::constants::BASE_POINTS;
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the dutch auction formula
-pub fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u64, opt_data: Option<DutchAuctionData>) -> Result<u64> {
+pub fn get_dst_amount(
+    escrow_src_amount: u64,
+    escrow_dst_amount: u64,
+    swap_amount: u64,
+    opt_data: Option<DutchAuctionData>,
+) -> Result<u64> {
     let mut result = (escrow_dst_amount * swap_amount).div_ceil(escrow_src_amount);
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(

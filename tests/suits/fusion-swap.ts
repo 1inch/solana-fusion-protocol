@@ -384,7 +384,7 @@ describe("Fusion Swap", () => {
             state.defaultDstAmount,
             false, // Allow partial fills
             state.alice.keypair.publicKey,
-            null,
+            null
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -407,7 +407,7 @@ describe("Fusion Swap", () => {
             new anchor.BN(0), // dstAmount
             false, // Allow partial fills
             state.alice.keypair.publicKey,
-            null,
+            null
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -440,7 +440,7 @@ describe("Fusion Swap", () => {
           state.defaultDstAmount,
           false, // Allow partial fills
           state.alice.keypair.publicKey,
-          null,
+          null
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
@@ -461,7 +461,7 @@ describe("Fusion Swap", () => {
             state.defaultDstAmount,
             false, // Allow partial fills
             state.alice.keypair.publicKey,
-            null,
+            null
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
