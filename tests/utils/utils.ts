@@ -239,7 +239,10 @@ export class TestState {
         expirationTime,
         srcAmount,
         dstAmount,
-        buildEscrowTraits({ isPartialFill: allowPartialFills, isNativeDstAsset: useNativeDstAsset }),
+        buildEscrowTraits({
+          isPartialFill: allowPartialFills,
+          isNativeDstAsset: useNativeDstAsset,
+        }),
         makerReceiver
       )
       .accountsPartial({

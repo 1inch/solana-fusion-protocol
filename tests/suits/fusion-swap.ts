@@ -829,6 +829,9 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade with native tokens (SOL) as destination", async () => {
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
@@ -837,34 +840,35 @@ describe("Fusion Swap", () => {
         useNativeDstAsset: true,
       });
 
-      const makerNativeTokenBalanceBefore =
-        await provider.connection.getBalance(state.alice.keypair.publicKey);
-
       await program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
+        .fill(escrow.order_id, state.defaultSrcAmount)
         .accounts(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
             dstMint: splToken.NATIVE_MINT,
-            makerDstAta: state.alice.atas[splToken.NATIVE_MINT.toString()].address,
-            takerDstAta: state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            makerDstAta:
+              state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            takerDstAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
           })
         )
         .signers([state.bob.keypair])
         .rpc();
 
-      const makerNativeTokenBalanceAfter =
-        await provider.connection.getBalance(state.alice.keypair.publicKey);
+      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.alice.keypair.publicKey
+      );
+
       // check that native tokens were sent to maker
-      expect(makerNativeTokenBalanceAfter).to.be.gt(
-        makerNativeTokenBalanceBefore
+      expect(makerNativeTokenBalanceAfter).to.be.eq(
+        makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber()
       );
 
       // Verify that the escrow account was closed
-      // await expect(
-      //   splToken.getAccount(provider.connection, escrow.ata)
-      // ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
     it("Doesn't fill partial fill with allow_partial_fill=false", async () => {

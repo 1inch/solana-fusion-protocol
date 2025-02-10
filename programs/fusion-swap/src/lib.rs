@@ -81,7 +81,9 @@ pub mod fusion_swap {
         }
 
         // Check if partial fills are allowed if this is the case
-        if ctx.accounts.escrow_src_ata.amount > amount && !allow_partial_fills(ctx.accounts.escrow.traits) {
+        if ctx.accounts.escrow_src_ata.amount > amount
+            && !allow_partial_fills(ctx.accounts.escrow.traits)
+        {
             return err!(EscrowError::PartialFillNotAllowed);
         }
 
@@ -114,7 +116,9 @@ pub mod fusion_swap {
         );
 
         // Taker => Maker
-        if ctx.accounts.dst_mint.key() == constants::NATIVE_MINT && native_dst_asset(ctx.accounts.escrow.traits) {
+        if ctx.accounts.dst_mint.key() == constants::NATIVE_MINT
+            && native_dst_asset(ctx.accounts.escrow.traits)
+        {
             // Transfer SOL using System Program
             let ix = anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.taker.key(),
@@ -286,7 +290,6 @@ pub struct Fill<'info> {
     taker_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// Taker's ATA of dst_mint
-    /// CHECK: account requirements are lifted to support FAKE_NATIVE_SOL
     #[account(
         mut,
         associated_token::mint = dst_mint,
