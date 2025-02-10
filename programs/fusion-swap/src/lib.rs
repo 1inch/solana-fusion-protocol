@@ -116,9 +116,7 @@ pub mod fusion_swap {
         );
 
         // Taker => Maker
-        if ctx.accounts.dst_mint.key() == constants::NATIVE_MINT
-            && native_dst_asset(ctx.accounts.escrow.traits)
-        {
+        if native_dst_asset(ctx.accounts.escrow.traits) {
             // Transfer SOL using System Program
             let ix = anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.taker.key(),
