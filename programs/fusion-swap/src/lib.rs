@@ -1,12 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use utils::{get_dst_amount, DutchAuctionData};
+use auction_utils::{calculate_rate_bump, DutchAuctionData};
 
+pub mod auction_utils;
 pub mod constants;
 pub mod error;
-pub mod utils;
 
+use crate::constants::BASE_POINTS;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
@@ -391,4 +392,19 @@ fn close_escrow<'info>(
 
     // Close escrow account
     escrow.close(maker)
+}
+
+// Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
+pub fn get_dst_amount(
+    escrow_src_amount: u64,
+    escrow_dst_amount: u64,
+    swap_amount: u64,
+    opt_data: Option<DutchAuctionData>,
+) -> Result<u64> {
+    let mut result = (escrow_dst_amount * swap_amount).div_ceil(escrow_src_amount);
+    if let Some(data) = opt_data {
+        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u32, data) as u64;
+        result = (result * (BASE_POINTS + rate_bump)).div_ceil(BASE_POINTS);
+    }
+    Ok(result)
 }
