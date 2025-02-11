@@ -148,6 +148,7 @@ pub mod fusion_swap {
             ctx.accounts.token_program.to_account_info(),
             ctx.accounts.taker_dst_ata.to_account_info(),
             ctx.accounts.taker.to_account_info(),
+            EscrowError::InvalidProtocolFeeAta,
         )?;
 
         // Take integrator fee
@@ -158,6 +159,7 @@ pub mod fusion_swap {
             ctx.accounts.token_program.to_account_info(),
             ctx.accounts.taker_dst_ata.to_account_info(),
             ctx.accounts.taker.to_account_info(),
+            EscrowError::InvalidIntegratorFeeAta,
         )?;
 
         // Taker => Maker
@@ -335,8 +337,10 @@ pub struct Fill<'info> {
     )]
     maker_dst_ata: Box<Account<'info, TokenAccount>>,
 
+    #[account(mut)]
     protocol_dst_ata: Option<Box<Account<'info, TokenAccount>>>,
 
+    #[account(mut)]
     integrator_dst_ata: Option<Box<Account<'info, TokenAccount>>>,
 
     // TODO initialize this account as well as 'maker_dst_ata'
@@ -486,7 +490,7 @@ fn get_fee_amounts(
 
     let actual_dst_amount = dst_amount - protocol_fee_amount - integrator_fee_amount;
 
-    // if estimated_dst_amount // TODO: uncomment it, when
+    // if estimated_dst_amount // TODO: Uncomment this when dutch autions are implemented
     //     .checked_mul(src_amount)
     //     .ok_or(EscrowError::IntegerOverflow)?
     //     .div_ceil(amount)
@@ -515,12 +519,13 @@ fn transfer_fee_if_need<'info>(
     token_program: AccountInfo<'info>,
     taker_dst_ata: AccountInfo<'info>,
     taker: AccountInfo<'info>,
+    error: EscrowError
 ) -> Result<()> {
     if fee_amount > 0 {
         match (escrowed_destination_dst_ata, account_destination_dst_ata) {
             (Some(escrowed_dst_ata), Some(account_dst_ata)) => {
                 if escrowed_dst_ata != account_dst_ata.key() {
-                    return Err(EscrowError::InvalidProtocolFeeAta.into());
+                    return Err(error.into());
                 }
                 anchor_spl::token::transfer(
                     CpiContext::new(
@@ -534,7 +539,7 @@ fn transfer_fee_if_need<'info>(
                     fee_amount,
                 )
             }
-            _ => Err(EscrowError::InvalidProtocolFeeAta.into()),
+            _ => Err(error.into()),
         }
     } else {
         Ok(())
