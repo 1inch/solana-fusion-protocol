@@ -2,9 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 
-pub mod constants;
-pub mod error;
+use common::constants;
 
+pub mod error;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
