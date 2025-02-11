@@ -486,11 +486,11 @@ fn get_fee_amounts(
     let integrator_fee_amount = dst_amount
         .checked_mul(integrator_fee)
         .ok_or(EscrowError::IntegerOverflow)?
-        .div_ceil(denominator);
+        .div_ceil(denominator); // denominator is always not zero since it's a sum of 2 non-negative values and positive constant
     let mut protocol_fee_amount = dst_amount
         .checked_mul(protocol_fee)
         .ok_or(EscrowError::IntegerOverflow)?
-        .div_ceil(denominator);
+        .div_ceil(denominator); // denominator is always not zero since it's a sum of 2 non-negative values and positive constant
 
     let actual_dst_amount = dst_amount - protocol_fee_amount - integrator_fee_amount;
 
