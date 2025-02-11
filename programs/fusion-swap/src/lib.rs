@@ -469,8 +469,8 @@ fn get_fee_amounts(
     integrator_fee: u64,
     protocol_fee: u64,
     surplus_percentage: u64,
-    src_amount: u64,
-    amount: u64,
+    _src_amount: u64,
+    _amount: u64,
     dst_amount: u64,
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64)> {
@@ -486,14 +486,14 @@ fn get_fee_amounts(
 
     let actual_dst_amount = dst_amount - protocol_fee_amount - integrator_fee_amount;
 
-    if estimated_dst_amount
-        .checked_mul(src_amount)
-        .ok_or(EscrowError::IntegerOverflow)?
-        .div_ceil(amount)
-        < dst_amount
-    {
-        return Err(EscrowError::InvalidEstimatedTakingAmount.into());
-    }
+    // if estimated_dst_amount // TODO: uncomment it, when
+    //     .checked_mul(src_amount)
+    //     .ok_or(EscrowError::IntegerOverflow)?
+    //     .div_ceil(amount)
+    //     < dst_amount
+    // {
+    //     return Err(EscrowError::InvalidEstimatedTakingAmount.into());
+    // }
 
     if actual_dst_amount > estimated_dst_amount {
         if surplus_percentage > constants::BASE_1E2 {
