@@ -46,6 +46,10 @@ pub mod fusion_swap {
         let integrator_fee = (compact_fees >> 16) as u16;
         let surplus_percentage = (compact_fees >> 32) as u8;
 
+        if surplus_percentage as u64 > constants::BASE_1E2 {
+            return Err(EscrowError::InvalidProtocolSurplusFee.into());
+        }
+
         escrow.set_inner(Escrow {
             src_amount,                            // Amount of tokens maker wants to sell
             src_remaining: src_amount,             // Remaining amount to be filled
@@ -500,9 +504,6 @@ fn get_fee_amounts(
     // }
 
     if actual_dst_amount > estimated_dst_amount {
-        if surplus_percentage > constants::BASE_1E2 {
-            return Err(EscrowError::InvalidProtocolSurplusFee.into());
-        }
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
             .checked_mul(surplus_percentage)
             .ok_or(EscrowError::IntegerOverflow)?
@@ -519,7 +520,7 @@ fn transfer_fee_if_need<'info>(
     token_program: AccountInfo<'info>,
     taker_dst_ata: AccountInfo<'info>,
     taker: AccountInfo<'info>,
-    error: EscrowError
+    error: EscrowError,
 ) -> Result<()> {
     if fee_amount > 0 {
         match (escrowed_destination_dst_ata, account_destination_dst_ata) {

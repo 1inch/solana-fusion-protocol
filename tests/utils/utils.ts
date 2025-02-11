@@ -91,8 +91,12 @@ export class TestState {
   ): Promise<TestState> {
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
-    [instance.alice as User, instance.bob as User, instance.charlie as User, instance.dave as User] =
-      await createUsers(4, instance.tokens, provider, payer);
+    [
+      instance.alice as User,
+      instance.bob as User,
+      instance.charlie as User,
+      instance.dave as User,
+    ] = await createUsers(4, instance.tokens, provider, payer);
 
     await mintTokens(
       instance.tokens[0],
@@ -126,8 +130,12 @@ export class TestState {
   ): Promise<TestState> {
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
-    [instance.alice as User, instance.bob as User, instance.charlie as User, instance.dave as User] =
-      await createAtasUsers(usersKeypairs, instance.tokens, provider, payer);
+    [
+      instance.alice as User,
+      instance.bob as User,
+      instance.charlie as User,
+      instance.dave as User,
+    ] = await createAtasUsers(usersKeypairs, instance.tokens, provider, payer);
 
     await mintTokens(
       instance.tokens[0],
@@ -410,12 +418,14 @@ async function prepareNativeTokens({ amount, user, provider, payer }) {
   ]);
 }
 
-export function buildCompactFee(fee: Partial<CompactFee>) : anchor.BN {
+export function buildCompactFee(fee: Partial<CompactFee>): anchor.BN {
   const { protocolFee = 0, integratorFee = 0, surplus = 0 } = fee;
   return new anchor.BN(
-    (BigInt(protocolFee & 0xffff) +
-    (BigInt(integratorFee & 0xffff) << 16n) +
-    (BigInt(surplus & 0xff) << 32n)).toString()
+    (
+      BigInt(protocolFee & 0xffff) +
+      (BigInt(integratorFee & 0xffff) << 16n) +
+      (BigInt(surplus & 0xff) << 32n)
+    ).toString()
   );
 }
 

@@ -269,7 +269,8 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+              protocolDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
           .signers([state.bob.keypair])
@@ -290,7 +291,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
 
       expect(results).to.be.deep.eq([
-        BigInt(state.defaultDstAmount.toNumber() * 9 / 10),
+        BigInt((state.defaultDstAmount.toNumber() * 9) / 10),
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
         BigInt(state.defaultDstAmount.toNumber() / 10),
@@ -303,7 +304,8 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         compactFees: buildCompactFee({ integratorFee: 15000 }), // 15%
-        integratorDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        integratorDstAta:
+          state.charlie.atas[state.tokens[1].toString()].address,
       });
 
       const transactionPromise = () =>
@@ -313,7 +315,8 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+              integratorDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
           .signers([state.bob.keypair])
@@ -334,14 +337,15 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
 
       expect(results).to.be.deep.eq([
-        BigInt(Math.ceil(state.defaultDstAmount.toNumber() * 85 / 100)),
+        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 85) / 100)),
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
-        BigInt(Math.floor(state.defaultDstAmount.toNumber() * 15 / 100)),
+        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 15) / 100)),
       ]);
     });
 
-    it("Execute the trade with surplus", async () => { // TODO: Fix this when dutch autions are implemented
+    it("Execute the trade with surplus", async () => {
+      // TODO: Fix this when dutch autions are implemented
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
@@ -358,7 +362,8 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+              protocolDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
           .signers([state.bob.keypair])
@@ -379,20 +384,25 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
 
       expect(results).to.be.deep.eq([
-        BigInt(Math.ceil(state.defaultDstAmount.toNumber() * 3 / 4)),
+        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 3) / 4)),
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
         BigInt(Math.floor(state.defaultDstAmount.toNumber() / 4)),
       ]);
     });
 
-    it("Execute the trade with all fees", async () => { // TODO: Fix this when dutch autions are implemented
+    it("Execute the trade with all fees", async () => {
+      // TODO: Fix this when dutch autions are implemented
       const estimatedDstAmount = state.defaultDstAmount.divn(2);
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ protocolFee: 10000, integratorFee: 15000, surplus: 50 }), // 10%, 15%, 50%
+        compactFees: buildCompactFee({
+          protocolFee: 10000,
+          integratorFee: 15000,
+          surplus: 50,
+        }), // 10%, 15%, 50%
         protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
         integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
         estimatedDstAmount,
@@ -405,8 +415,10 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-              integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
+              protocolDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
+              integratorDstAta:
+                state.dave.atas[state.tokens[1].toString()].address,
             })
           )
           .signers([state.bob.keypair])
@@ -427,14 +439,18 @@ describe("Fusion Swap", () => {
         splToken.getAccount(provider.connection, escrow.ata)
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
 
-
-      const profit = Math.ceil(state.defaultDstAmount.toNumber() * 75 / 100) - estimatedDstAmount.toNumber(); // takingAmount - 10% - 15% - estimatedAmount
+      const profit =
+        Math.ceil((state.defaultDstAmount.toNumber() * 75) / 100) -
+        estimatedDstAmount.toNumber(); // takingAmount - 10% - 15% - estimatedAmount
       expect(results).to.be.deep.eq([
-        BigInt(Math.ceil(state.defaultDstAmount.toNumber() * 625 / 1000)), // takingAmount - 10% - 15% - 50% * (actualAmount - estimatedAmount)
+        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 625) / 1000)), // takingAmount - 10% - 15% - 50% * (actualAmount - estimatedAmount)
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
-        BigInt(Math.floor(state.defaultDstAmount.toNumber() / 10) + Math.floor(profit / 2)), // 10% of takingAmount + 50% *  (actualAmount - estimatedAmpount)
-        BigInt(Math.floor(state.defaultDstAmount.toNumber() * 15 / 100)), // 15% of takingAmount
+        BigInt(
+          Math.floor(state.defaultDstAmount.toNumber() / 10) +
+            Math.floor(profit / 2)
+        ), // 10% of takingAmount + 50% *  (actualAmount - estimatedAmpount)
+        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 15) / 100)), // 15% of takingAmount
       ]);
     });
 
@@ -724,6 +740,141 @@ describe("Fusion Swap", () => {
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: SellerReceiverMismatch");
+    });
+
+    it("Doesn't create escrow with the wrong surplus param", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      await expect(
+        program.methods
+          .initialize(
+            order_id,
+            state.defaultExpirationTime,
+            state.defaultSrcAmount,
+            state.defaultDstAmount,
+            buildEscrowTraits({ isPartialFill: true, isNativeDstAsset: false }),
+            state.alice.keypair.publicKey,
+            buildCompactFee({ surplus: 146 }), // 146%
+            null, // protocol_dst_ata
+            null, // integrator_dst_ata
+            state.defaultDstAmount // estimated_dst_amount
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            escrow: escrow,
+            authorizedUser: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidProtocolSurplusFee");
+    });
+
+    it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        compactFees: buildCompactFee({ protocolFee: 10000 }), // 10%
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              protocolDstAta:
+                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_ata
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidProtocolFeeAta");
+    });
+
+    it("Doesn't execute the trade without protocol_dst_ata", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        compactFees: buildCompactFee({ protocolFee: 10000 }), // 10%
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidProtocolFeeAta");
+    });
+
+    it("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        compactFees: buildCompactFee({ integratorFee: 1000 }), // 1%
+        integratorDstAta:
+          state.charlie.atas[state.tokens[1].toString()].address,
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              integratorDstAta:
+                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_ata
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidIntegratorFeeAta");
+    });
+
+    it("Doesn't execute the trade without integrator_dst_ata", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        compactFees: buildCompactFee({ integratorFee: 1000 }), // 1%
+        integratorDstAta:
+          state.charlie.atas[state.tokens[1].toString()].address,
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InvalidIntegratorFeeAta");
     });
 
     it("Execute the multiple trades", async () => {
