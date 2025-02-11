@@ -135,47 +135,25 @@ pub mod fusion_swap {
         )?;
 
         // Take protocol fee
-        if protocol_fee_amount > 0 {
-            if let Some(protocol_dst_ata) = &ctx.accounts.protocol_dst_ata {
-                if protocol_dst_ata.key() != ctx.accounts.escrow.protocol_dst_ata.unwrap() {
-                    return Err(EscrowError::InvalidProtocolFeeAta.into());
-                }
-                anchor_spl::token::transfer(
-                    CpiContext::new(
-                        ctx.accounts.token_program.to_account_info(),
-                        anchor_spl::token::Transfer {
-                            from: ctx.accounts.taker_dst_ata.to_account_info(),
-                            to: protocol_dst_ata.to_account_info(),
-                            authority: ctx.accounts.taker.to_account_info(),
-                        },
-                    ),
-                    protocol_fee_amount,
-                )?;
-            } else {
-                return Err(EscrowError::InvalidProtocolFeeAta.into());
-            }
-        }
+        transfer_fee_if_need(
+            protocol_fee_amount,
+            &ctx.accounts.protocol_dst_ata,
+            ctx.accounts.escrow.protocol_dst_ata,
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.taker_dst_ata.to_account_info(),
+            ctx.accounts.taker.to_account_info(),
+        )?;
+
         // Take integrator fee
-        if integrator_fee_amount > 0 {
-            if let Some(integrator_dst_ata) = &ctx.accounts.integrator_dst_ata {
-                if integrator_dst_ata.key() != ctx.accounts.escrow.integrator_dst_ata.unwrap() {
-                    return Err(EscrowError::InvalidIntegratorFeeAta.into());
-                }
-                anchor_spl::token::transfer(
-                    CpiContext::new(
-                        ctx.accounts.token_program.to_account_info(),
-                        anchor_spl::token::Transfer {
-                            from: ctx.accounts.taker_dst_ata.to_account_info(),
-                            to: integrator_dst_ata.to_account_info(),
-                            authority: ctx.accounts.taker.to_account_info(),
-                        },
-                    ),
-                    integrator_fee_amount,
-                )?;
-            } else {
-                return Err(EscrowError::InvalidIntegratorFeeAta.into());
-            }
-        }
+        transfer_fee_if_need(
+            integrator_fee_amount,
+            &ctx.accounts.integrator_dst_ata,
+            ctx.accounts.escrow.integrator_dst_ata,
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.taker_dst_ata.to_account_info(),
+            ctx.accounts.taker.to_account_info(),
+        )?;
+
         // Taker => Maker
         anchor_spl::token::transfer(
             CpiContext::new(
@@ -469,7 +447,7 @@ fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u
     (swap_amount * escrow_dst_amount).div_ceil(escrow_src_amount)
 }
 
-pub fn get_fee_amounts(
+fn get_fee_amounts(
     integrator_fee: u64,
     protocol_fee: u64,
     surplus_percentage: u64,
@@ -510,4 +488,37 @@ pub fn get_fee_amounts(
     }
 
     Ok((protocol_fee_amount, integrator_fee_amount))
+}
+
+fn transfer_fee_if_need<'info>(
+    fee_amount: u64,
+    account_destination_dst_ata: &Option<Box<Account<'info, TokenAccount>>>,
+    escrowed_destination_dst_ata: Option<Pubkey>,
+    token_program: AccountInfo<'info>,
+    taker_dst_ata: AccountInfo<'info>,
+    taker: AccountInfo<'info>,
+) -> Result<()> {
+    if fee_amount > 0 {
+        match (escrowed_destination_dst_ata, account_destination_dst_ata) {
+            (Some(escrowed_dst_ata), Some(account_dst_ata)) => {
+                if escrowed_dst_ata != account_dst_ata.key() {
+                    return Err(EscrowError::InvalidProtocolFeeAta.into());
+                }
+                anchor_spl::token::transfer(
+                    CpiContext::new(
+                        token_program,
+                        anchor_spl::token::Transfer {
+                            from: taker_dst_ata.to_account_info(),
+                            to: account_dst_ata.to_account_info(),
+                            authority: taker.to_account_info(),
+                        },
+                    ),
+                    fee_amount,
+                )
+            }
+            _ => Err(EscrowError::InvalidProtocolFeeAta.into()),
+        }
+    } else {
+        Ok(())
+    }
 }
