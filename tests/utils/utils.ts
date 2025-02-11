@@ -23,7 +23,19 @@ export type Escrow = {
   ata: anchor.web3.PublicKey;
 };
 
-export const INVALIDATOR_SIZE = 128;
+export function buildEscrowTraits({
+  isPartialFill = true,
+  isNativeDstAsset = false,
+}): number {
+  let traits = 0;
+  if (isPartialFill) {
+    traits |= 1;
+  }
+  if (isNativeDstAsset) {
+    traits |= 2;
+  }
+  return traits;
+}
 
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
@@ -142,7 +154,6 @@ export class TestState {
     dstMint = this.tokens[1],
     escrow = this.escrows[0].escrow,
     escrowSrcAta = this.escrows[0].ata,
-    makerSrcAta = this.alice.atas[this.tokens[0].toString()].address,
     makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
     takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
@@ -160,7 +171,6 @@ export class TestState {
       dstMint,
       escrow,
       escrowSrcAta,
-      makerSrcAta,
       makerDstAta,
       takerSrcAta,
       takerDstAta,
@@ -182,6 +192,7 @@ export class TestState {
     srcMint = this.tokens[0],
     dstMint = this.tokens[1],
     allowPartialFills = true,
+    useNativeDstAsset = false,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
     compactFees = new anchor.BN(0),
@@ -236,7 +247,10 @@ export class TestState {
         expirationTime,
         srcAmount,
         dstAmount,
-        allowPartialFills,
+        buildEscrowTraits({
+          isPartialFill: allowPartialFills,
+          isNativeDstAsset: useNativeDstAsset,
+        }),
         makerReceiver,
         compactFees,
         protocolDstAta,
