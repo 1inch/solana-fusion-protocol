@@ -22,19 +22,19 @@ pub mod whitelist {
     }
 
     /// Registers a new user to the whitelist
-    pub fn register(_ctx: Context<Register>) -> Result<()> {
+    pub fn register(_ctx: Context<Register>, _user: Pubkey) -> Result<()> {
         Ok(())
     }
 
     /// Removes a user from the whitelist
-    pub fn deregister(_ctx: Context<Deregister>) -> Result<()> {
+    pub fn deregister(_ctx: Context<Deregister>, _user: Pubkey) -> Result<()> {
         Ok(())
     }
 
     /// Transfers ownership of the whitelist to a new owner
-    pub fn transfer_ownership(ctx: Context<TransferOwnership>) -> Result<()> {
+    pub fn transfer_ownership(ctx: Context<TransferOwnership>, _new_owner: Pubkey) -> Result<()> {
         let whitelist_state = &mut ctx.accounts.whitelist_state;
-        whitelist_state.owner = ctx.accounts.new_owner.key();
+        whitelist_state.owner = _new_owner.key();
         Ok(())
     }
 }
@@ -57,6 +57,7 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(user: Pubkey)]
 pub struct Register<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -78,13 +79,11 @@ pub struct Register<'info> {
     )]
     pub resolver_access: Account<'info, ResolverAccess>,
 
-    /// CHECK: This account is not read or written, just used for PDA creation
-    pub user: AccountInfo<'info>,
-
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
+#[instruction(user: Pubkey)]
 pub struct Deregister<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -105,9 +104,6 @@ pub struct Deregister<'info> {
     )]
     pub resolver_access: Account<'info, ResolverAccess>,
 
-    /// CHECK: This account is not read or written, just used for PDA creation
-    pub user: AccountInfo<'info>,
-
     pub system_program: Program<'info, System>,
 }
 
@@ -115,8 +111,6 @@ pub struct Deregister<'info> {
 pub struct TransferOwnership<'info> {
     #[account(mut)]
     pub current_owner: Signer<'info>,
-    /// CHECK: New owner's address is just stored
-    pub new_owner: AccountInfo<'info>,
     #[account(
         mut,
         seeds = [WHITELIST_STATE_SEED],

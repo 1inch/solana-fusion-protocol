@@ -362,10 +362,9 @@ export async function createWhitelistedAccount(
   await initializeWhitelist(program, owner);
   // Register the user
   await program.methods
-    .register()
+    .register(user.publicKey)
     .accountsPartial({
       owner: owner.publicKey,
-      user: user.publicKey,
     })
     .signers([owner])
     .rpc();
@@ -378,10 +377,9 @@ export async function removeWhitelistedAccount(
   const program = anchor.workspace.Whitelist as anchor.Program<Whitelist>;
   // Deregister the user
   await program.methods
-    .deregister()
+    .deregister(user.publicKey)
     .accountsPartial({
       owner: owner.publicKey,
-      user: user.publicKey,
     })
     .signers([owner])
     .rpc();

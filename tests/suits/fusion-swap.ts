@@ -1423,7 +1423,7 @@ describe("Fusion Swap", () => {
           .signers([state.charlie.keypair])
           .rpc();
 
-        // Return Charlie from the whitelist
+        // Remove Charlie from the whitelist
         await removeWhitelistedAccount(state.charlie.keypair, payer);
       };
 

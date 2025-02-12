@@ -46,10 +46,9 @@ describe("Whitelist", () => {
   it("Can register and deregister a user from whitelist", async () => {
     // Register the user
     await program.methods
-      .register()
+      .register(userToWhitelist.publicKey)
       .accountsPartial({
         owner: payer.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -62,10 +61,9 @@ describe("Whitelist", () => {
 
     // Deregister the user
     await program.methods
-      .deregister()
+      .deregister(userToWhitelist.publicKey)
       .accountsPartial({
         owner: payer.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -79,10 +77,9 @@ describe("Whitelist", () => {
   it("Cannot register the same user twice", async () => {
     // First registration
     await program.methods
-      .register()
+      .register(userToWhitelist.publicKey)
       .accountsPartial({
         owner: payer.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -90,10 +87,9 @@ describe("Whitelist", () => {
     // Second registration should fail
     await expect(
       program.methods
-        .register()
+        .register(userToWhitelist.publicKey)
         .accountsPartial({
           owner: payer.publicKey,
-          user: userToWhitelist.publicKey,
         })
         .signers([payer])
         .rpc()
@@ -101,10 +97,9 @@ describe("Whitelist", () => {
 
     // Cleanup
     await program.methods
-      .deregister()
+      .deregister(userToWhitelist.publicKey)
       .accountsPartial({
         owner: payer.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -113,10 +108,9 @@ describe("Whitelist", () => {
   it("Can transfer ownership to new owner", async () => {
     // Transfer ownership
     await program.methods
-      .transferOwnership()
+      .transferOwnership(newOwner.publicKey)
       .accountsPartial({
         currentOwner: payer.publicKey,
-        newOwner: newOwner.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -137,10 +131,9 @@ describe("Whitelist", () => {
   it("New owner can register and deregister users", async () => {
     // New owner should be able to register a user
     await program.methods
-      .register()
+      .register(userToWhitelist.publicKey)
       .accountsPartial({
         owner: newOwner.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([newOwner])
       .rpc();
@@ -153,10 +146,9 @@ describe("Whitelist", () => {
 
     // New owner should be able to deregister the user
     await program.methods
-      .deregister()
+      .deregister(userToWhitelist.publicKey)
       .accountsPartial({
         owner: newOwner.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([newOwner])
       .rpc();
@@ -170,10 +162,9 @@ describe("Whitelist", () => {
   it("Cannot register with wrong owner", async () => {
     await expect(
       program.methods
-        .register()
+        .register(userToWhitelist.publicKey)
         .accountsPartial({
           owner: userToWhitelist.publicKey,
-          user: userToWhitelist.publicKey,
         })
         .signers([userToWhitelist])
         .rpc()
@@ -183,10 +174,9 @@ describe("Whitelist", () => {
   it("Cannot deregister with wrong owner", async () => {
     // First register the user
     await program.methods
-      .register()
+      .register(userToWhitelist.publicKey)
       .accountsPartial({
         owner: newOwner.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([newOwner])
       .rpc();
@@ -194,10 +184,9 @@ describe("Whitelist", () => {
     // Try to deregister with wrong owner
     await expect(
       program.methods
-        .deregister()
+        .deregister(userToWhitelist.publicKey)
         .accountsPartial({
           owner: userToWhitelist.publicKey,
-          user: userToWhitelist.publicKey,
         })
         .signers([userToWhitelist])
         .rpc()
@@ -205,10 +194,9 @@ describe("Whitelist", () => {
 
     // Cleanup
     await program.methods
-      .deregister()
+      .deregister(userToWhitelist.publicKey)
       .accountsPartial({
         owner: newOwner.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([newOwner])
       .rpc();
@@ -218,10 +206,9 @@ describe("Whitelist", () => {
     // Previous owner should not be able to register a user
     await expect(
       program.methods
-        .register()
+        .register(userToWhitelist.publicKey)
         .accountsPartial({
           owner: payer.publicKey,
-          user: userToWhitelist.publicKey,
         })
         .signers([payer])
         .rpc()
@@ -229,10 +216,9 @@ describe("Whitelist", () => {
 
     // Register user with new owner for deregister test
     await program.methods
-      .register()
+      .register(userToWhitelist.publicKey)
       .accountsPartial({
         owner: newOwner.publicKey,
-        user: userToWhitelist.publicKey,
       })
       .signers([newOwner])
       .rpc();
@@ -240,10 +226,9 @@ describe("Whitelist", () => {
     // Previous owner should not be able to deregister a user
     await expect(
       program.methods
-        .deregister()
+        .deregister(userToWhitelist.publicKey)
         .accountsPartial({
           owner: payer.publicKey,
-          user: userToWhitelist.publicKey,
         })
         .signers([payer])
         .rpc()
@@ -259,10 +244,9 @@ describe("Whitelist", () => {
 
     await expect(
       program.methods
-        .transferOwnership()
+        .transferOwnership(newOwner.publicKey)
         .accountsPartial({
           currentOwner: randomUser.publicKey,
-          newOwner: newOwner.publicKey,
         })
         .signers([randomUser])
         .rpc()
