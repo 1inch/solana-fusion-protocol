@@ -157,7 +157,7 @@ pub mod fusion_swap {
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.dst_amount,
             amount,
-            ctx.accounts.escrow.dutch_auction_data.clone(), // TODO: fix using reference
+            ctx.accounts.escrow.dutch_auction_data.as_ref(),
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, actual_amount) = get_fee_amounts(
@@ -169,7 +169,7 @@ pub mod fusion_swap {
                 ctx.accounts.escrow.src_amount,
                 ctx.accounts.escrow.estimated_dst_amount,
                 amount,
-                ctx.accounts.escrow.dutch_auction_data.clone(), // TODO: fix using reference
+                ctx.accounts.escrow.dutch_auction_data.as_ref(),
             )?,
         )?;
 
@@ -519,7 +519,7 @@ pub fn get_dst_amount(
     initial_src_amount: u64,
     initial_dst_amount: u64,
     src_amount: u64,
-    opt_data: Option<DutchAuctionData>,
+    opt_data: Option<&DutchAuctionData>,
 ) -> Result<u64> {
     let mut result = src_amount
         .checked_mul(initial_dst_amount)

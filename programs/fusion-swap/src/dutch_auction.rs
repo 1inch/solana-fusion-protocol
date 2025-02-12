@@ -17,7 +17,7 @@ pub struct DutchAuctionData {
     pub points_and_time_deltas: Vec<PointsAndTimeDeltas>,
 }
 
-pub fn calculate_rate_bump(timestamp: u64, data: DutchAuctionData) -> u64 {
+pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
     if timestamp <= data.auction_start_time as u64 {
         return data.initial_rate_bump as u64;
     }
