@@ -403,7 +403,7 @@ pub fn get_dst_amount(
 ) -> Result<u64> {
     let mut result = (escrow_dst_amount * swap_amount).div_ceil(escrow_src_amount);
     if let Some(data) = opt_data {
-        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u32, data) as u64;
+        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u32, data);
         result = (result * (BASE_POINTS + rate_bump)).div_ceil(BASE_POINTS);
     }
     Ok(result)
