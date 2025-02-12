@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::constants::AUCTION_POINTS;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct PointsAndTimeDeltas {
+pub struct PointAndTimeDelta {
     rate_bump: u16,
     time_delta: u16,
 }
@@ -14,7 +14,7 @@ pub struct DutchAuctionData {
     pub auction_finish_time: u32,
     pub initial_rate_bump: u16,
     #[max_len(AUCTION_POINTS)]
-    pub points_and_time_deltas: Vec<PointsAndTimeDeltas>,
+    pub points_and_time_deltas: Vec<PointAndTimeDelta>,
 }
 
 pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
