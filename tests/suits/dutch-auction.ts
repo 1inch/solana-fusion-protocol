@@ -11,11 +11,7 @@ chai.use(chaiAsPromised);
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
 const BASE_POINTS = 100000;
 
-export function arraysBetweenEqual(
-  actual: BigInt[],
-  min: BigInt[],
-  max: BigInt[]
-) {
+function arraysBetweenEqual(actual: BigInt[], min: BigInt[], max: BigInt[]) {
   expect(actual.length).to.equal(min.length);
   expect(actual.length).to.equal(max.length);
   for (let i = 0; i < actual.length; i++) {

@@ -29,6 +29,12 @@ export type Escrow = {
   ata: anchor.web3.PublicKey;
 };
 
+export type CompactFee = {
+  protocolFee: number;
+  integratorFee: number;
+  surplus: number;
+};
+
 export function buildEscrowTraits({
   isPartialFill = true,
   isNativeDstAsset = false,
@@ -90,6 +96,7 @@ export class TestState {
   alice: User;
   bob: User;
   charlie: User;
+  dave: User;
   tokens: Array<anchor.web3.PublicKey> = [];
   escrows: Array<Escrow> = [];
   order_id = 0;
@@ -106,8 +113,12 @@ export class TestState {
   ): Promise<TestState> {
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
-    [instance.alice as User, instance.bob as User, instance.charlie as User] =
-      await createUsers(3, instance.tokens, provider, payer);
+    [
+      instance.alice as User,
+      instance.bob as User,
+      instance.charlie as User,
+      instance.dave as User,
+    ] = await createUsers(4, instance.tokens, provider, payer);
 
     await mintTokens(
       instance.tokens[0],
@@ -164,8 +175,12 @@ export class TestState {
   ): Promise<TestState> {
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
-    [instance.alice as User, instance.bob as User, instance.charlie as User] =
-      await createAtasUsers(usersKeypairs, instance.tokens, provider, payer);
+    [
+      instance.alice as User,
+      instance.bob as User,
+      instance.charlie as User,
+      instance.dave as User,
+    ] = await createAtasUsers(usersKeypairs, instance.tokens, provider, payer);
 
     await mintTokens(
       instance.tokens[0],
@@ -205,6 +220,8 @@ export class TestState {
     tokenProgram = splToken.TOKEN_PROGRAM_ID,
     associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
     systemProgram = anchor.web3.SystemProgram.programId,
+    protocolDstAta = null,
+    integratorDstAta = null,
   }): any {
     return {
       taker,
@@ -220,6 +237,8 @@ export class TestState {
       tokenProgram,
       associatedTokenProgram,
       systemProgram,
+      protocolDstAta,
+      integratorDstAta,
     };
   }
 
@@ -236,6 +255,10 @@ export class TestState {
     useNativeDstAsset = false,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
+    compactFees = new anchor.BN(0),
+    protocolDstAta = null,
+    integratorDstAta = null,
+    estimatedDstAmount = this.defaultDstAmount,
     dutchAuctionData = null,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
@@ -290,6 +313,10 @@ export class TestState {
           isNativeDstAsset: useNativeDstAsset,
         }),
         makerReceiver,
+        compactFees,
+        protocolDstAta,
+        integratorDstAta,
+        estimatedDstAmount,
         dutchAuctionData
       )
       .accountsPartial({
@@ -438,6 +465,17 @@ async function prepareNativeTokens({ amount, user, provider, payer }) {
     payer,
     user.keypair,
   ]);
+}
+
+export function buildCompactFee(fee: Partial<CompactFee>): anchor.BN {
+  const { protocolFee = 0, integratorFee = 0, surplus = 0 } = fee;
+  return new anchor.BN(
+    (
+      BigInt(protocolFee & 0xffff) +
+      (BigInt(integratorFee & 0xffff) << 16n) +
+      (BigInt(surplus & 0xff) << 32n)
+    ).toString()
+  );
 }
 
 export function numberToBuffer(n: number, bufSize: number) {
