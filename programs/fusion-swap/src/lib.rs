@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 use auction_utils::{calculate_rate_bump, DutchAuctionData};
 
 pub mod auction_utils;
@@ -22,12 +22,16 @@ pub mod fusion_swap {
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
         dst_amount: u64,      // Amount of tokens maker wants in exchange
-        allow_partial_fills: bool,
+        traits: u8,
         receiver: Pubkey, // Owner of the account which will receive dst_token
         dutch_auction_data: Option<DutchAuctionData>,
     ) -> Result<()> {
         if src_amount == 0 || dst_amount == 0 {
             return err!(EscrowError::InvalidAmount);
+        }
+
+        if ctx.accounts.dst_mint.key() != spl_token::native_mint::id() && native_dst_asset(traits) {
+            return err!(EscrowError::InconsistentNativeDstTrait);
         }
 
         let escrow = &mut ctx.accounts.escrow;
@@ -44,7 +48,7 @@ pub mod fusion_swap {
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
-            allow_partial_fills,
+            traits,
             receiver,
             dutch_auction_data,
         });
@@ -82,7 +86,9 @@ pub mod fusion_swap {
         }
 
         // Check if partial fills are allowed if this is the case
-        if ctx.accounts.escrow_src_ata.amount > amount && !ctx.accounts.escrow.allow_partial_fills {
+        if ctx.accounts.escrow_src_ata.amount > amount
+            && !allow_partial_fills(ctx.accounts.escrow.traits)
+        {
             return err!(EscrowError::PartialFillNotAllowed);
         }
 
@@ -116,17 +122,35 @@ pub mod fusion_swap {
         )?;
 
         // Taker => Maker
-        anchor_spl::token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                anchor_spl::token::Transfer {
-                    from: ctx.accounts.taker_dst_ata.to_account_info(),
-                    to: ctx.accounts.maker_dst_ata.to_account_info(),
-                    authority: ctx.accounts.taker.to_account_info(),
-                },
-            ),
-            dst_amount,
-        )?;
+        if native_dst_asset(ctx.accounts.escrow.traits) {
+            // Transfer SOL using System Program
+            let ix = anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.taker.key(),
+                &ctx.accounts.maker_receiver.key(),
+                dst_amount,
+            );
+            anchor_lang::solana_program::program::invoke(
+                &ix,
+                &[
+                    ctx.accounts.taker.to_account_info(),
+                    ctx.accounts.maker_receiver.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+            )?;
+        } else {
+            // Transfer SPL tokens
+            anchor_spl::token::transfer(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.taker_dst_ata.to_account_info(),
+                        to: ctx.accounts.maker_dst_ata.to_account_info(),
+                        authority: ctx.accounts.taker.to_account_info(),
+                    },
+                ),
+                dst_amount,
+            )?;
+        }
 
         // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
@@ -134,8 +158,6 @@ pub mod fusion_swap {
                 ctx.accounts.token_program.to_account_info(),
                 &ctx.accounts.escrow,
                 ctx.accounts.escrow_src_ata.to_account_info(),
-                ctx.accounts.escrow_src_ata.amount - amount,
-                ctx.accounts.maker_src_ata.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
                 order_id,
                 ctx.bumps.escrow,
@@ -146,12 +168,29 @@ pub mod fusion_swap {
     }
 
     pub fn cancel(ctx: Context<Cancel>, order_id: u32) -> Result<()> {
+        // return remaining src tokens back to maker
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Transfer {
+                    from: ctx.accounts.escrow_src_ata.to_account_info(),
+                    to: ctx.accounts.maker_src_ata.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                &[&[
+                    "escrow".as_bytes(),
+                    ctx.accounts.maker.key().as_ref(),
+                    order_id.to_be_bytes().as_ref(),
+                    &[ctx.bumps.escrow],
+                ]],
+            ),
+            ctx.accounts.escrow_src_ata.amount,
+        )?;
+
         close_escrow(
             ctx.accounts.token_program.to_account_info(),
             &ctx.accounts.escrow,
             ctx.accounts.escrow_src_ata.to_account_info(),
-            ctx.accounts.escrow_src_ata.amount,
-            ctx.accounts.maker_src_ata.to_account_info(),
             ctx.accounts.maker.to_account_info(),
             order_id,
             ctx.bumps.escrow,
@@ -217,7 +256,7 @@ pub struct Fill<'info> {
     #[account(mut)]
     maker: AccountInfo<'info>,
 
-    /// CHECK: check is not necessary as maker_receiver is only used as a constraint to maker_dst_ata
+    /// CHECK: maker_receiver only has to be equal to escrow parameter
     #[account(
         constraint = escrow.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
     )]
@@ -247,14 +286,6 @@ pub struct Fill<'info> {
         associated_token::authority = escrow,
     )]
     escrow_src_ata: Box<Account<'info, TokenAccount>>,
-
-    /// Maker's ATA of src_mint
-    #[account(
-        mut,
-        associated_token::mint = src_mint,
-        associated_token::authority = maker
-    )]
-    maker_src_ata: Box<Account<'info, TokenAccount>>,
 
     /// Maker's ATA of dst_mint
     #[account(
@@ -336,7 +367,7 @@ pub struct Escrow {
     src_amount: u64,
     src_remaining: u64,
     expiration_time: u32,
-    allow_partial_fills: bool,
+    traits: u8,
     authorized_user: Option<Pubkey>,
     receiver: Pubkey,
     dutch_auction_data: Option<DutchAuctionData>,
@@ -347,33 +378,10 @@ fn close_escrow<'info>(
     token_program: AccountInfo<'info>,
     escrow: &Account<'info, Escrow>,
     escrow_src_ata: AccountInfo<'info>,
-    remaining_amount: u64,
-    maker_src_ata: AccountInfo<'info>,
     maker: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
-    // return maker's src_token back to account
-    if remaining_amount > 0 {
-        anchor_spl::token::transfer(
-            CpiContext::new_with_signer(
-                token_program.clone(),
-                anchor_spl::token::Transfer {
-                    from: escrow_src_ata.to_account_info(),
-                    to: maker_src_ata,
-                    authority: escrow.to_account_info(),
-                },
-                &[&[
-                    "escrow".as_bytes(),
-                    maker.key().as_ref(),
-                    order_id.to_be_bytes().as_ref(),
-                    &[escrow_bump],
-                ]],
-            ),
-            remaining_amount,
-        )?;
-    }
-
     // Close escrow_src_ata account
     anchor_spl::token::close_account(CpiContext::new_with_signer(
         token_program.clone(),
@@ -407,4 +415,14 @@ pub fn get_dst_amount(
         result = (result * (BASE_POINTS + rate_bump)).div_ceil(BASE_POINTS);
     }
     Ok(result)
+}
+
+// Flag that defines if the order can be filled partially
+pub fn allow_partial_fills(traits: u8) -> bool {
+    traits & 0b00000001 != 0
+}
+
+// Flag that defines if the dst asset should be sent as native token
+pub fn native_dst_asset(traits: u8) -> bool {
+    traits & 0b00000010 != 0
 }

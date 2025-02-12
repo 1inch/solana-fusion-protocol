@@ -2,6 +2,8 @@ use anchor_lang::error_code;
 
 #[error_code]
 pub enum EscrowError {
+    #[msg("Inconsistent native dst trait")]
+    InconsistentNativeDstTrait,
     #[msg("Invalid amount")]
     InvalidAmount,
     #[msg("Not enough tokens in escrow")]
