@@ -160,12 +160,18 @@ pub mod fusion_swap {
             ctx.accounts.escrow.protocol_fee as u64,
             ctx.accounts.escrow.surplus_percentage as u64,
             dst_amount,
-            get_dst_amount(ctx.accounts.escrow.src_amount, ctx.accounts.escrow.estimated_dst_amount, amount)?,
+            get_dst_amount(
+                ctx.accounts.escrow.src_amount,
+                ctx.accounts.escrow.estimated_dst_amount,
+                amount,
+            )?,
         )?;
 
         // Take protocol fee
         if protocol_fee_amount > 0 {
-            let protocol_dst_ata = ctx.accounts.protocol_dst_ata
+            let protocol_dst_ata = ctx
+                .accounts
+                .protocol_dst_ata
                 .as_ref()
                 .ok_or(EscrowError::InconsistentProtocolFeeConfig)?;
 
@@ -184,7 +190,9 @@ pub mod fusion_swap {
 
         // Take integrator fee
         if integrator_fee_amount > 0 {
-            let integrator_dst_ata = ctx.accounts.integrator_dst_ata
+            let integrator_dst_ata = ctx
+                .accounts
+                .integrator_dst_ata
                 .as_ref()
                 .ok_or(EscrowError::InconsistentIntegratorFeeConfig)?;
 
@@ -500,13 +508,15 @@ fn close_escrow<'info>(
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
-fn get_dst_amount(initial_src_amount: u64, initial_dst_amount: u64, src_amount: u64) -> Result<u64> {
-    Ok(
-        src_amount
-            .checked_mul(initial_dst_amount)
-            .ok_or(error::EscrowError::IntegerOverflow)?
-            .div_ceil(initial_src_amount)
-    )
+fn get_dst_amount(
+    initial_src_amount: u64,
+    initial_dst_amount: u64,
+    src_amount: u64,
+) -> Result<u64> {
+    Ok(src_amount
+        .checked_mul(initial_dst_amount)
+        .ok_or(error::EscrowError::IntegerOverflow)?
+        .div_ceil(initial_src_amount))
 }
 
 // Flag that defines if the order can be filled partially
