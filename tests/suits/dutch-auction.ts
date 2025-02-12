@@ -3,9 +3,13 @@ import * as splBankrunToken from "spl-token-bankrun";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { TestState, trackReceivedTokenAndTx } from "../utils/utils";
+import {
+  setCurrentTime,
+  TestState,
+  trackReceivedTokenAndTx,
+} from "../utils/utils";
 import { BankrunProvider } from "anchor-bankrun";
-import { BanksClient, Clock, ProgramTestContext } from "solana-bankrun";
+import { BanksClient, ProgramTestContext } from "solana-bankrun";
 chai.use(chaiAsPromised);
 
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -98,16 +102,7 @@ describe("Dutch Auction", () => {
       auction.auctionStartTime = Math.floor(new Date().getTime() / 1000);
 
       // rollback clock to the current time after tests that move time forward when order already expired
-      const currentClock = await banksClient.getClock();
-      context.setClock(
-        new Clock(
-          currentClock.slot,
-          currentClock.epochStartTimestamp,
-          currentClock.epoch,
-          currentClock.leaderScheduleEpoch,
-          BigInt(auction.auctionStartTime)
-        )
-      );
+      await setCurrentTime(context, auction.auctionStartTime);
 
       state.escrows[0] = await state.initEscrow({
         escrowProgram: program,
@@ -118,17 +113,7 @@ describe("Dutch Auction", () => {
     });
 
     it("should not work after the expiration time", async () => {
-      const currentClock = await banksClient.getClock();
-      context.setClock(
-        new Clock(
-          currentClock.slot,
-          currentClock.epochStartTimestamp,
-          currentClock.epoch,
-          currentClock.leaderScheduleEpoch,
-          BigInt(state.defaultExpirationTime) + 1n
-        )
-      );
-
+      await setCurrentTime(context, state.defaultExpirationTime + 1);
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
@@ -139,16 +124,7 @@ describe("Dutch Auction", () => {
     });
 
     it("should fill with initialRateBump before auction started", async () => {
-      const currentClock = await banksClient.getClock();
-      context.setClock(
-        new Clock(
-          currentClock.slot,
-          currentClock.epochStartTimestamp,
-          currentClock.epoch,
-          currentClock.leaderScheduleEpoch,
-          BigInt(auction.auctionStartTime) - 1000n
-        )
-      );
+      await setCurrentTime(context, auction.auctionStartTime - 1000);
 
       const transactionPromise = () =>
         program.methods
@@ -183,16 +159,9 @@ describe("Dutch Auction", () => {
     });
 
     it("should fill with another price after auction started, but before first point", async () => {
-      const currentClock = await banksClient.getClock();
-      context.setClock(
-        new Clock(
-          currentClock.slot,
-          currentClock.epochStartTimestamp,
-          currentClock.epoch,
-          currentClock.leaderScheduleEpoch,
-          BigInt(auction.auctionStartTime) +
-            BigInt(auction.pointsAndTimeDeltas[0].timeDelta / 2)
-        )
+      await setCurrentTime(
+        context,
+        auction.auctionStartTime + auction.pointsAndTimeDeltas[0].timeDelta / 2
       );
 
       const transactionPromise = () =>
@@ -241,17 +210,11 @@ describe("Dutch Auction", () => {
     });
 
     it("should fill with another price after between points", async () => {
-      const currentClock = await banksClient.getClock();
-      context.setClock(
-        new Clock(
-          currentClock.slot,
-          currentClock.epochStartTimestamp,
-          currentClock.epoch,
-          currentClock.leaderScheduleEpoch,
-          BigInt(auction.auctionStartTime) +
-            BigInt(auction.pointsAndTimeDeltas[0].timeDelta) +
-            BigInt(auction.pointsAndTimeDeltas[1].timeDelta / 2)
-        )
+      await setCurrentTime(
+        context,
+        auction.auctionStartTime +
+          auction.pointsAndTimeDeltas[0].timeDelta +
+          auction.pointsAndTimeDeltas[1].timeDelta / 2
       );
 
       const transactionPromise = () =>
@@ -300,16 +263,7 @@ describe("Dutch Auction", () => {
     });
 
     it("should fill with default price after auction finished", async () => {
-      const currentClock = await banksClient.getClock();
-      context.setClock(
-        new Clock(
-          currentClock.slot,
-          currentClock.epochStartTimestamp,
-          currentClock.epoch,
-          currentClock.leaderScheduleEpoch,
-          BigInt(auction.auctionFinishTime) + 1n
-        )
-      );
+      await setCurrentTime(context, auction.auctionFinishTime + 1);
 
       const transactionPromise = () =>
         program.methods

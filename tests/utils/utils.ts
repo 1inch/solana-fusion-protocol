@@ -10,6 +10,7 @@ import * as splBankrunToken from "spl-token-bankrun";
 import {
   AccountInfoBytes,
   BanksClient,
+  Clock,
   ProgramTestContext,
   startAnchor,
 } from "solana-bankrun";
@@ -475,6 +476,22 @@ export function buildCompactFee(fee: Partial<CompactFee>): anchor.BN {
       (BigInt(integratorFee & 0xffff) << 16n) +
       (BigInt(surplus & 0xff) << 32n)
     ).toString()
+  );
+}
+
+export async function setCurrentTime(
+  context: ProgramTestContext,
+  time: number
+): Promise<void> {
+  const currentClock = await context.banksClient.getClock();
+  context.setClock(
+    new Clock(
+      currentClock.slot,
+      currentClock.epochStartTimestamp,
+      currentClock.epoch,
+      currentClock.leaderScheduleEpoch,
+      BigInt(time)
+    )
   );
 }
 
