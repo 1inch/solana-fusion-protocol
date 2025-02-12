@@ -10,7 +10,6 @@ use error::EscrowError;
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
 
 #[program]
-// #[warn(clippy::arithmetic_side_effects)]
 pub mod fusion_swap {
     use super::*;
 
