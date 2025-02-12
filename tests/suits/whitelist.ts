@@ -35,7 +35,7 @@ describe("Whitelist", () => {
     );
 
     [whitelistPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("whitelist"), userToWhitelist.publicKey.toBuffer()],
+      [Buffer.from("authorization"), userToWhitelist.publicKey.toBuffer()],
       program.programId
     );
 
