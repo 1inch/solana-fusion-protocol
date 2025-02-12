@@ -880,8 +880,7 @@ describe("Fusion Swap", () => {
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
             dstMint: splToken.NATIVE_MINT,
-            makerDstAta:
-              state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            makerDstAta: null,
             takerDstAta:
               state.bob.atas[splToken.NATIVE_MINT.toString()].address,
           })

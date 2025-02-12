@@ -6,6 +6,8 @@ pub enum EscrowError {
     InconsistentNativeDstTrait,
     #[msg("Invalid amount")]
     InvalidAmount,
+    #[msg("Mising makerDstAta")]
+    MissingMakerDstAta,
     #[msg("Not enough tokens in escrow")]
     NotEnoughTokensInEscrow,
     #[msg("Order expired")]
