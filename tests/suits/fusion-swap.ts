@@ -926,7 +926,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-        ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
+      ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
     });
 
     it("Doesn't fill partial fill with allow_partial_fill=false", async () => {
