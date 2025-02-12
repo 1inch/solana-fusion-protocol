@@ -991,6 +991,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "common",
+ "whitelist",
 ]
 
 [[package]]

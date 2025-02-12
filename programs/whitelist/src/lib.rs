@@ -9,7 +9,7 @@ declare_id!("6Lt7x1RwTWFdvPM1Hn58HdVfvdhW6rNS1fTSWgSZJcZy");
 pub const WHITELIST_STATE_SEED: &[u8] = b"whitelist_state";
 pub const WHITELIST_SEED: &[u8] = b"whitelist";
 
-/// Program for managing whitelisted users
+/// Program for managing whitelisted users for the Fusion Swap
 #[program]
 pub mod whitelist {
     use super::*;

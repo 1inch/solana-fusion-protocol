@@ -3,12 +3,12 @@ import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { debugLog } from "../utils/utils";
+import { debugLog, initializeWhitelist } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
 
 chai.use(chaiAsPromised);
 
-describe.only("Whitelist", () => {
+describe("Whitelist", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
@@ -32,13 +32,7 @@ describe.only("Whitelist", () => {
     );
 
     // Initialize the whitelist state with the payer as owner
-    await program.methods
-      .initialize()
-      .accountsPartial({
-        owner: payer.publicKey,
-      })
-      .signers([payer])
-      .rpc();
+    await initializeWhitelist(program, payer);
   });
 
   it("Can register and deregister a user from whitelist", async () => {
@@ -69,9 +63,9 @@ describe.only("Whitelist", () => {
       .rpc();
 
     // Verify the whitelist account does not exist
-      await expect(
-        program.account.whitelisted.fetch(whitelistPDA)
-      ).to.be.rejectedWith("Account does not exist");
+    await expect(
+      program.account.whitelisted.fetch(whitelistPDA)
+    ).to.be.rejectedWith("Account does not exist");
   });
 
   describe("Error cases", () => {

@@ -6,10 +6,12 @@ import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
-  trackReceivedTokenAndTx,
   buildEscrowTraits,
+  createWhitelistedAccount,
   debugLog,
   numberToBuffer,
+  trackReceivedTokenAndTx,
+  removeWhitelistedAccount,
 } from "../utils/utils";
 chai.use(chaiAsPromised);
 
@@ -47,7 +49,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -81,7 +83,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               escrow: escrow.escrow,
@@ -117,7 +119,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
@@ -154,7 +156,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerDstAta: state.alice.atas[state.tokens[2].toString()].address,
             })
@@ -175,7 +177,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               srcMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
@@ -218,7 +220,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               dstMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
@@ -256,7 +258,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
@@ -301,7 +303,7 @@ describe("Fusion Swap", () => {
 
       await program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accounts(
+        .accountsPartial(
           state.buildAccountsDataForFill({
             makerDstAta: aliceAtaYToken,
           })
@@ -389,7 +391,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -411,7 +412,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -443,7 +443,6 @@ describe("Fusion Swap", () => {
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
           escrow: escrow,
-          authorizedUser: null,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -463,7 +462,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -474,7 +472,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[1].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
@@ -484,7 +482,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrowSrcAta: state.escrows[1].ata,
             })
@@ -498,7 +496,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               dstMint: state.tokens[0],
             })
@@ -512,7 +510,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               makerDstAta:
@@ -528,7 +526,7 @@ describe("Fusion Swap", () => {
       let transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -554,7 +552,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -592,7 +590,7 @@ describe("Fusion Swap", () => {
       let transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, _srcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -623,7 +621,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, _srcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -654,7 +652,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, new anchor.BN(1))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -778,26 +776,32 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Fails when taker does not match the authorized user", async () => {
+    it("Fails when taker isn't whitelisted", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
         provider,
-        authorizedUser: state.charlie.keypair.publicKey,
       });
 
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
+              taker: state.charlie.keypair.publicKey,
+              takerDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
+              takerSrcAta:
+                state.charlie.atas[state.tokens[0].toString()].address,
             })
           )
-          .signers([state.bob.keypair])
+          .signers([state.charlie.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: PrivateOrder");
+      ).to.be.rejectedWith(
+        "AnchorError caused by account: whitelisted. Error Code: AccountNotInitialized"
+      );
     });
 
     it("Execute the partial fill and close escow after", async () => {
@@ -811,7 +815,7 @@ describe("Fusion Swap", () => {
       const transactionPromiseFill = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -875,7 +879,7 @@ describe("Fusion Swap", () => {
 
       await program.methods
         .fill(escrow.order_id, state.defaultSrcAmount)
-        .accounts(
+        .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
@@ -915,7 +919,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -952,7 +956,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -971,7 +974,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -1011,7 +1014,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
@@ -1026,7 +1029,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               srcMint: state.tokens[1],
             })
@@ -1042,13 +1045,15 @@ describe("Fusion Swap", () => {
       const transactionPromise = async () => {
         await program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
+        // Add Charlie to the whitelist
+        await createWhitelistedAccount(state.charlie.keypair, payer);
         await program.methods
           .fill(state.escrows[1].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               taker: state.charlie.keypair.publicKey,
               escrow: state.escrows[1].escrow,
@@ -1061,6 +1066,9 @@ describe("Fusion Swap", () => {
           )
           .signers([state.charlie.keypair])
           .rpc();
+
+        // Return Charlie from the whitelist
+        await removeWhitelistedAccount(state.charlie.keypair, payer);
       };
 
       const results = await trackReceivedTokenAndTx(

@@ -2,9 +2,8 @@ use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 
-use common::constants;
-
 pub mod error;
+use common::constants;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
@@ -42,7 +41,6 @@ pub mod fusion_swap {
             src_remaining: src_amount,             // Remaining amount to be filled
             dst_amount,                            // Amount of tokens maker wants in exchange
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
-            authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
             traits,
             receiver,
@@ -63,14 +61,6 @@ pub mod fusion_swap {
     }
 
     pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
-        // TODO: Check that signer has KYC token instead
-        // if authorized_user is not set, allow exchange with any, otherwise check it
-        if let Some(auth_user) = ctx.accounts.escrow.authorized_user {
-            if auth_user != ctx.accounts.taker.key() {
-                return err!(EscrowError::PrivateOrder);
-            }
-        }
-
         let clock: Clock = Clock::get()?;
         if (ctx.accounts.escrow.expiration_time as i64) < clock.unix_timestamp {
             return err!(EscrowError::OrderExpired);
@@ -203,8 +193,6 @@ pub struct Initialize<'info> {
     src_mint: Box<Account<'info, Mint>>,
     /// Destination asset
     dst_mint: Box<Account<'info, Mint>>,
-    /// Account allowed to fill the order
-    authorized_user: Option<AccountInfo<'info>>,
 
     /// Maker's ATA of src_mint
     #[account(
@@ -245,6 +233,13 @@ pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]
     taker: Signer<'info>,
+    /// Account allowed to fill the order
+    #[account(
+        seeds = [whitelist::WHITELIST_SEED, taker.key().as_ref()],
+        bump,
+        seeds::program = whitelist::ID,
+    )]
+    whitelisted: Account<'info, whitelist::Whitelisted>,
 
     /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]
@@ -362,7 +357,6 @@ pub struct Escrow {
     src_remaining: u64,
     expiration_time: u32,
     traits: u8,
-    authorized_user: Option<Pubkey>,
     receiver: Pubkey,
 }
 

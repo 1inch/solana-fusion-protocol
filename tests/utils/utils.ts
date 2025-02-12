@@ -9,6 +9,7 @@ import {
 import * as splBankrunToken from "spl-token-bankrun";
 import { BanksClient } from "solana-bankrun";
 import { FusionSwap } from "../../target/types/fusion_swap";
+import { Whitelist } from "../../target/types/whitelist";
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -157,9 +158,6 @@ export class TestState {
     makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
     takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
-    tokenProgram = splToken.TOKEN_PROGRAM_ID,
-    associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
-    systemProgram = anchor.web3.SystemProgram.programId,
   }): any {
     return {
       taker,
@@ -172,9 +170,6 @@ export class TestState {
       makerDstAta,
       takerSrcAta,
       takerDstAta,
-      tokenProgram,
-      associatedTokenProgram,
-      systemProgram,
     };
   }
 
@@ -190,7 +185,6 @@ export class TestState {
     allowPartialFills = true,
     useNativeDstAsset = false,
     makerReceiver = this.alice.keypair.publicKey,
-    authorizedUser = null,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -250,7 +244,6 @@ export class TestState {
         srcMint,
         dstMint,
         escrow,
-        authorizedUser,
       })
       .signers([this.alice.keypair])
       .rpc();
@@ -301,7 +294,70 @@ async function createUsers(
       1 * LAMPORTS_PER_SOL
     );
   }
+  // Create whitelisted account for Bob
+  await createWhitelistedAccount(usersKeypairs[1], payer);
+
   return await createAtasUsers(usersKeypairs, tokens, provider, payer);
+}
+
+export async function initializeWhitelist(
+  program: anchor.Program<Whitelist>,
+  owner: anchor.web3.Keypair
+) {
+  const [whitelistStatePDA] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("whitelist_state")],
+    program.programId
+  );
+  try {
+    await program.account.whitelistState.fetch(whitelistStatePDA);
+  } catch (e) {
+    if (e.toString().includes("Account does not exist")) {
+      // Whitelist state does not exist, initialize it
+      await program.methods
+        .initialize()
+        .accountsPartial({
+          owner: owner.publicKey,
+        })
+        .signers([owner])
+        .rpc();
+    } else {
+      throw e; // Re-throw if it's a different error
+    }
+  }
+}
+
+export async function createWhitelistedAccount(
+  user: anchor.web3.Keypair,
+  owner: anchor.web3.Keypair
+) {
+  const program = anchor.workspace.Whitelist as anchor.Program<Whitelist>;
+  // Initialize the whitelist state with the payer as owner
+  await initializeWhitelist(program, owner);
+  // Register the user
+  await program.methods
+    .register()
+    .accountsPartial({
+      owner: owner.publicKey,
+      user: user.publicKey,
+    })
+    .signers([owner])
+    .rpc();
+}
+
+export async function removeWhitelistedAccount(
+  user: anchor.web3.Keypair,
+  owner: anchor.web3.Keypair
+) {
+  const program = anchor.workspace.Whitelist as anchor.Program<Whitelist>;
+  // Deregister the user
+  await program.methods
+    .deregister()
+    .accountsPartial({
+      owner: owner.publicKey,
+      user: user.publicKey,
+    })
+    .signers([owner])
+    .rpc();
 }
 
 async function createAtasUsers(
