@@ -1233,8 +1233,7 @@ describe("Fusion Swap", () => {
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
             dstMint: splToken.NATIVE_MINT,
-            makerDstAta:
-              state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            makerDstAta: null,
             takerDstAta:
               state.bob.atas[splToken.NATIVE_MINT.toString()].address,
           })
@@ -1255,6 +1254,32 @@ describe("Fusion Swap", () => {
       await expect(
         splToken.getAccount(provider.connection, escrow.ata)
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
+    it("Fails to execute the trade if maker_dst_ata is missing", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        dstMint: splToken.NATIVE_MINT,
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              dstMint: splToken.NATIVE_MINT,
+              makerDstAta: null,
+              takerDstAta:
+                state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
     });
 
     it("Doesn't fill partial fill with allow_partial_fill=false", async () => {

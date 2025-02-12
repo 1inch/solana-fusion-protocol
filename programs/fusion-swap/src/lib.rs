@@ -225,13 +225,19 @@ pub mod fusion_swap {
                 ],
             )?;
         } else {
+            let maker_dst_ata = ctx
+                .accounts
+                .maker_dst_ata
+                .as_ref()
+                .ok_or(EscrowError::MissingMakerDstAta)?;
+
             // Transfer SPL tokens
             anchor_spl::token::transfer(
                 CpiContext::new(
                     ctx.accounts.token_program.to_account_info(),
                     anchor_spl::token::Transfer {
                         from: ctx.accounts.taker_dst_ata.to_account_info(),
-                        to: ctx.accounts.maker_dst_ata.to_account_info(),
+                        to: maker_dst_ata.to_account_info(),
                         authority: ctx.accounts.taker.to_account_info(),
                     },
                 ),
@@ -381,7 +387,7 @@ pub struct Fill<'info> {
         associated_token::mint = dst_mint,
         associated_token::authority = maker_receiver
     )]
-    maker_dst_ata: Box<Account<'info, TokenAccount>>,
+    maker_dst_ata: Option<Box<Account<'info, TokenAccount>>>,
 
     #[account(
         mut,
