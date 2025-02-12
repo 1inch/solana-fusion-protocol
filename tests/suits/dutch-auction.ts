@@ -9,7 +9,7 @@ import { BanksClient, Clock, ProgramTestContext } from "solana-bankrun";
 chai.use(chaiAsPromised);
 
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
-const BASE_POINTS = 1_000_000_000;
+const BASE_POINTS = 100000;
 
 export function arraysBetweenEqual(
   actual: BigInt[],
@@ -91,10 +91,10 @@ describe("Dutch Auction", () => {
       get auctionFinishTime() {
         return this.auctionStartTime + 32000;
       },
-      initialRateBump: 100000000,
+      initialRateBump: 10000,
       pointsAndTimeDeltas: [
-        { rateBump: 200000000, pointTime: 10000 },
-        { rateBump: 500000000, pointTime: 20000 },
+        { rateBump: 20000, pointTime: 10000 },
+        { rateBump: 50000, pointTime: 20000 },
       ],
     };
 

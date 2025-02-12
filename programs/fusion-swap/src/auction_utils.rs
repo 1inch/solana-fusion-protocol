@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct PointsAndTimeDeltas {
-    rate_bump: u32,
+    rate_bump: u16,
     point_time: u16, // delta between previous point and this point
 }
 
@@ -10,7 +10,7 @@ pub struct PointsAndTimeDeltas {
 pub struct DutchAuctionData {
     pub auction_start_time: u32,
     pub auction_finish_time: u32,
-    pub initial_rate_bump: u32,
+    pub initial_rate_bump: u16,
     #[max_len(5)]
     pub points_and_time_deltas: Vec<PointsAndTimeDeltas>,
 }
