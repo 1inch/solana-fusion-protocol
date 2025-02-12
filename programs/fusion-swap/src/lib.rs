@@ -160,7 +160,10 @@ pub mod fusion_swap {
             ctx.accounts.escrow.protocol_fee as u64,
             ctx.accounts.escrow.surplus_percentage as u64,
             dst_amount,
-            ctx.accounts.escrow.estimated_dst_amount * amount / ctx.accounts.escrow.src_amount,
+            ctx.accounts.escrow.estimated_dst_amount
+                .checked_mul(amount)
+                .ok_or(error::EscrowError::IntegerOverflow)?
+                / ctx.accounts.escrow.src_amount,
         )?;
 
         // Take protocol fee
