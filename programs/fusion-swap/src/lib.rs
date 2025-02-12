@@ -42,7 +42,7 @@ pub mod fusion_swap {
             return err!(EscrowError::OrderExpired);
         }
 
-        let protocol_fee = (compact_fees & 0xFFFF) as u16;
+        let protocol_fee = compact_fees as u16;
         let integrator_fee = (compact_fees >> 16) as u16;
         let surplus_percentage = (compact_fees >> 32) as u8;
 
