@@ -168,47 +168,72 @@ pub mod fusion_swap {
 
         // Take protocol fee
         if protocol_fee_amount > 0 {
-            uni_transfer(
+            let protocol_dst_ata = ctx.accounts.protocol_dst_ata
+                .as_ref()
+                .ok_or(EscrowError::InconsistentProtocolFeeConfig)?;
+
+            anchor_spl::token::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.taker_dst_ata.to_account_info(),
+                        to: protocol_dst_ata.to_account_info(),
+                        authority: ctx.accounts.taker.to_account_info(),
+                    },
+                ),
                 protocol_fee_amount,
-                ctx.accounts.maker_receiver.to_account_info(), //  TODO: change to real
-                ctx.accounts.protocol_dst_ata
-                    .as_ref()
-                    .ok_or(EscrowError::InconsistentProtocolFeeConfig)?,
-                ctx.accounts.taker_dst_ata.to_account_info(),
-                ctx.accounts.taker.to_account_info(),
-                native_dst_asset(ctx.accounts.escrow.traits),
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
             )?;
         }
 
         // Take integrator fee
         if integrator_fee_amount > 0 {
-            uni_transfer(
+            let integrator_dst_ata = ctx.accounts.integrator_dst_ata
+                .as_ref()
+                .ok_or(EscrowError::InconsistentIntegratorFeeConfig)?;
+
+            anchor_spl::token::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.taker_dst_ata.to_account_info(),
+                        to: integrator_dst_ata.to_account_info(),
+                        authority: ctx.accounts.taker.to_account_info(),
+                    },
+                ),
                 integrator_fee_amount,
-                ctx.accounts.maker_receiver.to_account_info(), //  TODO: change to real
-                ctx.accounts.integrator_dst_ata
-                    .as_ref()
-                    .ok_or(EscrowError::InconsistentIntegratorFeeConfig)?,
-                ctx.accounts.taker_dst_ata.to_account_info(),
-                ctx.accounts.taker.to_account_info(),
-                native_dst_asset(ctx.accounts.escrow.traits),
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
             )?;
         }
 
         // Taker => Maker
-        uni_transfer(
+        if native_dst_asset(ctx.accounts.escrow.traits) {
+            // Transfer SOL using System Program
+            let ix = anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.taker.key(),
+                &ctx.accounts.maker_receiver.key(),
             actual_amount,
+            );
+            anchor_lang::solana_program::program::invoke(
+                &ix,
+                &[
+                    ctx.accounts.taker.to_account_info(),
             ctx.accounts.maker_receiver.to_account_info(),
-            &ctx.accounts.maker_dst_ata,
-            ctx.accounts.taker_dst_ata.to_account_info(),
-            ctx.accounts.taker.to_account_info(),
-            native_dst_asset(ctx.accounts.escrow.traits),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+            )?;
+        } else {
+            // Transfer SPL tokens
+            anchor_spl::token::transfer(
+                CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-        )?;
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.taker_dst_ata.to_account_info(),
+                        to: ctx.accounts.maker_dst_ata.to_account_info(),
+                        authority: ctx.accounts.taker.to_account_info(),
+                    },
+                ),
+                actual_amount,
+            )?;
+        }
 
         // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
@@ -525,46 +550,3 @@ fn get_fee_amounts(
         dst_amount - protocol_fee_amount - integrator_fee_amount,
     ))
 }
-
-fn uni_transfer<'info>(
-    amount: u64,
-    to: AccountInfo<'info>,
-    to_ata: &Account<'info, TokenAccount>,
-    from: AccountInfo<'info>,
-    taker: AccountInfo<'info>,
-    using_native: bool,
-    token_program: AccountInfo<'info>,
-    system_program: AccountInfo<'info>,
-) -> Result<()> {
-    if using_native {
-        // Transfer SOL using System Program
-        let ix = anchor_lang::solana_program::system_instruction::transfer(
-            &taker.key(),
-            &to.key(),
-            amount,
-        );
-        anchor_lang::solana_program::program::invoke(
-            &ix,
-            &[
-                taker.to_account_info(),
-                to.to_account_info(),
-                system_program.to_account_info(),
-            ],
-        )?;
-        Ok(())
-    } else {
-        // Transfer SPL tokens
-        anchor_spl::token::transfer(
-            CpiContext::new(
-                token_program,
-                anchor_spl::token::Transfer {
-                    from,
-                    to: to_ata.to_account_info(),
-                    authority: taker,
-                },
-            ),
-            amount,
-        )
-    }
-}
-
