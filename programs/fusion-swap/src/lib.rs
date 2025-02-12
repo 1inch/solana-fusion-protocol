@@ -239,7 +239,7 @@ pub struct Fill<'info> {
         bump,
         seeds::program = whitelist::ID,
     )]
-    whitelisted: Account<'info, whitelist::Whitelisted>,
+    authorized: Account<'info, whitelist::Authorization>,
 
     /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]

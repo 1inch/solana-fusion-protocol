@@ -800,7 +800,7 @@ describe("Fusion Swap", () => {
           .signers([state.charlie.keypair])
           .rpc()
       ).to.be.rejectedWith(
-        "AnchorError caused by account: whitelisted. Error Code: AccountNotInitialized"
+        "AnchorError caused by account: authorized. Error Code: AccountNotInitialized"
       );
     });
 

@@ -72,11 +72,11 @@ pub struct Register<'info> {
     #[account(
         init,
         payer = owner,
-        space = constants::DISCRIMINATOR + Whitelisted::INIT_SPACE,
+        space = constants::DISCRIMINATOR + Authorization::INIT_SPACE,
         seeds = [WHITELIST_SEED, user.key().as_ref()],
         bump,
     )]
-    pub whitelisted: Account<'info, Whitelisted>,
+    pub authorized: Account<'info, Authorization>,
 
     /// CHECK: This account is not read or written, just used for PDA creation
     pub user: AccountInfo<'info>,
@@ -103,7 +103,7 @@ pub struct Deregister<'info> {
         seeds = [WHITELIST_SEED, user.key().as_ref()],
         bump,
     )]
-    pub whitelisted: Account<'info, Whitelisted>,
+    pub authorized: Account<'info, Authorization>,
 
     /// CHECK: This account is not read or written, just used for PDA creation
     pub user: AccountInfo<'info>,
@@ -135,4 +135,4 @@ pub struct WhitelistState {
 
 #[account]
 #[derive(InitSpace)]
-pub struct Whitelisted {}
+pub struct Authorization {}

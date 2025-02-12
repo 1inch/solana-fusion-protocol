@@ -55,7 +55,7 @@ describe("Whitelist", () => {
       .rpc();
 
     // Verify the whitelist account exists
-    const whitelistAccount = await program.account.whitelisted.fetch(
+    const whitelistAccount = await program.account.authorization.fetch(
       whitelistPDA
     );
     expect(whitelistAccount).to.not.be.null;
@@ -72,7 +72,7 @@ describe("Whitelist", () => {
 
     // Verify the whitelist account does not exist
     await expect(
-      program.account.whitelisted.fetch(whitelistPDA)
+      program.account.authorization.fetch(whitelistPDA)
     ).to.be.rejectedWith("Account does not exist");
   });
 
@@ -146,7 +146,7 @@ describe("Whitelist", () => {
       .rpc();
 
     // Verify the whitelist account exists
-    const whitelistAccount = await program.account.whitelisted.fetch(
+    const whitelistAccount = await program.account.authorization.fetch(
       whitelistPDA
     );
     expect(whitelistAccount).to.not.be.null;
@@ -163,7 +163,7 @@ describe("Whitelist", () => {
 
     // Verify the whitelist account does not exist
     await expect(
-      program.account.whitelisted.fetch(whitelistPDA)
+      program.account.authorization.fetch(whitelistPDA)
     ).to.be.rejectedWith("Account does not exist");
   });
 
