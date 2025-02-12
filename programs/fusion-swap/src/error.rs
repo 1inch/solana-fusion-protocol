@@ -20,10 +20,10 @@ pub enum EscrowError {
     InvalidEstimatedTakingAmount,
     #[msg("Protocol surplus fee too high")]
     InvalidProtocolSurplusFee,
-    #[msg("Protocol fee address is invalid")]
-    InvalidProtocolFeeAta,
-    #[msg("Integrator fee address is invalid")]
-    InvalidIntegratorFeeAta,
+    #[msg("Inconsistent protocol fee config")]
+    InconsistentProtocolFeeConfig,
+    #[msg("Inconsistent integrator fee config")]
+    InconsistentIntegratorFeeConfig,
     #[msg("Integer overflow")]
     IntegerOverflow,
 }

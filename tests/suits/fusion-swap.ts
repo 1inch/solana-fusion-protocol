@@ -801,7 +801,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InvalidProtocolFeeAta");
+      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
     it("Doesn't execute the trade without protocol_dst_ata", async () => {
@@ -824,7 +824,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InvalidProtocolFeeAta");
+      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
     it("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
@@ -832,7 +832,7 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ integratorFee: 1000 }), // 1%
+        compactFees: buildCompactFee({ integratorFee: 10000 }), // 10%
         integratorDstAta:
           state.charlie.atas[state.tokens[1].toString()].address,
       });
@@ -850,7 +850,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InvalidIntegratorFeeAta");
+      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
     });
 
     it("Doesn't execute the trade without integrator_dst_ata", async () => {
@@ -858,7 +858,7 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ integratorFee: 1000 }), // 1%
+        compactFees: buildCompactFee({ integratorFee: 10000 }), // 10%
         integratorDstAta:
           state.charlie.atas[state.tokens[1].toString()].address,
       });
@@ -874,7 +874,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InvalidIntegratorFeeAta");
+      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
     });
 
     it("Execute the multiple trades", async () => {
