@@ -99,6 +99,10 @@ pub mod fusion_swap {
             return err!(EscrowError::NotEnoughTokensInEscrow);
         }
 
+        if amount == 0 {
+            return err!(EscrowError::InvalidAmount);
+        }
+
         // Check if partial fills are allowed if this is the case
         if ctx.accounts.escrow_src_ata.amount > amount
             && !allow_partial_fills(ctx.accounts.escrow.traits)
@@ -193,7 +197,7 @@ pub mod fusion_swap {
                         authority: ctx.accounts.taker.to_account_info(),
                     },
                 ),
-                dst_amount - protocol_fee_amount - integrator_fee_amount,
+                dst_amount - protocol_fee_amount - integrator_fee_amount, //
             )?;
         }
 
@@ -497,7 +501,7 @@ fn get_fee_amounts(
     // if estimated_dst_amount // TODO: Uncomment this when dutch autions are implemented
     //     .checked_mul(src_amount)
     //     .ok_or(EscrowError::IntegerOverflow)?
-    //     .div_ceil(amount)
+    //     .div_ceil(amount) // amount is always greater than zero
     //     < dst_amount
     // {
     //     return Err(EscrowError::InvalidEstimatedTakingAmount.into());
