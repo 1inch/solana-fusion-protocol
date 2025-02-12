@@ -153,17 +153,14 @@ pub mod fusion_swap {
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.dst_amount,
             amount,
-        );
+        )?;
 
         let (protocol_fee_amount, integrator_fee_amount, actual_amount) = get_fee_amounts(
             ctx.accounts.escrow.integrator_fee as u64,
             ctx.accounts.escrow.protocol_fee as u64,
             ctx.accounts.escrow.surplus_percentage as u64,
             dst_amount,
-            ctx.accounts.escrow.estimated_dst_amount
-                .checked_mul(amount)
-                .ok_or(error::EscrowError::IntegerOverflow)?
-                / ctx.accounts.escrow.src_amount,
+            get_dst_amount(ctx.accounts.escrow.src_amount, ctx.accounts.escrow.estimated_dst_amount, amount)?,
         )?;
 
         // Take protocol fee
@@ -210,13 +207,13 @@ pub mod fusion_swap {
             let ix = anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.taker.key(),
                 &ctx.accounts.maker_receiver.key(),
-            actual_amount,
+                actual_amount,
             );
             anchor_lang::solana_program::program::invoke(
                 &ix,
                 &[
                     ctx.accounts.taker.to_account_info(),
-            ctx.accounts.maker_receiver.to_account_info(),
+                    ctx.accounts.maker_receiver.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
                 ],
             )?;
@@ -224,7 +221,7 @@ pub mod fusion_swap {
             // Transfer SPL tokens
             anchor_spl::token::transfer(
                 CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
                     anchor_spl::token::Transfer {
                         from: ctx.accounts.taker_dst_ata.to_account_info(),
                         to: ctx.accounts.maker_dst_ata.to_account_info(),
@@ -503,8 +500,13 @@ fn close_escrow<'info>(
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
-fn get_dst_amount(escrow_src_amount: u64, escrow_dst_amount: u64, swap_amount: u64) -> u64 {
-    (swap_amount * escrow_dst_amount).div_ceil(escrow_src_amount)
+fn get_dst_amount(initial_src_amount: u64, initial_dst_amount: u64, src_amount: u64) -> Result<u64> {
+    Ok(
+        src_amount
+            .checked_mul(initial_dst_amount)
+            .ok_or(error::EscrowError::IntegerOverflow)?
+            .div_ceil(initial_src_amount)
+    )
 }
 
 // Flag that defines if the order can be filled partially
