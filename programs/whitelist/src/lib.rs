@@ -7,7 +7,7 @@ use error::WhitelistError;
 declare_id!("6Lt7x1RwTWFdvPM1Hn58HdVfvdhW6rNS1fTSWgSZJcZy");
 
 pub const WHITELIST_STATE_SEED: &[u8] = b"whitelist_state";
-pub const WHITELIST_SEED: &[u8] = b"whitelist";
+pub const AUTHORIZATION_SEED: &[u8] = b"authorization";
 
 /// Program for managing whitelisted users for the Fusion Swap
 #[program]
@@ -73,7 +73,7 @@ pub struct Register<'info> {
         init,
         payer = owner,
         space = constants::DISCRIMINATOR + Authorization::INIT_SPACE,
-        seeds = [WHITELIST_SEED, user.key().as_ref()],
+        seeds = [AUTHORIZATION_SEED, user.key().as_ref()],
         bump,
     )]
     pub authorized: Account<'info, Authorization>,
@@ -100,7 +100,7 @@ pub struct Deregister<'info> {
     #[account(
         mut,
         close = owner,
-        seeds = [WHITELIST_SEED, user.key().as_ref()],
+        seeds = [AUTHORIZATION_SEED, user.key().as_ref()],
         bump,
     )]
     pub authorized: Account<'info, Authorization>,

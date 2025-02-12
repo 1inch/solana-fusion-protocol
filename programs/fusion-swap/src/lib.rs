@@ -235,7 +235,7 @@ pub struct Fill<'info> {
     taker: Signer<'info>,
     /// Account allowed to fill the order
     #[account(
-        seeds = [whitelist::WHITELIST_SEED, taker.key().as_ref()],
+        seeds = [whitelist::AUTHORIZATION_SEED, taker.key().as_ref()],
         bump,
         seeds::program = whitelist::ID,
     )]
