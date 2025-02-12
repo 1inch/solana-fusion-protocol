@@ -328,11 +328,11 @@ pub struct Fill<'info> {
     taker: Signer<'info>,
     /// Account allowed to fill the order
     #[account(
-        seeds = [whitelist::AUTHORIZATION_SEED, taker.key().as_ref()],
+        seeds = [whitelist::RESOLVER_ACCESS_SEED, taker.key().as_ref()],
         bump,
         seeds::program = whitelist::ID,
     )]
-    authorized: Account<'info, whitelist::Authorization>,
+    resolver_access: Account<'info, whitelist::ResolverAccess>,
 
     /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]

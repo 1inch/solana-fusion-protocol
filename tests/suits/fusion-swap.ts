@@ -1152,7 +1152,7 @@ describe("Fusion Swap", () => {
           .signers([state.charlie.keypair])
           .rpc()
       ).to.be.rejectedWith(
-        "AnchorError caused by account: authorized. Error Code: AccountNotInitialized"
+        "AnchorError caused by account: resolver_access. Error Code: AccountNotInitialized"
       );
     });
 

@@ -35,7 +35,7 @@ describe("Whitelist", () => {
     );
 
     [whitelistPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("authorization"), userToWhitelist.publicKey.toBuffer()],
+      [Buffer.from("resolver_access"), userToWhitelist.publicKey.toBuffer()],
       program.programId
     );
 
@@ -55,7 +55,7 @@ describe("Whitelist", () => {
       .rpc();
 
     // Verify the whitelist account exists
-    const whitelistAccount = await program.account.authorization.fetch(
+    const whitelistAccount = await program.account.resolverAccess.fetch(
       whitelistPDA
     );
     expect(whitelistAccount).to.not.be.null;
@@ -72,7 +72,7 @@ describe("Whitelist", () => {
 
     // Verify the whitelist account does not exist
     await expect(
-      program.account.authorization.fetch(whitelistPDA)
+      program.account.resolverAccess.fetch(whitelistPDA)
     ).to.be.rejectedWith("Account does not exist");
   });
 
@@ -146,7 +146,7 @@ describe("Whitelist", () => {
       .rpc();
 
     // Verify the whitelist account exists
-    const whitelistAccount = await program.account.authorization.fetch(
+    const whitelistAccount = await program.account.resolverAccess.fetch(
       whitelistPDA
     );
     expect(whitelistAccount).to.not.be.null;
@@ -163,7 +163,7 @@ describe("Whitelist", () => {
 
     // Verify the whitelist account does not exist
     await expect(
-      program.account.authorization.fetch(whitelistPDA)
+      program.account.resolverAccess.fetch(whitelistPDA)
     ).to.be.rejectedWith("Account does not exist");
   });
 

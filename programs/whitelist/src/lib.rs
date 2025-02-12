@@ -7,7 +7,7 @@ use error::WhitelistError;
 declare_id!("6Lt7x1RwTWFdvPM1Hn58HdVfvdhW6rNS1fTSWgSZJcZy");
 
 pub const WHITELIST_STATE_SEED: &[u8] = b"whitelist_state";
-pub const AUTHORIZATION_SEED: &[u8] = b"authorization";
+pub const RESOLVER_ACCESS_SEED: &[u8] = b"resolver_access";
 
 /// Program for managing whitelisted users for the Fusion Swap
 #[program]
@@ -72,11 +72,11 @@ pub struct Register<'info> {
     #[account(
         init,
         payer = owner,
-        space = constants::DISCRIMINATOR + Authorization::INIT_SPACE,
-        seeds = [AUTHORIZATION_SEED, user.key().as_ref()],
+        space = constants::DISCRIMINATOR + ResolverAccess::INIT_SPACE,
+        seeds = [RESOLVER_ACCESS_SEED, user.key().as_ref()],
         bump,
     )]
-    pub authorized: Account<'info, Authorization>,
+    pub resolver_access: Account<'info, ResolverAccess>,
 
     /// CHECK: This account is not read or written, just used for PDA creation
     pub user: AccountInfo<'info>,
@@ -100,10 +100,10 @@ pub struct Deregister<'info> {
     #[account(
         mut,
         close = owner,
-        seeds = [AUTHORIZATION_SEED, user.key().as_ref()],
+        seeds = [RESOLVER_ACCESS_SEED, user.key().as_ref()],
         bump,
     )]
-    pub authorized: Account<'info, Authorization>,
+    pub resolver_access: Account<'info, ResolverAccess>,
 
     /// CHECK: This account is not read or written, just used for PDA creation
     pub user: AccountInfo<'info>,
@@ -135,4 +135,4 @@ pub struct WhitelistState {
 
 #[account]
 #[derive(InitSpace)]
-pub struct Authorization {}
+pub struct ResolverAccess {}
