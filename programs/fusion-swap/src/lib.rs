@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
-use auction_utils::{calculate_rate_bump, DutchAuctionData};
+use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 
-pub mod auction_utils;
 pub mod constants;
+pub mod dutch_auction;
 pub mod error;
 
 use crate::constants::BASE_1E5;
@@ -527,7 +527,7 @@ pub fn get_dst_amount(
         .div_ceil(initial_src_amount);
 
     if let Some(data) = opt_data {
-        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u32, data);
+        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
         result = result
             .checked_mul(BASE_1E5 + rate_bump)
             .ok_or(error::EscrowError::IntegerOverflow)?

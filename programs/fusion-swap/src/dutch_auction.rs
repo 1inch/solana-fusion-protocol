@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
 
+use crate::constants::AUCTION_POINTS;
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct PointsAndTimeDeltas {
     rate_bump: u16,
-    point_time: u16, // delta between previous point and this point
+    time_delta: u16,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
@@ -11,15 +13,15 @@ pub struct DutchAuctionData {
     pub auction_start_time: u32,
     pub auction_finish_time: u32,
     pub initial_rate_bump: u16,
-    #[max_len(5)]
+    #[max_len(AUCTION_POINTS)]
     pub points_and_time_deltas: Vec<PointsAndTimeDeltas>,
 }
 
-pub fn calculate_rate_bump(timestamp: u32, data: DutchAuctionData) -> u64 {
-    if timestamp <= data.auction_start_time {
+pub fn calculate_rate_bump(timestamp: u64, data: DutchAuctionData) -> u64 {
+    if timestamp <= data.auction_start_time as u64 {
         return data.initial_rate_bump as u64;
     }
-    if timestamp >= data.auction_finish_time {
+    if timestamp >= data.auction_finish_time as u64 {
         return 0;
     }
 
@@ -28,16 +30,16 @@ pub fn calculate_rate_bump(timestamp: u32, data: DutchAuctionData) -> u64 {
 
     for point_and_time_delta in data.points_and_time_deltas.iter() {
         let next_rate_bump = point_and_time_delta.rate_bump as u64;
-        let next_point_time = current_point_time + point_and_time_delta.point_time as u64;
-        if timestamp as u64 <= next_point_time {
-            return ((timestamp as u64 - current_point_time) * next_rate_bump
-                + (next_point_time - timestamp as u64) * current_rate_bump)
+        let next_point_time = current_point_time + point_and_time_delta.time_delta as u64;
+        if timestamp <= next_point_time {
+            return ((timestamp - current_point_time) * next_rate_bump
+                + (next_point_time - timestamp) * current_rate_bump)
                 / (next_point_time - current_point_time);
         }
 
         current_rate_bump = next_rate_bump;
         current_point_time = next_point_time;
     }
-    (data.auction_finish_time as u64 - timestamp as u64) * current_rate_bump
+    (data.auction_finish_time as u64 - timestamp) * current_rate_bump
         / (data.auction_finish_time as u64 - current_point_time)
 }

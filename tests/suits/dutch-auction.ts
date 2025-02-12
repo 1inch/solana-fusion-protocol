@@ -89,8 +89,8 @@ describe("Dutch Auction", () => {
       },
       initialRateBump: 10000,
       pointsAndTimeDeltas: [
-        { rateBump: 20000, pointTime: 10000 },
-        { rateBump: 50000, pointTime: 20000 },
+        { rateBump: 20000, timeDelta: 10000 },
+        { rateBump: 50000, timeDelta: 20000 },
       ],
     };
 
@@ -191,7 +191,7 @@ describe("Dutch Auction", () => {
           currentClock.epoch,
           currentClock.leaderScheduleEpoch,
           BigInt(auction.auctionStartTime) +
-            BigInt(auction.pointsAndTimeDeltas[0].pointTime / 2)
+            BigInt(auction.pointsAndTimeDeltas[0].timeDelta / 2)
         )
       );
 
@@ -249,8 +249,8 @@ describe("Dutch Auction", () => {
           currentClock.epoch,
           currentClock.leaderScheduleEpoch,
           BigInt(auction.auctionStartTime) +
-            BigInt(auction.pointsAndTimeDeltas[0].pointTime) +
-            BigInt(auction.pointsAndTimeDeltas[1].pointTime / 2)
+            BigInt(auction.pointsAndTimeDeltas[0].timeDelta) +
+            BigInt(auction.pointsAndTimeDeltas[1].timeDelta / 2)
         )
       );
 
