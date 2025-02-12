@@ -30,6 +30,13 @@ pub mod whitelist {
     pub fn deregister(_ctx: Context<Deregister>) -> Result<()> {
         Ok(())
     }
+
+    /// Transfers ownership of the whitelist to a new owner
+    pub fn transfer_ownership(ctx: Context<TransferOwnership>) -> Result<()> {
+        let whitelist_state = &mut ctx.accounts.whitelist_state;
+        whitelist_state.owner = ctx.accounts.new_owner.key();
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -102,6 +109,22 @@ pub struct Deregister<'info> {
     pub user: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct TransferOwnership<'info> {
+    #[account(mut)]
+    pub current_owner: Signer<'info>,
+    /// CHECK: New owner's address is just stored
+    pub new_owner: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [WHITELIST_STATE_SEED],
+        bump,
+        // Ensures only the current owner can transfer ownership
+        constraint = whitelist_state.owner == current_owner.key() @ WhitelistError::UnauthorizedOwner
+    )]
+    pub whitelist_state: Account<'info, WhitelistState>,
 }
 
 #[account]
