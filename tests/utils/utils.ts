@@ -7,8 +7,14 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
-import { BanksClient } from "solana-bankrun";
+import {
+  AccountInfoBytes,
+  BanksClient,
+  ProgramTestContext,
+  startAnchor,
+} from "solana-bankrun";
 import { FusionSwap } from "../../target/types/fusion_swap";
+import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -51,6 +57,22 @@ export async function trackReceivedTokenAndTx(
     (b, i) => b.amount - tokenBalancesBefore[i].amount
   );
 }
+
+const DEFAULT_AIRDROPINFO = {
+  lamports: 1 * LAMPORTS_PER_SOL,
+  data: Buffer.alloc(0),
+  owner: SYSTEM_PROGRAM_ID,
+  executable: false,
+};
+
+const DEFAULT_STARTANCHOR = {
+  path: ".",
+  extraPrograms: [],
+  accounts: undefined,
+  computeMaxUnits: undefined,
+  transactionAccountLockLimit: undefined,
+  deactivateFeatures: undefined,
+};
 
 export class TestState {
   alice: User;
@@ -97,6 +119,29 @@ export class TestState {
       payer
     );
     return instance;
+  }
+
+  static async bankrunContext(
+    userKeyPairs: anchor.web3.Keypair[],
+    params?: typeof DEFAULT_STARTANCHOR,
+    airdropInfo?: AccountInfoBytes
+  ): Promise<ProgramTestContext> {
+    // Fill settings with default values and rewrite some values with provided
+    airdropInfo = { ...DEFAULT_AIRDROPINFO, ...airdropInfo };
+    params = { ...DEFAULT_STARTANCHOR, ...params };
+
+    return await startAnchor(
+      params.path,
+      params.extraPrograms,
+      params.accounts ||
+        userKeyPairs.map((u) => ({
+          address: u.publicKey,
+          info: airdropInfo,
+        })),
+      params.computeMaxUnits,
+      params.transactionAccountLockLimit,
+      params.deactivateFeatures
+    );
   }
 
   static async bankrunCreate(
@@ -180,6 +225,7 @@ export class TestState {
     allowPartialFills = true,
     makerReceiver = this.alice.keypair.publicKey,
     authorizedUser = null,
+    dutchAuctionData = null,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -230,7 +276,7 @@ export class TestState {
         dstAmount,
         allowPartialFills,
         makerReceiver,
-        null
+        dutchAuctionData
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
@@ -276,17 +322,19 @@ async function createTokens(
 async function createUsers(
   num: number,
   tokens: Array<anchor.web3.PublicKey>,
-  provider: anchor.AnchorProvider,
+  provider: anchor.AnchorProvider | BanksClient,
   payer: anchor.web3.Keypair
 ): Promise<Array<User>> {
   let usersKeypairs: Array<anchor.web3.Keypair> = [];
   for (let i = 0; i < num; ++i) {
     const keypair = anchor.web3.Keypair.generate();
     usersKeypairs.push(keypair);
-    await provider.connection.requestAirdrop(
-      keypair.publicKey,
-      1 * LAMPORTS_PER_SOL
-    );
+    if (provider instanceof anchor.AnchorProvider) {
+      await provider.connection.requestAirdrop(
+        keypair.publicKey,
+        1 * LAMPORTS_PER_SOL
+      );
+    }
   }
   return await createAtasUsers(usersKeypairs, tokens, provider, payer);
 }
