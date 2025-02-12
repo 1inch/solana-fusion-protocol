@@ -167,7 +167,7 @@ pub mod fusion_swap {
         if protocol_fee_amount > 0 {
             uni_transfer(
                 protocol_fee_amount,
-                ctx.accounts.maker_receiver.to_account_info(),
+                ctx.accounts.maker_receiver.to_account_info(), //  TODO: change to real
                 ctx.accounts.protocol_dst_ata
                     .as_ref()
                     .ok_or(EscrowError::InconsistentProtocolFeeConfig)?,
@@ -183,7 +183,7 @@ pub mod fusion_swap {
         if integrator_fee_amount > 0 {
             uni_transfer(
                 integrator_fee_amount,
-                ctx.accounts.maker_receiver.to_account_info(),
+                ctx.accounts.maker_receiver.to_account_info(), //  TODO: change to real
                 ctx.accounts.integrator_dst_ata
                     .as_ref()
                     .ok_or(EscrowError::InconsistentIntegratorFeeConfig)?,
@@ -565,43 +565,3 @@ fn uni_transfer<'info>(
     }
 }
 
-// uni_transfer(
-//     actual_amount,
-//     ctx.accounts.maker_receiver.to_account_info(),
-//     &ctx.accounts.maker_dst_ata,
-//     ctx.accounts.taker_dst_ata.to_account_info(),
-//     ctx.accounts.taker.to_account_info(),
-//     native_dst_asset(ctx.accounts.escrow.traits),
-//     ctx.accounts.token_program.to_account_info(),
-//     ctx.accounts.system_program.to_account_info(),
-// )?;
-
-// if native_dst_asset(ctx.accounts.escrow.traits) {
-//     // Transfer SOL using System Program
-//     let ix = anchor_lang::solana_program::system_instruction::transfer(
-//         &ctx.accounts.taker.key(),
-//         &ctx.accounts.maker_receiver.key(),
-//         actual_amount,
-//     );
-//     anchor_lang::solana_program::program::invoke(
-//         &ix,
-//         &[
-//             ctx.accounts.taker.to_account_info(),
-//             ctx.accounts.maker_receiver.to_account_info(),
-//             ctx.accounts.system_program.to_account_info(),
-//         ],
-//     )?;
-// } else {
-//     // Transfer SPL tokens
-//     anchor_spl::token::transfer(
-//         CpiContext::new(
-//             ctx.accounts.token_program.to_account_info(),
-//             anchor_spl::token::Transfer {
-//                 from: ctx.accounts.taker_dst_ata.to_account_info(),
-//                 to: ctx.accounts.maker_dst_ata.to_account_info(),
-//                 authority: ctx.accounts.taker.to_account_info(),
-//             },
-//         ),
-//         actual_amount,
-//     )?
-// }
