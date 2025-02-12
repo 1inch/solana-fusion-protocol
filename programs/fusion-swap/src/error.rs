@@ -14,4 +14,14 @@ pub enum EscrowError {
     PartialFillNotAllowed,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
+    #[msg("Invalid estimated taking amount")]
+    InvalidEstimatedTakingAmount,
+    #[msg("Protocol surplus fee too high")]
+    InvalidProtocolSurplusFee,
+    #[msg("Inconsistent protocol fee config")]
+    InconsistentProtocolFeeConfig,
+    #[msg("Inconsistent integrator fee config")]
+    InconsistentIntegratorFeeConfig,
+    #[msg("Integer overflow")]
+    IntegerOverflow,
 }
