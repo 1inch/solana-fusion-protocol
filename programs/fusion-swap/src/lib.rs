@@ -197,7 +197,9 @@ pub mod fusion_swap {
                         authority: ctx.accounts.taker.to_account_info(),
                     },
                 ),
-                dst_amount - protocol_fee_amount - integrator_fee_amount, //
+                (dst_amount - protocol_fee_amount) // protocol_fee_amount less then 66% of dst_amount
+                    .checked_sub(integrator_fee_amount)
+                    .ok_or(EscrowError::IntegerOverflow)?,
             )?;
         }
 
@@ -496,7 +498,9 @@ fn get_fee_amounts(
         .ok_or(EscrowError::IntegerOverflow)?
         .div_ceil(denominator); // denominator is always not zero since it's a sum of 2 non-negative values and positive constant
 
-    let actual_dst_amount = dst_amount - protocol_fee_amount - integrator_fee_amount;
+    let actual_dst_amount = (dst_amount - protocol_fee_amount) // protocol_fee_amount less then 66% of dst_amount
+        .checked_sub(integrator_fee_amount)
+        .ok_or(EscrowError::IntegerOverflow)?;
 
     // if estimated_dst_amount // TODO: Uncomment this when dutch autions are implemented
     //     .checked_mul(src_amount)
