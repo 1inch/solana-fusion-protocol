@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::AUCTION_POINTS;
+use crate::constants::MAX_AUCTION_POINTS;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct PointAndTimeDelta {
@@ -13,7 +13,7 @@ pub struct DutchAuctionData {
     pub auction_start_time: u32,
     pub auction_finish_time: u32,
     pub initial_rate_bump: u16,
-    #[max_len(AUCTION_POINTS)]
+    #[max_len(MAX_AUCTION_POINTS)]
     pub points_and_time_deltas: Vec<PointAndTimeDelta>,
 }
 
