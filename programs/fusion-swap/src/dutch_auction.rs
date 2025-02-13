@@ -31,11 +31,12 @@ pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
 
     for point_and_time_delta in data.points_and_time_deltas.iter() {
         let next_rate_bump = point_and_time_delta.rate_bump as u64;
-        let next_point_time = current_point_time + point_and_time_delta.time_delta as u64;
+        let point_time_delta = point_and_time_delta.time_delta as u64;
+        let next_point_time = current_point_time + point_time_delta;
         if timestamp <= next_point_time {
             return ((timestamp - current_point_time) * next_rate_bump
                 + (next_point_time - timestamp) * current_rate_bump)
-                / (next_point_time - current_point_time);
+                / point_time_delta;
         }
 
         current_rate_bump = next_rate_bump;
