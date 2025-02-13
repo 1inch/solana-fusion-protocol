@@ -4,7 +4,7 @@ use common::constants::DISCRIMINATOR;
 pub mod error;
 use error::WhitelistError;
 
-declare_id!("6Lt7x1RwTWFdvPM1Hn58HdVfvdhW6rNS1fTSWgSZJcZy");
+declare_id!("3cx4U4YnUNeDaQfqMkzw8AsVGtBXrcAbbjd1wPGMpMZc");
 
 pub const WHITELIST_STATE_SEED: &[u8] = b"whitelist_state";
 pub const RESOLVER_ACCESS_SEED: &[u8] = b"resolver_access";
