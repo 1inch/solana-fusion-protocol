@@ -14,8 +14,6 @@ pub enum EscrowError {
     OrderExpired,
     #[msg("Partial fill not allowed")]
     PartialFillNotAllowed,
-    #[msg("Private order")]
-    PrivateOrder,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
     #[msg("Invalid estimated taking amount")]
