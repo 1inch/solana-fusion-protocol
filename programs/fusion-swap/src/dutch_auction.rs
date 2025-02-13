@@ -42,6 +42,7 @@ pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
         current_rate_bump = next_rate_bump;
         current_point_time = next_point_time;
     }
+    // Initial check `timestamp >= auction_finish_time` and valid data generation ensure the subtraction in denominator is never zero
     (auction_finish_time - timestamp) * current_rate_bump
         / (auction_finish_time - current_point_time)
 }
