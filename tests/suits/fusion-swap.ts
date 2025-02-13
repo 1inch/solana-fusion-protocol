@@ -344,116 +344,6 @@ describe("Fusion Swap", () => {
       ]);
     });
 
-    it("Execute the trade with surplus", async () => {
-      // TODO: Fix this when dutch autions are implemented
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        compactFees: buildCompactFee({ surplus: 50 }), // 50%
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-        estimatedDstAmount: state.defaultDstAmount.divn(2),
-      });
-
-      const transactionPromise = () =>
-        program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
-            state.buildAccountsDataForFill({
-              escrow: escrow.escrow,
-              escrowSrcAta: escrow.ata,
-              protocolDstAta:
-                state.charlie.atas[state.tokens[1].toString()].address,
-            })
-          )
-          .signers([state.bob.keypair])
-          .rpc();
-
-      const results = await trackReceivedTokenAndTx(
-        provider.connection,
-        [
-          state.alice.atas[state.tokens[1].toString()].address,
-          state.bob.atas[state.tokens[0].toString()].address,
-          state.bob.atas[state.tokens[1].toString()].address,
-          state.charlie.atas[state.tokens[1].toString()].address,
-        ],
-        transactionPromise
-      );
-      await expect(
-        splToken.getAccount(provider.connection, escrow.ata)
-      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
-
-      expect(results).to.be.deep.eq([
-        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 3) / 4)),
-        BigInt(state.defaultSrcAmount.toNumber()),
-        -BigInt(state.defaultDstAmount.toNumber()),
-        BigInt(Math.floor(state.defaultDstAmount.toNumber() / 4)),
-      ]);
-    });
-
-    it("Execute the trade with all fees", async () => {
-      // TODO: Fix this when dutch autions are implemented
-      const estimatedDstAmount = state.defaultDstAmount.divn(2);
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        compactFees: buildCompactFee({
-          protocolFee: 10000,
-          integratorFee: 15000,
-          surplus: 50,
-        }), // 10%, 15%, 50%
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-        integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
-        estimatedDstAmount,
-      });
-
-      const transactionPromise = () =>
-        program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
-            state.buildAccountsDataForFill({
-              escrow: escrow.escrow,
-              escrowSrcAta: escrow.ata,
-              protocolDstAta:
-                state.charlie.atas[state.tokens[1].toString()].address,
-              integratorDstAta:
-                state.dave.atas[state.tokens[1].toString()].address,
-            })
-          )
-          .signers([state.bob.keypair])
-          .rpc();
-
-      const results = await trackReceivedTokenAndTx(
-        provider.connection,
-        [
-          state.alice.atas[state.tokens[1].toString()].address,
-          state.bob.atas[state.tokens[0].toString()].address,
-          state.bob.atas[state.tokens[1].toString()].address,
-          state.charlie.atas[state.tokens[1].toString()].address,
-          state.dave.atas[state.tokens[1].toString()].address,
-        ],
-        transactionPromise
-      );
-      await expect(
-        splToken.getAccount(provider.connection, escrow.ata)
-      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
-
-      const profit =
-        Math.ceil((state.defaultDstAmount.toNumber() * 75) / 100) -
-        estimatedDstAmount.toNumber(); // takingAmount - 10% - 15% - estimatedAmount
-      expect(results).to.be.deep.eq([
-        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 625) / 1000)), // takingAmount - 10% - 15% - 50% * (actualAmount - estimatedAmount)
-        BigInt(state.defaultSrcAmount.toNumber()),
-        -BigInt(state.defaultDstAmount.toNumber()),
-        BigInt(
-          Math.floor(state.defaultDstAmount.toNumber() / 10) +
-            Math.floor(profit / 2)
-        ), // 10% of takingAmount + 50% *  (actualAmount - estimatedAmpount)
-        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 15) / 100)), // 15% of takingAmount
-      ]);
-    });
-
     it("Doesn't execute the trade with exchange amount more than escow has (x_token)", async () => {
       await expect(
         program.methods
@@ -945,6 +835,7 @@ describe("Fusion Swap", () => {
         provider,
         srcAmount: _srcAmount,
         dstAmount: _dstAmount,
+        estimatedDstAmount: _dstAmount,
       });
 
       let transactionPromise = () =>

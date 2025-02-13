@@ -53,10 +53,9 @@ pub mod fusion_swap {
             return Err(EscrowError::InvalidProtocolSurplusFee.into());
         }
 
-        // TODO: Uncomment this when dutch autions are implemented
-        // if estimated_dst_amount <= dst_amount {
-        //     return Err(EscrowError::InvalidEstimatedTakingAmount.into());
-        // }
+        if estimated_dst_amount < dst_amount {
+            return Err(EscrowError::InvalidEstimatedTakingAmount.into());
+        }
 
         if ((protocol_fee > 0 || surplus_percentage > 0) && protocol_dst_ata.is_none())
             || (protocol_fee == 0 && surplus_percentage == 0 && protocol_dst_ata.is_some())
@@ -169,7 +168,7 @@ pub mod fusion_swap {
                 ctx.accounts.escrow.src_amount,
                 ctx.accounts.escrow.estimated_dst_amount,
                 amount,
-                ctx.accounts.escrow.dutch_auction_data.as_ref(),
+                None,
             )?,
         )?;
 

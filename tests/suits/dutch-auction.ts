@@ -7,6 +7,7 @@ import {
   setCurrentTime,
   TestState,
   trackReceivedTokenAndTx,
+  buildCompactFee,
 } from "../utils/utils";
 import { BankrunProvider } from "anchor-bankrun";
 import { BanksClient, ProgramTestContext } from "solana-bankrun";
@@ -34,7 +35,7 @@ describe("Dutch Auction", () => {
 
   before(async () => {
     const usersKeypairs = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       usersKeypairs.push(anchor.web3.Keypair.generate());
     }
     context = await TestState.bankrunContext(usersKeypairs);
@@ -289,6 +290,150 @@ describe("Dutch Auction", () => {
         BigInt(state.defaultDstAmount.toNumber()),
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
+      ]);
+    });
+
+    it("Execute the trade with surplus", async () => {
+      const auction = {
+        auctionStartTime: Math.floor(new Date().getTime() / 1000),
+        get auctionFinishTime() {
+          return this.auctionStartTime + 32000;
+        },
+        initialRateBump: 10000,
+        pointsAndTimeDeltas: [],
+      };
+
+      // rollback clock to the current time after tests that move time forward when order already expired
+      await setCurrentTime(context, auction.auctionStartTime);
+
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider: banksClient,
+        compactFees: buildCompactFee({ surplus: 50 }), // 50%
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        estimatedDstAmount: state.defaultDstAmount,
+        dutchAuctionData: auction,
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              protocolDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[state.tokens[1].toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[state.tokens[1].toString()].address,
+          state.charlie.atas[state.tokens[1].toString()].address,
+        ],
+        transactionPromise
+      );
+      await expect(
+        splBankrunToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splBankrunToken.TokenAccountNotFoundError);
+
+      const dstAmountWithRateBump = BigInt(
+        (state.defaultDstAmount.toNumber() *
+          (BASE_POINTS + auction.initialRateBump)) /
+          BASE_POINTS
+      );
+      const surplus =
+        (dstAmountWithRateBump - BigInt(state.defaultDstAmount.toNumber())) /
+        2n;
+      expect(results).to.be.deep.eq([
+        dstAmountWithRateBump - surplus,
+        BigInt(state.defaultSrcAmount.toNumber()),
+        -dstAmountWithRateBump,
+        surplus,
+      ]);
+    });
+
+    it("Execute the trade with all fees", async () => {
+      const auction = {
+        auctionStartTime: Math.floor(new Date().getTime() / 1000),
+        get auctionFinishTime() {
+          return this.auctionStartTime + 32000;
+        },
+        initialRateBump: 50000,
+        pointsAndTimeDeltas: [],
+      };
+
+      // rollback clock to the current time after tests that move time forward when order already expired
+      await setCurrentTime(context, auction.auctionStartTime);
+
+      const estimatedDstAmount = state.defaultDstAmount;
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider: banksClient,
+        compactFees: buildCompactFee({
+          protocolFee: 10000,
+          integratorFee: 15000,
+          surplus: 50,
+        }), // 10%, 15%, 50%
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
+        estimatedDstAmount,
+        dutchAuctionData: auction,
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              protocolDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
+              integratorDstAta:
+                state.dave.atas[state.tokens[1].toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[state.tokens[1].toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[state.tokens[1].toString()].address,
+          state.charlie.atas[state.tokens[1].toString()].address,
+          state.dave.atas[state.tokens[1].toString()].address,
+        ],
+        transactionPromise
+      );
+      await expect(
+        splBankrunToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splBankrunToken.TokenAccountNotFoundError);
+
+      const dstAmountWithRateBump = BigInt(
+        (state.defaultDstAmount.toNumber() *
+          (BASE_POINTS + auction.initialRateBump)) /
+          BASE_POINTS
+      );
+      const integratorFee = dstAmountWithRateBump * 15n / 100n;
+      const protocolFee = dstAmountWithRateBump / 10n;
+      const surplus = (dstAmountWithRateBump - integratorFee - protocolFee - BigInt(estimatedDstAmount.toNumber())) / 2n;
+      expect(results).to.be.deep.eq([
+        dstAmountWithRateBump - integratorFee - protocolFee - surplus,
+        BigInt(state.defaultSrcAmount.toNumber()),
+        -dstAmountWithRateBump,
+        protocolFee + surplus, // 10% of takingAmount + 50% *  (actualAmount - estimatedAmpount)
+        integratorFee,
       ]);
     });
   });
