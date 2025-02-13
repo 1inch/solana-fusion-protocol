@@ -6,14 +6,14 @@ pub enum EscrowError {
     InconsistentNativeDstTrait,
     #[msg("Invalid amount")]
     InvalidAmount,
+    #[msg("Missing maker dst ata")]
+    MissingMakerDstAta,
     #[msg("Not enough tokens in escrow")]
     NotEnoughTokensInEscrow,
     #[msg("Order expired")]
     OrderExpired,
     #[msg("Partial fill not allowed")]
     PartialFillNotAllowed,
-    #[msg("Private order")]
-    PrivateOrder,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
     #[msg("Invalid estimated taking amount")]

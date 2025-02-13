@@ -6,12 +6,15 @@ import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
-  trackReceivedTokenAndTx,
+  buildCompactFee,
   buildEscrowTraits,
+  createWhitelistedAccount,
   debugLog,
   numberToBuffer,
-  buildCompactFee,
+  removeWhitelistedAccount,
+  trackReceivedTokenAndTx,
 } from "../utils/utils";
+import { Whitelist } from "../../target/types/whitelist";
 chai.use(chaiAsPromised);
 
 describe("Fusion Swap", () => {
@@ -19,6 +22,8 @@ describe("Fusion Swap", () => {
   anchor.setProvider(provider);
 
   const program = anchor.workspace.FusionSwap as anchor.Program<FusionSwap>;
+  const whitelistProgram = anchor.workspace
+    .Whitelist as anchor.Program<Whitelist>;
 
   const payer = (provider.wallet as NodeWallet).payer;
   debugLog(`Payer ::`, payer.publicKey.toString());
@@ -48,7 +53,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -82,7 +87,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               escrow: escrow.escrow,
@@ -118,7 +123,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               takerSrcAta:
                 state.charlie.atas[state.tokens[0].toString()].address,
@@ -155,7 +160,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerDstAta: state.alice.atas[state.tokens[2].toString()].address,
             })
@@ -176,7 +181,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               srcMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
@@ -219,7 +224,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               dstMint: splToken.NATIVE_MINT,
               escrow: escrow.escrow,
@@ -265,7 +270,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -311,7 +316,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -348,7 +353,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
@@ -393,7 +398,7 @@ describe("Fusion Swap", () => {
 
       await program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accounts(
+        .accountsPartial(
           state.buildAccountsDataForFill({
             makerDstAta: aliceAtaYToken,
           })
@@ -486,7 +491,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -513,7 +517,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -550,7 +553,6 @@ describe("Fusion Swap", () => {
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
           escrow: escrow,
-          authorizedUser: null,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -575,7 +577,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -586,7 +587,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[1].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
@@ -596,7 +597,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrowSrcAta: state.escrows[1].ata,
             })
@@ -610,7 +611,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               dstMint: state.tokens[0],
             })
@@ -624,7 +625,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
               makerDstAta:
@@ -667,7 +668,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -686,7 +686,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -711,7 +711,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -735,7 +735,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -761,7 +761,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -776,7 +776,7 @@ describe("Fusion Swap", () => {
       let transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -802,7 +802,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
@@ -841,7 +841,7 @@ describe("Fusion Swap", () => {
       let transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, _srcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -872,7 +872,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, _srcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -903,7 +903,7 @@ describe("Fusion Swap", () => {
       transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, new anchor.BN(1))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -1027,26 +1027,32 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Fails when taker does not match the authorized user", async () => {
+    it("Fails when taker isn't whitelisted", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
         payer,
         provider,
-        authorizedUser: state.charlie.keypair.publicKey,
       });
 
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
+              taker: state.charlie.keypair.publicKey,
+              takerDstAta:
+                state.charlie.atas[state.tokens[1].toString()].address,
+              takerSrcAta:
+                state.charlie.atas[state.tokens[0].toString()].address,
             })
           )
-          .signers([state.bob.keypair])
+          .signers([state.charlie.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: PrivateOrder");
+      ).to.be.rejectedWith(
+        "AnchorError caused by account: resolver_access. Error Code: AccountNotInitialized"
+      );
     });
 
     it("Execute the partial fill and close escow after", async () => {
@@ -1060,7 +1066,7 @@ describe("Fusion Swap", () => {
       const transactionPromiseFill = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -1124,13 +1130,12 @@ describe("Fusion Swap", () => {
 
       await program.methods
         .fill(escrow.order_id, state.defaultSrcAmount)
-        .accounts(
+        .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
             dstMint: splToken.NATIVE_MINT,
-            makerDstAta:
-              state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            makerDstAta: null,
             takerDstAta:
               state.bob.atas[splToken.NATIVE_MINT.toString()].address,
           })
@@ -1153,6 +1158,32 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
+    it("Fails to execute the trade if maker_dst_ata is missing", async () => {
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        dstMint: splToken.NATIVE_MINT,
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.order_id, state.defaultSrcAmount)
+          .accounts(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              dstMint: splToken.NATIVE_MINT,
+              makerDstAta: null,
+              takerDstAta:
+                state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
+    });
+
     it("Doesn't fill partial fill with allow_partial_fill=false", async () => {
       const escrow = await state.initEscrow({
         escrowProgram: program,
@@ -1164,7 +1195,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -1206,7 +1237,6 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
-            authorizedUser: null,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -1225,7 +1255,7 @@ describe("Fusion Swap", () => {
       const transactionPromise = () =>
         program.methods
           .fill(escrow.order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
@@ -1265,7 +1295,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               makerDstAta:
                 state.charlie.atas[state.tokens[1].toString()].address,
@@ -1280,7 +1310,7 @@ describe("Fusion Swap", () => {
       await expect(
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               srcMint: state.tokens[1],
             })
@@ -1296,13 +1326,19 @@ describe("Fusion Swap", () => {
       const transactionPromise = async () => {
         await program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-          .accounts(state.buildAccountsDataForFill({}))
+          .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
 
+        // Add Charlie to the whitelist
+        await createWhitelistedAccount(
+          whitelistProgram,
+          state.charlie.keypair,
+          payer
+        );
         await program.methods
           .fill(state.escrows[1].order_id, state.defaultSrcAmount)
-          .accounts(
+          .accountsPartial(
             state.buildAccountsDataForFill({
               taker: state.charlie.keypair.publicKey,
               escrow: state.escrows[1].escrow,
@@ -1315,6 +1351,9 @@ describe("Fusion Swap", () => {
           )
           .signers([state.charlie.keypair])
           .rpc();
+
+        // Remove Charlie from the whitelist
+        await removeWhitelistedAccount(state.charlie.keypair, payer);
       };
 
       const results = await trackReceivedTokenAndTx(

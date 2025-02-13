@@ -58,7 +58,7 @@ describe("Dutch Auction", () => {
 
     program = new anchor.Program<FusionSwap>(FusionSwapIDL, provider);
 
-    state = await TestState.bankrunCreate(banksClient, payer, usersKeypairs, {
+    state = await TestState.bankrunCreate(context, payer, usersKeypairs, {
       tokensNums: 3,
     });
   });
@@ -94,7 +94,7 @@ describe("Dutch Auction", () => {
     const transactionPromise = () =>
       program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accounts(state.buildAccountsDataForFill({}))
+        .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
 
@@ -132,7 +132,7 @@ describe("Dutch Auction", () => {
     const transactionPromise = () =>
       program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accounts(state.buildAccountsDataForFill({}))
+        .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
 
@@ -185,7 +185,7 @@ describe("Dutch Auction", () => {
     const transactionPromise = () =>
       program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accounts(state.buildAccountsDataForFill({}))
+        .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
 
@@ -233,7 +233,7 @@ describe("Dutch Auction", () => {
     const transactionPromise = () =>
       program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accounts(state.buildAccountsDataForFill({}))
+        .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
 
@@ -283,7 +283,7 @@ describe("Dutch Auction", () => {
     const transactionPromise = () =>
       program.methods
         .fill(escrow.order_id, state.defaultSrcAmount)
-        .accounts(
+        .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
@@ -355,7 +355,7 @@ describe("Dutch Auction", () => {
     const transactionPromise = () =>
       program.methods
         .fill(escrow.order_id, state.defaultSrcAmount)
-        .accounts(
+        .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,

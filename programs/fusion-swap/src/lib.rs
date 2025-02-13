@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
+use common::constants;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 
-pub mod constants;
 pub mod dutch_auction;
 pub mod error;
 
@@ -74,7 +74,6 @@ pub mod fusion_swap {
             src_remaining: src_amount,             // Remaining amount to be filled
             dst_amount,                            // Amount of tokens maker wants in exchange
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
-            authorized_user: ctx.accounts.authorized_user.as_ref().map(|acc| acc.key()),
             expiration_time,
             traits,
             receiver,
@@ -102,14 +101,6 @@ pub mod fusion_swap {
     }
 
     pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
-        // TODO: Check that signer has KYC token instead
-        // if authorized_user is not set, allow exchange with any, otherwise check it
-        if let Some(auth_user) = ctx.accounts.escrow.authorized_user {
-            if auth_user != ctx.accounts.taker.key() {
-                return err!(EscrowError::PrivateOrder);
-            }
-        }
-
         let clock: Clock = Clock::get()?;
         if (ctx.accounts.escrow.expiration_time as i64) < clock.unix_timestamp {
             return err!(EscrowError::OrderExpired);
@@ -231,13 +222,19 @@ pub mod fusion_swap {
                 ],
             )?;
         } else {
+            let maker_dst_ata = ctx
+                .accounts
+                .maker_dst_ata
+                .as_ref()
+                .ok_or(EscrowError::MissingMakerDstAta)?;
+
             // Transfer SPL tokens
             anchor_spl::token::transfer(
                 CpiContext::new(
                     ctx.accounts.token_program.to_account_info(),
                     anchor_spl::token::Transfer {
                         from: ctx.accounts.taker_dst_ata.to_account_info(),
-                        to: ctx.accounts.maker_dst_ata.to_account_info(),
+                        to: maker_dst_ata.to_account_info(),
                         authority: ctx.accounts.taker.to_account_info(),
                     },
                 ),
@@ -302,8 +299,6 @@ pub struct Initialize<'info> {
     src_mint: Box<Account<'info, Mint>>,
     /// Destination asset
     dst_mint: Box<Account<'info, Mint>>,
-    /// Account allowed to fill the order
-    authorized_user: Option<AccountInfo<'info>>,
 
     /// Maker's ATA of src_mint
     #[account(
@@ -344,6 +339,13 @@ pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]
     taker: Signer<'info>,
+    /// Account allowed to fill the order
+    #[account(
+        seeds = [whitelist::RESOLVER_ACCESS_SEED, taker.key().as_ref()],
+        bump,
+        seeds::program = whitelist::ID,
+    )]
+    resolver_access: Account<'info, whitelist::ResolverAccess>,
 
     /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]
@@ -387,7 +389,7 @@ pub struct Fill<'info> {
         associated_token::mint = dst_mint,
         associated_token::authority = maker_receiver
     )]
-    maker_dst_ata: Box<Account<'info, TokenAccount>>,
+    maker_dst_ata: Option<Box<Account<'info, TokenAccount>>>,
 
     #[account(
         mut,
@@ -473,7 +475,6 @@ pub struct Escrow {
     src_remaining: u64,
     expiration_time: u32,
     traits: u8,
-    authorized_user: Option<Pubkey>,
     receiver: Pubkey,
     protocol_fee: u16,
     protocol_dst_ata: Option<Pubkey>,

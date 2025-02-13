@@ -16,6 +16,10 @@ import {
 } from "solana-bankrun";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
+import { Whitelist } from "../../target/types/whitelist";
+import { BankrunProvider } from "anchor-bankrun";
+
+const WhitelistIDL = require("../../target/idl/whitelist.json");
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -128,6 +132,14 @@ export class TestState {
       instance.charlie as User,
       instance.dave as User,
     ] = await createUsers(4, instance.tokens, provider, payer);
+    // Create whitelisted account for Bob
+    const whitelistProgram = anchor.workspace
+      .Whitelist as anchor.Program<Whitelist>;
+    await createWhitelistedAccount(
+      whitelistProgram,
+      instance.bob.keypair,
+      payer
+    );
 
     await mintTokens(
       instance.tokens[0],
@@ -177,11 +189,13 @@ export class TestState {
   }
 
   static async bankrunCreate(
-    provider: BanksClient,
+    context: ProgramTestContext,
     payer: anchor.web3.Keypair,
     usersKeypairs: Array<anchor.web3.Keypair>,
     settings: { tokensNums: number }
   ): Promise<TestState> {
+    const provider = context.banksClient;
+
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
     [
@@ -190,6 +204,16 @@ export class TestState {
       instance.charlie as User,
       instance.dave as User,
     ] = await createAtasUsers(usersKeypairs, instance.tokens, provider, payer);
+    // Create whitelisted account for Bob
+    const whitelistProgram = new anchor.Program<Whitelist>(
+      WhitelistIDL,
+      new BankrunProvider(context)
+    );
+    await createWhitelistedAccount(
+      whitelistProgram,
+      instance.bob.keypair,
+      payer
+    );
 
     await mintTokens(
       instance.tokens[0],
@@ -226,9 +250,6 @@ export class TestState {
     makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
     takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
-    tokenProgram = splToken.TOKEN_PROGRAM_ID,
-    associatedTokenProgram = splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
-    systemProgram = anchor.web3.SystemProgram.programId,
     protocolDstAta = null,
     integratorDstAta = null,
   }): any {
@@ -243,9 +264,6 @@ export class TestState {
       makerDstAta,
       takerSrcAta,
       takerDstAta,
-      tokenProgram,
-      associatedTokenProgram,
-      systemProgram,
       protocolDstAta,
       integratorDstAta,
     };
@@ -263,7 +281,6 @@ export class TestState {
     allowPartialFills = true,
     useNativeDstAsset = false,
     makerReceiver = this.alice.keypair.publicKey,
-    authorizedUser = null,
     compactFees = new anchor.BN(0),
     protocolDstAta = null,
     integratorDstAta = null,
@@ -333,7 +350,6 @@ export class TestState {
         srcMint,
         dstMint,
         escrow,
-        authorizedUser,
       })
       .signers([this.alice.keypair])
       .rpc();
@@ -387,6 +403,70 @@ async function createUsers(
     }
   }
   return await createAtasUsers(usersKeypairs, tokens, provider, payer);
+}
+
+export async function initializeWhitelist(
+  program: anchor.Program<Whitelist>,
+  owner: anchor.web3.Keypair
+) {
+  const [whitelistStatePDA] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("whitelist_state")],
+    program.programId
+  );
+  try {
+    await program.account.whitelistState.fetch(whitelistStatePDA);
+  } catch (e) {
+    const isBankrun = program.provider instanceof BankrunProvider;
+    if (
+      (!isBankrun &&
+        e.toString().includes(ANCHOR_ACCOUNT_NOT_FOUND_ERROR_PREFIX)) ||
+      (isBankrun &&
+        e.toString().includes(BANKRUN_ACCOUNT_NOT_FOUND_ERROR_PREFIX))
+    ) {
+      // Whitelist state does not exist, initialize it
+      await program.methods
+        .initialize()
+        .accountsPartial({
+          owner: owner.publicKey,
+        })
+        .signers([owner])
+        .rpc();
+    } else {
+      throw e; // Re-throw if it's a different error
+    }
+  }
+}
+
+export async function createWhitelistedAccount(
+  program: anchor.Program<Whitelist>,
+  user: anchor.web3.Keypair,
+  owner: anchor.web3.Keypair
+) {
+  // Initialize the whitelist state with the payer as owner
+  await initializeWhitelist(program, owner);
+  // Register the user
+  await program.methods
+    .register(user.publicKey)
+    .accountsPartial({
+      owner: owner.publicKey,
+    })
+    .signers([owner])
+    .rpc();
+}
+
+export async function removeWhitelistedAccount(
+  user: anchor.web3.Keypair,
+  owner: anchor.web3.Keypair
+) {
+  const program = anchor.workspace.Whitelist as anchor.Program<Whitelist>;
+  // Deregister the user
+  await program.methods
+    .deregister(user.publicKey)
+    .accountsPartial({
+      owner: owner.publicKey,
+    })
+    .signers([owner])
+    .rpc();
 }
 
 async function createAtasUsers(
@@ -507,5 +587,7 @@ export function numberToBuffer(n: number, bufSize: number) {
   return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
 }
 
+// Anchor test fails with "Account does not exist <pubkey>" error when account does not exist
+export const ANCHOR_ACCOUNT_NOT_FOUND_ERROR_PREFIX = "Account does not exist";
 // Bankrun test fails with "Could not find <pubkey>" error when account does not exist
 export const BANKRUN_ACCOUNT_NOT_FOUND_ERROR_PREFIX = "Could not find";
