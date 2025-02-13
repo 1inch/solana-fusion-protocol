@@ -479,7 +479,7 @@ describe("Fusion Swap", () => {
             null, // protocol_dst_ata
             null, // integrator_dst_ata
             state.defaultDstAmount, // estimated_dst_amount
-            null // dutch_auction_data
+            state.auction // dutch_auction_data
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -506,7 +506,7 @@ describe("Fusion Swap", () => {
             null, // protocol_dst_ata
             null, // integrator_dst_ata
             state.defaultDstAmount, // estimated_dst_amount
-            null // dutch_auction_data
+            state.auction // dutch_auction_data
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -543,7 +543,7 @@ describe("Fusion Swap", () => {
           null, // protocol_dst_ata
           null, // integrator_dst_ata
           state.defaultDstAmount, // estimated_dst_amount
-          null // dutch_auction_data
+          state.auction // dutch_auction_data
         )
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
@@ -568,7 +568,7 @@ describe("Fusion Swap", () => {
             null, // protocol_dst_ata
             null, // integrator_dst_ata
             state.defaultDstAmount, // estimated_dst_amount
-            null // dutch_auction_data
+            state.auction // dutch_auction_data
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -660,7 +660,7 @@ describe("Fusion Swap", () => {
             null, // protocol_dst_ata
             null, // integrator_dst_ata
             state.defaultDstAmount, // estimated_dst_amount
-            null // dutch_auction_data
+            state.auction // dutch_auction_data
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -1199,7 +1199,7 @@ describe("Fusion Swap", () => {
             null, // protocol_dst_ata
             null, // integrator_dst_ata
             state.defaultDstAmount, // estimated_dst_amount
-            null // dutch_auction_data
+            state.auction // dutch_auction_data
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,

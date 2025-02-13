@@ -28,7 +28,7 @@ pub mod fusion_swap {
         protocol_dst_ata: Option<Pubkey>,
         integrator_dst_ata: Option<Pubkey>,
         estimated_dst_amount: u64,
-        dutch_auction_data: Option<DutchAuctionData>,
+        dutch_auction_data: DutchAuctionData,
     ) -> Result<()> {
         if src_amount == 0 || dst_amount == 0 {
             return err!(EscrowError::InvalidAmount);
@@ -156,7 +156,7 @@ pub mod fusion_swap {
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.dst_amount,
             amount,
-            ctx.accounts.escrow.dutch_auction_data.as_ref(),
+            Some(&ctx.accounts.escrow.dutch_auction_data),
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, actual_amount) = get_fee_amounts(
@@ -481,7 +481,7 @@ pub struct Escrow {
     integrator_dst_ata: Option<Pubkey>,
     surplus_percentage: u8,
     estimated_dst_amount: u64,
-    dutch_auction_data: Option<DutchAuctionData>,
+    dutch_auction_data: DutchAuctionData,
 }
 
 // Function to close the escrow account
