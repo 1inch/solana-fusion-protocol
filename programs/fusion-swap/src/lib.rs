@@ -46,8 +46,8 @@ pub mod fusion_swap {
         }
 
         let protocol_fee = compact_fees as u16;
-        let integrator_fee = (compact_fees >> 16) as u16;
-        let surplus_percentage = (compact_fees >> 32) as u8;
+        let integrator_fee: u16 = (compact_fees >> 16).try_into()?;
+        let surplus_percentage: u8 = (compact_fees >> 32).try_into()?;
 
         if surplus_percentage as u64 > constants::BASE_1E2 {
             return Err(EscrowError::InvalidProtocolSurplusFee.into());
