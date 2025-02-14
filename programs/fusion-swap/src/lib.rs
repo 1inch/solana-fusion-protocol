@@ -2,7 +2,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::spl_token::native_mint,
-    token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},
+    token_interface::{
+        close_account, transfer_checked, CloseAccount, Mint, TokenAccount, TokenInterface,
+        TransferChecked,
+    },
 };
 use common::constants;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
@@ -93,7 +96,7 @@ pub mod fusion_swap {
         // Maker => Escrow
         transfer_checked(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.src_token_program.to_account_info(),
                 TransferChecked {
                     from: ctx.accounts.maker_src_ata.to_account_info(),
                     mint: ctx.accounts.src_mint.to_account_info(),
@@ -130,7 +133,7 @@ pub mod fusion_swap {
         // Escrow => Taker
         transfer_checked(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.src_token_program.to_account_info(),
                 TransferChecked {
                     from: ctx.accounts.escrow_src_ata.to_account_info(),
                     mint: ctx.accounts.src_mint.to_account_info(),
@@ -181,7 +184,7 @@ pub mod fusion_swap {
 
             transfer_checked(
                 CpiContext::new(
-                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.dst_token_program.to_account_info(),
                     TransferChecked {
                         from: ctx.accounts.taker_dst_ata.to_account_info(),
                         mint: ctx.accounts.dst_mint.to_account_info(),
@@ -204,7 +207,7 @@ pub mod fusion_swap {
 
             transfer_checked(
                 CpiContext::new(
-                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.dst_token_program.to_account_info(),
                     TransferChecked {
                         from: ctx.accounts.taker_dst_ata.to_account_info(),
                         mint: ctx.accounts.dst_mint.to_account_info(),
@@ -243,7 +246,7 @@ pub mod fusion_swap {
             // Transfer SPL tokens
             transfer_checked(
                 CpiContext::new(
-                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.dst_token_program.to_account_info(),
                     TransferChecked {
                         from: ctx.accounts.taker_dst_ata.to_account_info(),
                         mint: ctx.accounts.dst_mint.to_account_info(),
@@ -259,7 +262,7 @@ pub mod fusion_swap {
         // Close escrow if all tokens are filled
         if ctx.accounts.escrow.src_remaining == 0 {
             close_escrow(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.src_token_program.to_account_info(),
                 &ctx.accounts.escrow,
                 ctx.accounts.escrow_src_ata.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
@@ -275,7 +278,7 @@ pub mod fusion_swap {
         // return remaining src tokens back to maker
         transfer_checked(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.src_token_program.to_account_info(),
                 TransferChecked {
                     from: ctx.accounts.escrow_src_ata.to_account_info(),
                     mint: ctx.accounts.src_mint.to_account_info(),
@@ -294,7 +297,7 @@ pub mod fusion_swap {
         )?;
 
         close_escrow(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.src_token_program.to_account_info(),
             &ctx.accounts.escrow,
             ctx.accounts.escrow_src_ata.to_account_info(),
             ctx.accounts.maker.to_account_info(),
@@ -320,7 +323,7 @@ pub struct Initialize<'info> {
     #[account(
         mut,
         associated_token::mint = src_mint,
-        associated_token::authority = maker
+        associated_token::authority = maker,
     )]
     maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -340,11 +343,12 @@ pub struct Initialize<'info> {
         payer = maker,
         associated_token::mint = src_mint,
         associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
     )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     associated_token_program: Program<'info, AssociatedToken>,
-    token_program: Interface<'info, TokenInterface>,
+    src_token_program: Interface<'info, TokenInterface>,
     rent: Sysvar<'info, Rent>,
     system_program: Program<'info, System>,
 }
@@ -403,7 +407,8 @@ pub struct Fill<'info> {
         init_if_needed,
         payer = taker,
         associated_token::mint = dst_mint,
-        associated_token::authority = maker_receiver
+        associated_token::authority = maker_receiver,
+        associated_token::token_program = dst_token_program,
     )]
     maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
@@ -439,7 +444,8 @@ pub struct Fill<'info> {
     )]
     taker_dst_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    token_program: Interface<'info, TokenInterface>,
+    src_token_program: Interface<'info, TokenInterface>,
+    dst_token_program: Interface<'info, TokenInterface>,
     system_program: Program<'info, System>,
     associated_token_program: Program<'info, AssociatedToken>,
 }
@@ -479,7 +485,7 @@ pub struct Cancel<'info> {
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
-    token_program: Interface<'info, TokenInterface>,
+    src_token_program: Interface<'info, TokenInterface>,
 }
 
 #[account]
@@ -511,9 +517,9 @@ fn close_escrow<'info>(
     escrow_bump: u8,
 ) -> Result<()> {
     // Close escrow_src_ata account
-    anchor_spl::token::close_account(CpiContext::new_with_signer(
+    close_account(CpiContext::new_with_signer(
         token_program,
-        anchor_spl::token::CloseAccount {
+        CloseAccount {
             account: escrow_src_ata,
             destination: maker.to_account_info(),
             authority: escrow.to_account_info(),
