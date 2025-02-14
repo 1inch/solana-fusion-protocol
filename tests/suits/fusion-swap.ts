@@ -36,7 +36,7 @@ describe("Fusion Swap", () => {
   beforeEach(async () => {
     state.escrows = [];
     for (let i = 0; i < 2; ++i) {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -77,7 +77,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade with different maker's receiver", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -170,7 +170,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade with native tokens => tokens", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -213,7 +213,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade with tokens => native tokens", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -258,7 +258,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade with protocol fee", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -303,7 +303,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade with integrator fee", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -458,7 +458,7 @@ describe("Fusion Swap", () => {
 
     // TODO: Add a test for the case of accepting an expired order
 
-    it("Fails to init with zero amounts", async () => {
+    it("Fails to create with zero amounts", async () => {
       const order_id = state.increaseOrderID();
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -472,7 +472,7 @@ describe("Fusion Swap", () => {
       // srcAmount = 0
       await expect(
         program.methods
-          .initialize(
+          .create(
             order_id,
             state.defaultExpirationTime,
             new anchor.BN(0), // srcAmount
@@ -498,7 +498,7 @@ describe("Fusion Swap", () => {
       // minDstAmount = 0
       await expect(
         program.methods
-          .initialize(
+          .create(
             order_id,
             state.defaultExpirationTime,
             state.defaultSrcAmount,
@@ -522,7 +522,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: InvalidAmount");
     });
 
-    it("Fails to init if escrow has been initialized", async () => {
+    it("Fails to create if escrow has been created already", async () => {
       const order_id = state.increaseOrderID();
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -534,7 +534,7 @@ describe("Fusion Swap", () => {
       );
 
       await program.methods
-        .initialize(
+        .create(
           order_id,
           state.defaultExpirationTime,
           state.defaultSrcAmount,
@@ -558,7 +558,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .initialize(
+          .create(
             order_id,
             state.defaultExpirationTime,
             state.defaultSrcAmount,
@@ -649,7 +649,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .initialize(
+          .create(
             order_id,
             state.defaultExpirationTime,
             state.defaultSrcAmount,
@@ -674,7 +674,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -699,7 +699,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't execute the trade without protocol_dst_ata", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -722,7 +722,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -748,7 +748,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't execute the trade without integrator_dst_ata", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -828,7 +828,7 @@ describe("Fusion Swap", () => {
     it("Execute the multiple trades, rounding", async () => {
       const _srcAmount = new anchor.BN(101);
       const _dstAmount = new anchor.BN(101);
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -954,7 +954,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Cancel the trade with native tokens", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -1027,7 +1027,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Fails when taker isn't whitelisted", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -1055,7 +1055,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the partial fill and close escow after", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -1119,7 +1119,7 @@ describe("Fusion Swap", () => {
       const makerNativeTokenBalanceBefore =
         await provider.connection.getBalance(state.alice.keypair.publicKey);
 
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -1158,7 +1158,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Fails to execute the trade if maker_dst_ata is missing", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
@@ -1183,7 +1183,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
     });
 
-    it("Fails to init if native_dst_asset = true but mint is different from native mint", async () => {
+    it("Fails to create if native_dst_asset = true but mint is different from native mint", async () => {
       const order_id = state.increaseOrderID();
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -1196,7 +1196,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .initialize(
+          .create(
             order_id,
             state.defaultExpirationTime,
             state.defaultSrcAmount,
@@ -1221,7 +1221,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Execute the trade and transfer wSOL if native_dst_asset = false and native dst mint is provided", async () => {
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,

@@ -16,8 +16,8 @@ declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
 pub mod fusion_swap {
     use super::*;
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
+    pub fn create(
+        ctx: Context<Create>,
         _order_id: u32,
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
@@ -286,7 +286,7 @@ pub mod fusion_swap {
 
 #[derive(Accounts)]
 #[instruction(order_id: u32)]
-pub struct Initialize<'info> {
+pub struct Create<'info> {
     /// `maker`, who is willing to sell src token for dst token
     #[account(mut, signer)]
     maker: Signer<'info>,

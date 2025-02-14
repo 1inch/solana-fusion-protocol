@@ -253,7 +253,7 @@ export class TestState {
     };
   }
 
-  async initEscrow({
+  async createEscrow({
     escrowProgram,
     provider,
     payer,
@@ -312,7 +312,7 @@ export class TestState {
     }
 
     await escrowProgram.methods
-      .initialize(
+      .create(
         this.order_id,
         expirationTime,
         srcAmount,

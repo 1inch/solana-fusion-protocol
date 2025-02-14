@@ -67,7 +67,7 @@ describe("Dutch Auction", () => {
     // rollback clock to the current time after tests that move time forward when order already expired
     await setCurrentTime(context, auction.startTime);
 
-    state.escrows[0] = await state.initEscrow({
+    state.escrows[0] = await state.createEscrow({
       escrowProgram: program,
       payer,
       provider: banksClient,
@@ -268,7 +268,7 @@ describe("Dutch Auction", () => {
     // rollback clock to the current time after tests that move time forward when order already expired
     await setCurrentTime(context, auction.startTime);
 
-    const escrow = await state.initEscrow({
+    const escrow = await state.createEscrow({
       escrowProgram: program,
       payer,
       provider: banksClient,
@@ -335,7 +335,7 @@ describe("Dutch Auction", () => {
     await setCurrentTime(context, auction.startTime);
 
     const estimatedDstAmount = state.defaultDstAmount;
-    const escrow = await state.initEscrow({
+    const escrow = await state.createEscrow({
       escrowProgram: program,
       payer,
       provider: banksClient,
