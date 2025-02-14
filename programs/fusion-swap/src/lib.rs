@@ -46,6 +46,14 @@ pub mod fusion_swap {
         }
 
         let protocol_fee = compact_fees as u16;
+        msg!(
+            "HERE : {} {} {} {:?} {:?}",
+            compact_fees,
+            (compact_fees >> 16) as u16,
+            (compact_fees >> 32) as u8,
+            u16::try_from(compact_fees >> 16),
+            u8::try_from(compact_fees >> 32)
+        );
         let integrator_fee: u16 = (compact_fees >> 16).try_into()?;
         let surplus_percentage: u8 = (compact_fees >> 32).try_into()?;
 
