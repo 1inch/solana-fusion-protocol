@@ -34,10 +34,8 @@ describe("Dutch Auction", () => {
   let program: anchor.Program<FusionSwap>;
 
   const auction = {
-    auctionStartTime: 0, // we update it before each test
-    get auctionFinishTime() {
-      return this.auctionStartTime + 32000;
-    },
+    startTime: 0, // we update it before each test
+    duration: 32000,
     initialRateBump: 10000,
     pointsAndTimeDeltas: [
       { rateBump: 20000, timeDelta: 10000 },
@@ -64,10 +62,10 @@ describe("Dutch Auction", () => {
   });
 
   beforeEach(async () => {
-    auction.auctionStartTime = Math.floor(new Date().getTime() / 1000);
+    auction.startTime = Math.floor(new Date().getTime() / 1000);
 
     // rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.auctionStartTime);
+    await setCurrentTime(context, auction.startTime);
 
     state.escrows[0] = await state.initEscrow({
       escrowProgram: program,
@@ -89,7 +87,7 @@ describe("Dutch Auction", () => {
   });
 
   it("should fill with initialRateBump before auction started", async () => {
-    await setCurrentTime(context, auction.auctionStartTime - 1000);
+    await setCurrentTime(context, auction.startTime - 1000);
 
     const transactionPromise = () =>
       program.methods
@@ -126,7 +124,7 @@ describe("Dutch Auction", () => {
   it("should fill with another price after auction started, but before first point", async () => {
     await setCurrentTime(
       context,
-      auction.auctionStartTime + auction.pointsAndTimeDeltas[0].timeDelta / 2
+      auction.startTime + auction.pointsAndTimeDeltas[0].timeDelta / 2
     );
 
     const transactionPromise = () =>
@@ -177,7 +175,7 @@ describe("Dutch Auction", () => {
   it("should fill with another price after between points", async () => {
     await setCurrentTime(
       context,
-      auction.auctionStartTime +
+      auction.startTime +
         auction.pointsAndTimeDeltas[0].timeDelta +
         auction.pointsAndTimeDeltas[1].timeDelta / 2
     );
@@ -228,7 +226,7 @@ describe("Dutch Auction", () => {
   });
 
   it("should fill with default price after auction finished", async () => {
-    await setCurrentTime(context, auction.auctionFinishTime + 1);
+    await setCurrentTime(context, auction.startTime + auction.duration + 1);
 
     const transactionPromise = () =>
       program.methods
@@ -259,16 +257,16 @@ describe("Dutch Auction", () => {
 
   it("Execute the trade with surplus", async () => {
     const auction = {
-      auctionStartTime: Math.floor(new Date().getTime() / 1000),
+      startTime: Math.floor(new Date().getTime() / 1000),
       get auctionFinishTime() {
-        return this.auctionStartTime + 32000;
+        return this.startTime + 32000;
       },
       initialRateBump: 10000,
       pointsAndTimeDeltas: [],
     };
 
     // rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.auctionStartTime);
+    await setCurrentTime(context, auction.startTime);
 
     const escrow = await state.initEscrow({
       escrowProgram: program,
@@ -325,16 +323,16 @@ describe("Dutch Auction", () => {
 
   it("Execute the trade with all fees", async () => {
     const auction = {
-      auctionStartTime: Math.floor(new Date().getTime() / 1000),
+      startTime: Math.floor(new Date().getTime() / 1000),
       get auctionFinishTime() {
-        return this.auctionStartTime + 32000;
+        return this.startTime + 32000;
       },
       initialRateBump: 50000,
       pointsAndTimeDeltas: [],
     };
 
     // rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.auctionStartTime);
+    await setCurrentTime(context, auction.startTime);
 
     const estimatedDstAmount = state.defaultDstAmount;
     const escrow = await state.initEscrow({

@@ -110,9 +110,7 @@ export class TestState {
   defaultExpirationTime = ~~(new Date().getTime() / 1000) + 86400; // now + 1 day
   auction = {
     auctionStartTime: 0xffffffff - 32000, // default auction start in the far far future and order use default formula
-    get auctionFinishTime() {
-      return this.auctionStartTime + 32000;
-    },
+    auctionDuration: 32000,
     initialRateBump: 0,
     pointsAndTimeDeltas: [],
   };
