@@ -7,7 +7,6 @@ import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
   buildCompactFee,
-  buildEscrowTraits,
   createWhitelistedAccount,
   debugLog,
   numberToBuffer,
@@ -478,7 +477,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             new anchor.BN(0), // srcAmount
             state.defaultDstAmount,
-            buildEscrowTraits({ isPartialFill: false }),
+            false, // native_dst_asset
             state.alice.keypair.publicKey,
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata
@@ -504,7 +503,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             new anchor.BN(0), // dstAmount
-            buildEscrowTraits({ isPartialFill: false }),
+            false, // native_dst_asset
             state.alice.keypair.publicKey,
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata
@@ -540,7 +539,7 @@ describe("Fusion Swap", () => {
           state.defaultExpirationTime,
           state.defaultSrcAmount,
           state.defaultDstAmount,
-          buildEscrowTraits({ isPartialFill: false }),
+          false, // native_dst_asset
           state.alice.keypair.publicKey,
           new anchor.BN(0), // compact_fees
           null, // protocol_dst_ata
@@ -564,7 +563,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            buildEscrowTraits({ isPartialFill: false }),
+            false, // native_dst_asset
             state.alice.keypair.publicKey,
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata
@@ -655,7 +654,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            buildEscrowTraits({ isPartialFill: true, isNativeDstAsset: false }),
+            false, // native_dst_asset
             state.alice.keypair.publicKey,
             buildCompactFee({ surplus: 146 }), // 146%
             null, // protocol_dst_ata
@@ -1125,7 +1124,7 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         dstMint: splToken.NATIVE_MINT,
-        useNativeDstAsset: true,
+        nativeDstAsset: true,
       });
 
       await program.methods
@@ -1184,28 +1183,6 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
     });
 
-    it("Doesn't fill partial fill with allow_partial_fill=false", async () => {
-      const escrow = await state.initEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        allowPartialFills: false,
-      });
-
-      await expect(
-        program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
-          .accountsPartial(
-            state.buildAccountsDataForFill({
-              escrow: escrow.escrow,
-              escrowSrcAta: escrow.ata,
-            })
-          )
-          .signers([state.bob.keypair])
-          .rpc()
-      ).to.be.rejectedWith("Error Code: PartialFillNotAllowed");
-    });
-
     it("Fails to init if native_dst_asset = true but mint is different from native mint", async () => {
       const order_id = state.increaseOrderID();
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -1224,7 +1201,7 @@ describe("Fusion Swap", () => {
             state.defaultExpirationTime,
             state.defaultSrcAmount,
             state.defaultDstAmount,
-            buildEscrowTraits({ isPartialFill: false, isNativeDstAsset: true }),
+            true, // native_dst_asset
             state.alice.keypair.publicKey,
             new anchor.BN(0), // compact_fees
             null, // protocol_dst_ata

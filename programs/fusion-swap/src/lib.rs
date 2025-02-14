@@ -22,7 +22,7 @@ pub mod fusion_swap {
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
         dst_amount: u64,      // Amount of tokens maker wants in exchange
-        traits: u8,
+        native_dst_asset: bool,
         receiver: Pubkey, // Owner of the account which will receive dst_token
         compact_fees: u64,
         protocol_dst_ata: Option<Pubkey>,
@@ -36,8 +36,7 @@ pub mod fusion_swap {
         );
 
         require!(
-            ctx.accounts.dst_mint.key() == spl_token::native_mint::id()
-                || !native_dst_asset(traits),
+            ctx.accounts.dst_mint.key() == spl_token::native_mint::id() || !native_dst_asset,
             EscrowError::InconsistentNativeDstTrait
         );
 
@@ -80,7 +79,7 @@ pub mod fusion_swap {
             dst_amount,                            // Amount of tokens maker wants in exchange
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             expiration_time,
-            traits,
+            native_dst_asset,
             receiver,
             protocol_fee,
             protocol_dst_ata,
@@ -117,13 +116,6 @@ pub mod fusion_swap {
         );
 
         require!(amount != 0, EscrowError::InvalidAmount);
-
-        // Check if partial fills are allowed if this is the case
-        require!(
-            ctx.accounts.escrow_src_ata.amount == amount
-                || allow_partial_fills(ctx.accounts.escrow.traits),
-            EscrowError::PartialFillNotAllowed
-        );
 
         // Escrow => Taker
         anchor_spl::token::transfer(
@@ -210,7 +202,7 @@ pub mod fusion_swap {
         }
 
         // Taker => Maker
-        if native_dst_asset(ctx.accounts.escrow.traits) {
+        if ctx.accounts.escrow.native_dst_asset {
             // Transfer SOL using System Program
             let ix = anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.taker.key(),
@@ -478,7 +470,7 @@ pub struct Escrow {
     src_amount: u64,
     src_remaining: u64,
     expiration_time: u32,
-    traits: u8,
+    native_dst_asset: bool,
     receiver: Pubkey,
     protocol_fee: u16,
     protocol_dst_ata: Option<Pubkey>,
@@ -542,16 +534,6 @@ pub fn get_dst_amount(
             .div_ceil(BASE_1E5);
     }
     Ok(result)
-}
-
-// Flag that defines if the order can be filled partially
-pub fn allow_partial_fills(traits: u8) -> bool {
-    traits & 0b00000001 != 0
-}
-
-// Flag that defines if the dst asset should be sent as native token
-pub fn native_dst_asset(traits: u8) -> bool {
-    traits & 0b00000010 != 0
 }
 
 fn get_fee_amounts(

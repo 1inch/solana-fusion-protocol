@@ -40,20 +40,6 @@ export type CompactFee = {
   surplus: number;
 };
 
-export function buildEscrowTraits({
-  isPartialFill = true,
-  isNativeDstAsset = false,
-}): number {
-  let traits = 0;
-  if (isPartialFill) {
-    traits |= 1;
-  }
-  if (isNativeDstAsset) {
-    traits |= 2;
-  }
-  return traits;
-}
-
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
     console.log(message, ...optionalParams);
@@ -276,8 +262,7 @@ export class TestState {
     dstAmount = this.defaultDstAmount,
     srcMint = this.tokens[0],
     dstMint = this.tokens[1],
-    allowPartialFills = true,
-    useNativeDstAsset = false,
+    nativeDstAsset = false,
     makerReceiver = this.alice.keypair.publicKey,
     compactFees = new anchor.BN(0),
     protocolDstAta = null,
@@ -332,10 +317,7 @@ export class TestState {
         expirationTime,
         srcAmount,
         dstAmount,
-        buildEscrowTraits({
-          isPartialFill: allowPartialFills,
-          isNativeDstAsset: useNativeDstAsset,
-        }),
+        nativeDstAsset,
         makerReceiver,
         compactFees,
         protocolDstAta,
