@@ -39,7 +39,7 @@ pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
             // Overflow is not possible because:
             // 1. current_point_time < timestamp <= next_point_time
             // 2. size(timestamp) + size(rate_bump) < 64
-            // 3. point_time_delta != 0 as we know that current_point_time < timestamp 
+            // 3. point_time_delta != 0 as this would contradict point 1
             return ((timestamp - current_point_time) * next_rate_bump
                 + (next_point_time - timestamp) * current_rate_bump)
                 / point_time_delta;
