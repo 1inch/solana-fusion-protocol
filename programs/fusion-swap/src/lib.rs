@@ -30,32 +30,37 @@ pub mod fusion_swap {
         estimated_dst_amount: u64,
         dutch_auction_data: DutchAuctionData,
     ) -> Result<()> {
-        if src_amount == 0 || dst_amount == 0 {
-            return err!(EscrowError::InvalidAmount);
-        }
+        require!(
+            src_amount != 0 && dst_amount != 0,
+            EscrowError::InvalidAmount
+        );
 
-        if ctx.accounts.dst_mint.key() != spl_token::native_mint::id() && native_dst_asset(traits) {
-            return err!(EscrowError::InconsistentNativeDstTrait);
-        }
+        require!(
+            ctx.accounts.dst_mint.key() == spl_token::native_mint::id()
+                || !native_dst_asset(traits),
+            EscrowError::InconsistentNativeDstTrait
+        );
 
         let escrow = &mut ctx.accounts.escrow;
 
-        let clock: Clock = Clock::get()?;
-        if (expiration_time as i64) < clock.unix_timestamp {
-            return err!(EscrowError::OrderExpired);
-        }
+        require!(
+            Clock::get()?.unix_timestamp <= expiration_time as i64,
+            EscrowError::OrderExpired
+        );
 
         let protocol_fee = compact_fees as u16;
         let integrator_fee = (compact_fees >> 16) as u16;
         let surplus_percentage = (compact_fees >> 32) as u8;
 
-        if surplus_percentage as u64 > constants::BASE_1E2 {
-            return Err(EscrowError::InvalidProtocolSurplusFee.into());
-        }
+        require!(
+            surplus_percentage as u64 <= constants::BASE_1E2,
+            EscrowError::InvalidProtocolSurplusFee
+        );
 
-        if estimated_dst_amount < dst_amount {
-            return Err(EscrowError::InvalidEstimatedTakingAmount.into());
-        }
+        require!(
+            estimated_dst_amount >= dst_amount,
+            EscrowError::InvalidEstimatedTakingAmount
+        );
 
         if ((protocol_fee > 0 || surplus_percentage > 0) && protocol_dst_ata.is_none())
             || (protocol_fee == 0 && surplus_percentage == 0 && protocol_dst_ata.is_some())
@@ -101,25 +106,24 @@ pub mod fusion_swap {
     }
 
     pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
-        let clock: Clock = Clock::get()?;
-        if (ctx.accounts.escrow.expiration_time as i64) < clock.unix_timestamp {
-            return err!(EscrowError::OrderExpired);
-        }
+        require!(
+            Clock::get()?.unix_timestamp <= ctx.accounts.escrow.expiration_time as i64,
+            EscrowError::OrderExpired
+        );
 
-        if ctx.accounts.escrow.src_remaining < amount {
-            return err!(EscrowError::NotEnoughTokensInEscrow);
-        }
+        require!(
+            amount <= ctx.accounts.escrow.src_remaining,
+            EscrowError::NotEnoughTokensInEscrow
+        );
 
-        if amount == 0 {
-            return err!(EscrowError::InvalidAmount);
-        }
+        require!(amount != 0, EscrowError::InvalidAmount);
 
         // Check if partial fills are allowed if this is the case
-        if ctx.accounts.escrow_src_ata.amount > amount
-            && !allow_partial_fills(ctx.accounts.escrow.traits)
-        {
-            return err!(EscrowError::PartialFillNotAllowed);
-        }
+        require!(
+            ctx.accounts.escrow_src_ata.amount == amount
+                || allow_partial_fills(ctx.accounts.escrow.traits),
+            EscrowError::PartialFillNotAllowed
+        );
 
         // Escrow => Taker
         anchor_spl::token::transfer(
