@@ -7,9 +7,19 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
-import { BanksClient } from "solana-bankrun";
+import {
+  AccountInfoBytes,
+  BanksClient,
+  Clock,
+  ProgramTestContext,
+  startAnchor,
+} from "solana-bankrun";
 import { FusionSwap } from "../../target/types/fusion_swap";
+import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
+import { BankrunProvider } from "anchor-bankrun";
+
+const WhitelistIDL = require("../../target/idl/whitelist.json");
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -71,6 +81,22 @@ export async function trackReceivedTokenAndTx(
   );
 }
 
+const DEFAULT_AIRDROPINFO = {
+  lamports: 1 * LAMPORTS_PER_SOL,
+  data: Buffer.alloc(0),
+  owner: SYSTEM_PROGRAM_ID,
+  executable: false,
+};
+
+const DEFAULT_STARTANCHOR = {
+  path: ".",
+  extraPrograms: [],
+  accounts: undefined,
+  computeMaxUnits: undefined,
+  transactionAccountLockLimit: undefined,
+  deactivateFeatures: undefined,
+};
+
 export class TestState {
   alice: User;
   bob: User;
@@ -82,6 +108,12 @@ export class TestState {
   defaultSrcAmount = new anchor.BN(100);
   defaultDstAmount = new anchor.BN(30);
   defaultExpirationTime = ~~(new Date().getTime() / 1000) + 86400; // now + 1 day
+  auction = {
+    startTime: 0xffffffff - 32000, // default auction start in the far far future and order use default formula
+    duration: 32000,
+    initialRateBump: 0,
+    pointsAndTimeDeltas: [],
+  };
 
   constructor() {}
 
@@ -98,6 +130,14 @@ export class TestState {
       instance.charlie as User,
       instance.dave as User,
     ] = await createUsers(4, instance.tokens, provider, payer);
+    // Create whitelisted account for Bob
+    const whitelistProgram = anchor.workspace
+      .Whitelist as anchor.Program<Whitelist>;
+    await createWhitelistedAccount(
+      whitelistProgram,
+      instance.bob.keypair,
+      payer
+    );
 
     await mintTokens(
       instance.tokens[0],
@@ -123,12 +163,37 @@ export class TestState {
     return instance;
   }
 
+  static async bankrunContext(
+    userKeyPairs: anchor.web3.Keypair[],
+    params?: typeof DEFAULT_STARTANCHOR,
+    airdropInfo?: AccountInfoBytes
+  ): Promise<ProgramTestContext> {
+    // Fill settings with default values and rewrite some values with provided
+    airdropInfo = { ...DEFAULT_AIRDROPINFO, ...airdropInfo };
+    params = { ...DEFAULT_STARTANCHOR, ...params };
+
+    return await startAnchor(
+      params.path,
+      params.extraPrograms,
+      params.accounts ||
+        userKeyPairs.map((u) => ({
+          address: u.publicKey,
+          info: airdropInfo,
+        })),
+      params.computeMaxUnits,
+      params.transactionAccountLockLimit,
+      params.deactivateFeatures
+    );
+  }
+
   static async bankrunCreate(
-    provider: BanksClient,
+    context: ProgramTestContext,
     payer: anchor.web3.Keypair,
     usersKeypairs: Array<anchor.web3.Keypair>,
     settings: { tokensNums: number }
   ): Promise<TestState> {
+    const provider = context.banksClient;
+
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
     [
@@ -137,6 +202,16 @@ export class TestState {
       instance.charlie as User,
       instance.dave as User,
     ] = await createAtasUsers(usersKeypairs, instance.tokens, provider, payer);
+    // Create whitelisted account for Bob
+    const whitelistProgram = new anchor.Program<Whitelist>(
+      WhitelistIDL,
+      new BankrunProvider(context)
+    );
+    await createWhitelistedAccount(
+      whitelistProgram,
+      instance.bob.keypair,
+      payer
+    );
 
     await mintTokens(
       instance.tokens[0],
@@ -208,6 +283,7 @@ export class TestState {
     protocolDstAta = null,
     integratorDstAta = null,
     estimatedDstAmount = this.defaultDstAmount,
+    dutchAuctionData = this.auction,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -264,7 +340,8 @@ export class TestState {
         compactFees,
         protocolDstAta,
         integratorDstAta,
-        estimatedDstAmount
+        estimatedDstAmount,
+        dutchAuctionData
       )
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
@@ -309,21 +386,20 @@ async function createTokens(
 async function createUsers(
   num: number,
   tokens: Array<anchor.web3.PublicKey>,
-  provider: anchor.AnchorProvider,
+  provider: anchor.AnchorProvider | BanksClient,
   payer: anchor.web3.Keypair
 ): Promise<Array<User>> {
   let usersKeypairs: Array<anchor.web3.Keypair> = [];
   for (let i = 0; i < num; ++i) {
     const keypair = anchor.web3.Keypair.generate();
     usersKeypairs.push(keypair);
-    await provider.connection.requestAirdrop(
-      keypair.publicKey,
-      1 * LAMPORTS_PER_SOL
-    );
+    if (provider instanceof anchor.AnchorProvider) {
+      await provider.connection.requestAirdrop(
+        keypair.publicKey,
+        1 * LAMPORTS_PER_SOL
+      );
+    }
   }
-  // Create whitelisted account for Bob
-  await createWhitelistedAccount(usersKeypairs[1], payer);
-
   return await createAtasUsers(usersKeypairs, tokens, provider, payer);
 }
 
@@ -338,7 +414,13 @@ export async function initializeWhitelist(
   try {
     await program.account.whitelistState.fetch(whitelistStatePDA);
   } catch (e) {
-    if (e.toString().includes("Account does not exist")) {
+    const isBankrun = program.provider instanceof BankrunProvider;
+    if (
+      (!isBankrun &&
+        e.toString().includes(ANCHOR_ACCOUNT_NOT_FOUND_ERROR_PREFIX)) ||
+      (isBankrun &&
+        e.toString().includes(BANKRUN_ACCOUNT_NOT_FOUND_ERROR_PREFIX))
+    ) {
       // Whitelist state does not exist, initialize it
       await program.methods
         .initialize()
@@ -354,10 +436,10 @@ export async function initializeWhitelist(
 }
 
 export async function createWhitelistedAccount(
+  program: anchor.Program<Whitelist>,
   user: anchor.web3.Keypair,
   owner: anchor.web3.Keypair
 ) {
-  const program = anchor.workspace.Whitelist as anchor.Program<Whitelist>;
   // Initialize the whitelist state with the payer as owner
   await initializeWhitelist(program, owner);
   // Register the user
@@ -483,9 +565,27 @@ export function buildCompactFee(fee: Partial<CompactFee>): anchor.BN {
   );
 }
 
+export async function setCurrentTime(
+  context: ProgramTestContext,
+  time: number
+): Promise<void> {
+  const currentClock = await context.banksClient.getClock();
+  context.setClock(
+    new Clock(
+      currentClock.slot,
+      currentClock.epochStartTimestamp,
+      currentClock.epoch,
+      currentClock.leaderScheduleEpoch,
+      BigInt(time)
+    )
+  );
+}
+
 export function numberToBuffer(n: number, bufSize: number) {
   return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
 }
 
+// Anchor test fails with "Account does not exist <pubkey>" error when account does not exist
+export const ANCHOR_ACCOUNT_NOT_FOUND_ERROR_PREFIX = "Account does not exist";
 // Bankrun test fails with "Could not find <pubkey>" error when account does not exist
 export const BANKRUN_ACCOUNT_NOT_FOUND_ERROR_PREFIX = "Could not find";

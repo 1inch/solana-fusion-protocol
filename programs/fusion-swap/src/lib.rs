@@ -1,9 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
-
-pub mod error;
 use common::constants;
+use dutch_auction::{calculate_rate_bump, DutchAuctionData};
+
+pub mod dutch_auction;
+pub mod error;
+
+use crate::constants::BASE_1E5;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
@@ -24,6 +28,7 @@ pub mod fusion_swap {
         protocol_dst_ata: Option<Pubkey>,
         integrator_dst_ata: Option<Pubkey>,
         estimated_dst_amount: u64,
+        dutch_auction_data: DutchAuctionData,
     ) -> Result<()> {
         if src_amount == 0 || dst_amount == 0 {
             return err!(EscrowError::InvalidAmount);
@@ -48,10 +53,9 @@ pub mod fusion_swap {
             return Err(EscrowError::InvalidProtocolSurplusFee.into());
         }
 
-        // TODO: Uncomment this when dutch autions are implemented
-        // if estimated_dst_amount <= dst_amount {
-        //     return Err(EscrowError::InvalidEstimatedTakingAmount.into());
-        // }
+        if estimated_dst_amount < dst_amount {
+            return Err(EscrowError::InvalidEstimatedTakingAmount.into());
+        }
 
         if ((protocol_fee > 0 || surplus_percentage > 0) && protocol_dst_ata.is_none())
             || (protocol_fee == 0 && surplus_percentage == 0 && protocol_dst_ata.is_some())
@@ -79,6 +83,7 @@ pub mod fusion_swap {
             integrator_dst_ata,
             surplus_percentage,
             estimated_dst_amount,
+            dutch_auction_data,
         });
 
         // Maker => Escrow
@@ -142,6 +147,7 @@ pub mod fusion_swap {
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.dst_amount,
             amount,
+            Some(&ctx.accounts.escrow.dutch_auction_data),
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, actual_amount) = get_fee_amounts(
@@ -153,6 +159,7 @@ pub mod fusion_swap {
                 ctx.accounts.escrow.src_amount,
                 ctx.accounts.escrow.estimated_dst_amount,
                 amount,
+                None,
             )?,
         )?;
 
@@ -475,6 +482,7 @@ pub struct Escrow {
     integrator_dst_ata: Option<Pubkey>,
     surplus_percentage: u8,
     estimated_dst_amount: u64,
+    dutch_auction_data: DutchAuctionData,
 }
 
 // Function to close the escrow account
@@ -506,16 +514,30 @@ fn close_escrow<'info>(
     escrow.close(maker)
 }
 
-// Function to get amount of `dst_mint` tokens that the taker should pay to the maker using the default formula
-fn get_dst_amount(
+// Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
+pub fn get_dst_amount(
     initial_src_amount: u64,
     initial_dst_amount: u64,
     src_amount: u64,
+    opt_data: Option<&DutchAuctionData>,
 ) -> Result<u64> {
-    Ok(src_amount
+    let mut result = src_amount
         .checked_mul(initial_dst_amount)
         .ok_or(error::EscrowError::IntegerOverflow)?
-        .div_ceil(initial_src_amount))
+        .div_ceil(initial_src_amount);
+
+    if let Some(data) = opt_data {
+        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
+        result = result
+            .checked_mul(
+                BASE_1E5
+                    .checked_add(rate_bump)
+                    .ok_or(error::EscrowError::IntegerOverflow)?,
+            )
+            .ok_or(error::EscrowError::IntegerOverflow)?
+            .div_ceil(BASE_1E5);
+    }
+    Ok(result)
 }
 
 // Flag that defines if the order can be filled partially
