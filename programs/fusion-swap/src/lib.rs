@@ -325,7 +325,6 @@ pub struct Initialize<'info> {
 
     associated_token_program: Program<'info, AssociatedToken>,
     token_program: Program<'info, Token>,
-    rent: Sysvar<'info, Rent>,
     system_program: Program<'info, System>,
 }
 
