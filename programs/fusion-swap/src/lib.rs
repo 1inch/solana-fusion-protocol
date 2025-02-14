@@ -21,7 +21,7 @@ pub mod fusion_swap {
         _order_id: u32,
         expiration_time: u32, // Order expiration time, unix timestamp
         src_amount: u64,      // Amount of tokens maker wants to sell
-        dst_amount: u64,      // Amount of tokens maker wants in exchange
+        min_dst_amount: u64,  // Minimal amount of tokens maker agrees to get in exchange
         native_dst_asset: bool,
         receiver: Pubkey, // Owner of the account which will receive dst_token
         compact_fees: u64,
@@ -31,7 +31,7 @@ pub mod fusion_swap {
         dutch_auction_data: DutchAuctionData,
     ) -> Result<()> {
         require!(
-            src_amount != 0 && dst_amount != 0,
+            src_amount != 0 && min_dst_amount != 0,
             EscrowError::InvalidAmount
         );
 
@@ -57,7 +57,7 @@ pub mod fusion_swap {
         );
 
         require!(
-            estimated_dst_amount >= dst_amount,
+            estimated_dst_amount >= min_dst_amount,
             EscrowError::InvalidEstimatedTakingAmount
         );
 
@@ -76,7 +76,7 @@ pub mod fusion_swap {
         escrow.set_inner(Escrow {
             src_amount,                            // Amount of tokens maker wants to sell
             src_remaining: src_amount,             // Remaining amount to be filled
-            dst_amount,                            // Amount of tokens maker wants in exchange
+            min_dst_amount,                        // Amount of tokens maker wants in exchange
             dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
             expiration_time,
             native_dst_asset,
@@ -139,9 +139,9 @@ pub mod fusion_swap {
         // Update src_remaining
         ctx.accounts.escrow.src_remaining -= amount;
 
-        let dst_amount = get_dst_amount(
+        let min_dst_amount = get_dst_amount(
             ctx.accounts.escrow.src_amount,
-            ctx.accounts.escrow.dst_amount,
+            ctx.accounts.escrow.min_dst_amount,
             amount,
             Some(&ctx.accounts.escrow.dutch_auction_data),
         )?;
@@ -150,7 +150,7 @@ pub mod fusion_swap {
             ctx.accounts.escrow.integrator_fee as u64,
             ctx.accounts.escrow.protocol_fee as u64,
             ctx.accounts.escrow.surplus_percentage as u64,
-            dst_amount,
+            min_dst_amount,
             get_dst_amount(
                 ctx.accounts.escrow.src_amount,
                 ctx.accounts.escrow.estimated_dst_amount,
@@ -465,7 +465,7 @@ pub struct Cancel<'info> {
 #[derive(InitSpace)]
 pub struct Escrow {
     dst_mint: Pubkey,
-    dst_amount: u64,
+    min_dst_amount: u64,
     src_amount: u64,
     src_remaining: u64,
     expiration_time: u32,
@@ -539,19 +539,19 @@ fn get_fee_amounts(
     integrator_fee: u64,
     protocol_fee: u64,
     surplus_percentage: u64,
-    dst_amount: u64,
+    min_dst_amount: u64,
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
-    let integrator_fee_amount = dst_amount
+    let integrator_fee_amount = min_dst_amount
         .checked_mul(integrator_fee)
         .ok_or(EscrowError::IntegerOverflow)?
         / constants::BASE_1E5;
-    let mut protocol_fee_amount = dst_amount
+    let mut protocol_fee_amount = min_dst_amount
         .checked_mul(protocol_fee)
         .ok_or(EscrowError::IntegerOverflow)?
         / constants::BASE_1E5;
 
-    let actual_dst_amount = (dst_amount - protocol_fee_amount)
+    let actual_dst_amount = (min_dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
         .ok_or(EscrowError::IntegerOverflow)?;
 
@@ -565,6 +565,6 @@ fn get_fee_amounts(
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        dst_amount - protocol_fee_amount - integrator_fee_amount,
+        min_dst_amount - protocol_fee_amount - integrator_fee_amount,
     ))
 }

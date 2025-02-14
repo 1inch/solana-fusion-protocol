@@ -259,7 +259,7 @@ export class TestState {
     payer,
     expirationTime = this.defaultExpirationTime,
     srcAmount = this.defaultSrcAmount,
-    dstAmount = this.defaultDstAmount,
+    minDstAmount = this.defaultDstAmount,
     srcMint = this.tokens[0],
     dstMint = this.tokens[1],
     nativeDstAsset = false,
@@ -303,7 +303,7 @@ export class TestState {
       }
       if (dstMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
-          amount: dstAmount,
+          amount: minDstAmount,
           user: this.bob,
           provider,
           payer,
@@ -316,7 +316,7 @@ export class TestState {
         this.order_id,
         expirationTime,
         srcAmount,
-        dstAmount,
+        minDstAmount,
         nativeDstAsset,
         makerReceiver,
         compactFees,

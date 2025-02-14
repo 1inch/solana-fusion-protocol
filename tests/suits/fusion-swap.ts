@@ -495,14 +495,14 @@ describe("Fusion Swap", () => {
           .rpc()
       ).to.be.rejectedWith("Error Code: InvalidAmount");
 
-      // dstAmount = 0
+      // minDstAmount = 0
       await expect(
         program.methods
           .initialize(
             order_id,
             state.defaultExpirationTime,
             state.defaultSrcAmount,
-            new anchor.BN(0), // dstAmount
+            new anchor.BN(0), // minDstAmount
             false, // native_dst_asset
             state.alice.keypair.publicKey,
             new anchor.BN(0), // compact_fees
@@ -833,7 +833,7 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         srcAmount: _srcAmount,
-        dstAmount: _dstAmount,
+        minDstAmount: _dstAmount,
         estimatedDstAmount: _dstAmount,
       });
 
