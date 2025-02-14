@@ -324,6 +324,7 @@ pub struct Initialize<'info> {
         mut,
         associated_token::mint = src_mint,
         associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
     )]
     maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -399,6 +400,7 @@ pub struct Fill<'info> {
         mut,
         associated_token::mint = src_mint,
         associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
     )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -440,7 +442,8 @@ pub struct Fill<'info> {
     #[account(
         mut,
         associated_token::mint = dst_mint,
-        associated_token::authority = taker
+        associated_token::authority = taker,
+        associated_token::token_program = dst_token_program,
     )]
     taker_dst_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -474,6 +477,7 @@ pub struct Cancel<'info> {
         mut,
         associated_token::mint = src_mint,
         associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
     )]
     escrow_src_ata: InterfaceAccount<'info, TokenAccount>,
 
@@ -481,7 +485,8 @@ pub struct Cancel<'info> {
     #[account(
         mut,
         associated_token::mint = src_mint,
-        associated_token::authority = maker
+        associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 

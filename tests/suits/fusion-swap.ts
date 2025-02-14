@@ -8,9 +8,12 @@ import {
   TestState,
   buildCompactFee,
   buildEscrowTraits,
+  createTokens,
+  createAtasUsers,
   createWhitelistedAccount,
   debugLog,
   numberToBuffer,
+  mintTokens,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
 } from "../utils/utils";
@@ -256,6 +259,243 @@ describe("Fusion Swap", () => {
         -BigInt(state.defaultDstAmount.toNumber()),
         BigInt(state.defaultSrcAmount.toNumber()),
       ]);
+    });
+
+    describe("Token 2022", () => {
+      before(async () => {
+        const tokens = await createTokens(
+          2,
+          provider,
+          payer,
+          splToken.TOKEN_2022_PROGRAM_ID
+        );
+        state.tokens.push(...tokens);
+
+        const usersWithToken2022Atas = await createAtasUsers(
+          [state.alice.keypair, state.bob.keypair],
+          tokens,
+          provider,
+          payer,
+          splToken.TOKEN_2022_PROGRAM_ID
+        );
+        state.alice.atas = {
+          ...state.alice.atas,
+          ...usersWithToken2022Atas[0].atas,
+        };
+        state.bob.atas = {
+          ...state.bob.atas,
+          ...usersWithToken2022Atas[1].atas,
+        };
+
+        await mintTokens(
+          tokens[0],
+          state.alice,
+          100_000_000,
+          provider,
+          payer,
+          splToken.TOKEN_2022_PROGRAM_ID
+        );
+        await mintTokens(
+          tokens[1],
+          state.bob,
+          100_000_000,
+          provider,
+          payer,
+          splToken.TOKEN_2022_PROGRAM_ID
+        );
+      });
+
+      it("Execute trade with SPL Token -> Token 2022", async () => {
+        const dstTokenProgram = splToken.TOKEN_2022_PROGRAM_ID;
+        const dstMint = state.tokens[state.tokens.length - 1]; // Token 2022
+        const makerDstAta = state.alice.atas[dstMint.toString()].address;
+        const takerDstAta = state.bob.atas[dstMint.toString()].address;
+        const escrow = await state.initEscrow({
+          escrowProgram: program,
+          payer,
+          provider,
+          dstMint,
+        });
+
+        const transactionPromise = () =>
+          program.methods
+            .fill(escrow.order_id, state.defaultSrcAmount)
+            .accountsPartial({
+              ...state.buildAccountsDataForFill({
+                escrow: escrow.escrow,
+                escrowSrcAta: escrow.ata,
+                dstMint,
+                makerDstAta,
+                takerDstAta,
+                dstTokenProgram,
+              }),
+            })
+            .signers([state.bob.keypair])
+            .rpc();
+
+        const results = await trackReceivedTokenAndTx(
+          provider.connection,
+          [
+            { publicKey: makerDstAta, programId: dstTokenProgram },
+            {
+              publicKey: state.bob.atas[state.tokens[0].toString()].address,
+              programId: splToken.TOKEN_PROGRAM_ID,
+            },
+            { publicKey: takerDstAta, programId: dstTokenProgram },
+          ],
+          transactionPromise
+        );
+
+        expect(results).to.be.deep.eq([
+          BigInt(state.defaultDstAmount.toNumber()),
+          BigInt(state.defaultSrcAmount.toNumber()),
+          -BigInt(state.defaultDstAmount.toNumber()),
+        ]);
+      });
+
+      it("Execute trade with Token 2022 -> SPL Token", async () => {
+        const srcTokenProgram = splToken.TOKEN_2022_PROGRAM_ID;
+        const srcMint = state.tokens[state.tokens.length - 2]; // Token 2022
+        const takerSrcAta = state.bob.atas[srcMint.toString()].address;
+
+        const escrow = await state.initEscrow({
+          escrowProgram: program,
+          payer,
+          provider,
+          srcMint,
+          srcTokenProgram,
+        });
+
+        const transactionPromise = () =>
+          program.methods
+            .fill(escrow.order_id, state.defaultSrcAmount)
+            .accountsPartial({
+              ...state.buildAccountsDataForFill({
+                escrow: escrow.escrow,
+                escrowSrcAta: escrow.ata,
+                srcMint,
+                takerSrcAta,
+                srcTokenProgram,
+              }),
+            })
+            .signers([state.bob.keypair])
+            .rpc();
+
+        const results = await trackReceivedTokenAndTx(
+          provider.connection,
+          [
+            {
+              publicKey: state.alice.atas[state.tokens[1].toString()].address,
+              programId: splToken.TOKEN_PROGRAM_ID,
+            },
+            { publicKey: takerSrcAta, programId: srcTokenProgram },
+            {
+              publicKey: state.bob.atas[state.tokens[1].toString()].address,
+              programId: splToken.TOKEN_PROGRAM_ID,
+            },
+          ],
+          transactionPromise
+        );
+
+        expect(results).to.be.deep.eq([
+          BigInt(state.defaultDstAmount.toNumber()),
+          BigInt(state.defaultSrcAmount.toNumber()),
+          -BigInt(state.defaultDstAmount.toNumber()),
+        ]);
+      });
+
+      it("Execute trade between two Token 2022 tokens", async () => {
+        const tokenProgram = splToken.TOKEN_2022_PROGRAM_ID;
+        const srcMint = state.tokens[state.tokens.length - 2]; // First Token 2022
+        const dstMint = state.tokens[state.tokens.length - 1]; // Second Token 2022
+        const makerDstAta = state.alice.atas[dstMint.toString()].address;
+        const takerSrcAta = state.bob.atas[srcMint.toString()].address;
+        const takerDstAta = state.bob.atas[dstMint.toString()].address;
+
+        const escrow = await state.initEscrow({
+          escrowProgram: program,
+          payer,
+          provider,
+          srcMint,
+          dstMint,
+          srcTokenProgram: tokenProgram,
+        });
+
+        const transactionPromise = () =>
+          program.methods
+            .fill(escrow.order_id, state.defaultSrcAmount)
+            .accountsPartial({
+              ...state.buildAccountsDataForFill({
+                escrow: escrow.escrow,
+                escrowSrcAta: escrow.ata,
+                srcMint,
+                dstMint,
+                makerDstAta,
+                takerSrcAta,
+                takerDstAta,
+                srcTokenProgram: tokenProgram,
+                dstTokenProgram: tokenProgram,
+              }),
+            })
+            .signers([state.bob.keypair])
+            .rpc();
+
+        const results = await trackReceivedTokenAndTx(
+          provider.connection,
+          [
+            { publicKey: makerDstAta, programId: tokenProgram },
+            { publicKey: takerSrcAta, programId: tokenProgram },
+            { publicKey: takerDstAta, programId: tokenProgram },
+          ],
+          transactionPromise
+        );
+
+        expect(results).to.be.deep.eq([
+          BigInt(state.defaultDstAmount.toNumber()),
+          BigInt(state.defaultSrcAmount.toNumber()),
+          -BigInt(state.defaultDstAmount.toNumber()),
+        ]);
+      });
+
+      it("Cancel escrow with Token 2022", async () => {
+        const tokenProgram = splToken.TOKEN_2022_PROGRAM_ID;
+        const srcMint = state.tokens[state.tokens.length - 2]; // Token 2022
+
+        const escrow = await state.initEscrow({
+          escrowProgram: program,
+          payer,
+          provider,
+          srcMint,
+          srcTokenProgram: tokenProgram,
+        });
+
+        const transactionPromise = () =>
+          program.methods
+            .cancel(escrow.order_id)
+            .accountsPartial({
+              maker: state.alice.keypair.publicKey,
+              srcMint,
+              escrow: escrow.escrow,
+              srcTokenProgram: tokenProgram,
+            })
+            .signers([state.alice.keypair])
+            .rpc();
+
+        const results = await trackReceivedTokenAndTx(
+          provider.connection,
+          [
+            {
+              publicKey: state.alice.atas[srcMint.toString()].address,
+              programId: tokenProgram,
+            },
+          ],
+          transactionPromise
+        );
+
+        expect(results).to.be.deep.eq([
+          BigInt(state.defaultSrcAmount.toNumber()),
+        ]);
+      });
     });
 
     it("Execute the trade with protocol fee", async () => {

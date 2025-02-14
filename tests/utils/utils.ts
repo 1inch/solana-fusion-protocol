@@ -60,22 +60,30 @@ export function debugLog(message?: any, ...optionalParams: any[]): void {
   }
 }
 
+export type Account = {
+  publicKey: PublicKey;
+  programId: PublicKey;
+};
+
 export async function trackReceivedTokenAndTx(
   connection,
-  addresses: Array<PublicKey>,
+  addresses: Array<PublicKey> | Array<Account>,
   txPromise
 ): Promise<BigInt[]> {
-  const tokenBalancesBefore = await Promise.all(
-    addresses.map(
-      async (address) => await splToken.getAccount(connection, address)
-    )
-  );
+  const getAccounts = async (address) => {
+    return await splToken.getAccount(
+      connection,
+      address instanceof PublicKey ? address : address.publicKey,
+      undefined,
+      address instanceof PublicKey
+        ? splToken.TOKEN_PROGRAM_ID
+        : address.programId
+    );
+  };
+
+  const tokenBalancesBefore = await Promise.all(addresses.map(getAccounts));
   await txPromise();
-  const tokenBalancesAfter = await Promise.all(
-    addresses.map(
-      async (address) => await splToken.getAccount(connection, address)
-    )
-  );
+  const tokenBalancesAfter = await Promise.all(addresses.map(getAccounts));
   return tokenBalancesAfter.map(
     (b, i) => b.amount - tokenBalancesBefore[i].amount
   );
@@ -124,6 +132,7 @@ export class TestState {
   ): Promise<TestState> {
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
+    instance.tokens.push(splToken.NATIVE_MINT);
     [
       instance.alice as User,
       instance.bob as User,
@@ -196,6 +205,7 @@ export class TestState {
 
     const instance = new TestState();
     instance.tokens = await createTokens(settings.tokensNums, provider, payer);
+    instance.tokens.push(splToken.NATIVE_MINT);
     [
       instance.alice as User,
       instance.bob as User,
@@ -308,7 +318,8 @@ export class TestState {
     const escrowAta = await splToken.getAssociatedTokenAddress(
       srcMint,
       escrow,
-      true
+      true,
+      srcTokenProgram
     );
 
     if (provider instanceof anchor.AnchorProvider) {
@@ -368,24 +379,32 @@ export class TestState {
   }
 }
 
-async function createTokens(
+export async function createTokens(
   num: number,
   provider: anchor.AnchorProvider | BanksClient,
-  payer: anchor.web3.Keypair
+  payer: anchor.web3.Keypair,
+  programId = splToken.TOKEN_PROGRAM_ID
 ): Promise<Array<anchor.web3.PublicKey>> {
   let tokens: Array<anchor.web3.PublicKey> = [];
 
-  const [tokenLibrary, connection] =
+  const [tokenLibrary, connection, extraArgs] =
     provider instanceof anchor.AnchorProvider
-      ? [splToken, provider.connection]
-      : [splBankrunToken, provider];
+      ? [splToken, provider.connection, [undefined, programId]]
+      : [splBankrunToken, provider, [programId]];
 
   for (let i = 0; i < num; ++i) {
     tokens.push(
-      await tokenLibrary.createMint(connection, payer, payer.publicKey, null, 6)
+      await tokenLibrary.createMint(
+        connection,
+        payer,
+        payer.publicKey,
+        null,
+        6,
+        undefined,
+        ...extraArgs
+      )
     );
   }
-  tokens.push(splToken.NATIVE_MINT);
   return tokens;
 }
 
@@ -473,18 +492,19 @@ export async function removeWhitelistedAccount(
     .rpc();
 }
 
-async function createAtasUsers(
+export async function createAtasUsers(
   usersKeypairs: Array<anchor.web3.Keypair>,
   tokens: Array<anchor.web3.PublicKey>,
   provider: anchor.AnchorProvider | BanksClient,
-  payer: anchor.web3.Keypair
+  payer: anchor.web3.Keypair,
+  tokenProgram = splToken.TOKEN_PROGRAM_ID
 ): Promise<Array<User>> {
   let users: Array<User> = [];
 
-  const [tokenLibrary, connection] =
+  const [tokenLibrary, connection, extraArgs] =
     provider instanceof anchor.AnchorProvider
-      ? [splToken, provider.connection]
-      : [splBankrunToken, provider];
+      ? [splToken, provider.connection, [undefined, tokenProgram]]
+      : [splBankrunToken, provider, [tokenProgram]];
 
   for (let i = 0; i < usersKeypairs.length; ++i) {
     const keypair = usersKeypairs[i];
@@ -494,11 +514,14 @@ async function createAtasUsers(
         connection,
         payer,
         token,
-        keypair.publicKey
+        keypair.publicKey,
+        ...extraArgs
       );
       atas[token.toString()] = await tokenLibrary.getAccount(
         connection,
-        pubkey
+        pubkey,
+        undefined,
+        tokenProgram
       );
       debugLog(
         `User_${i} :: token = ${token.toString()} :: ata = ${atas[
@@ -512,17 +535,18 @@ async function createAtasUsers(
   return users;
 }
 
-async function mintTokens(
+export async function mintTokens(
   token: anchor.web3.PublicKey,
   user: User,
   amount: number,
   provider: anchor.AnchorProvider | BanksClient,
-  payer: anchor.web3.Keypair
+  payer: anchor.web3.Keypair,
+  tokenProgram = splToken.TOKEN_PROGRAM_ID
 ) {
-  const [tokenLibrary, connection] =
+  const [tokenLibrary, connection, extraArgs] =
     provider instanceof anchor.AnchorProvider
-      ? [splToken, provider.connection]
-      : [splBankrunToken, provider];
+      ? [splToken, provider.connection, [undefined, tokenProgram]]
+      : [splBankrunToken, provider, [tokenProgram]];
 
   await tokenLibrary.mintTo(
     connection,
@@ -530,11 +554,15 @@ async function mintTokens(
     token,
     user.atas[token.toString()].address,
     payer,
-    amount
+    amount,
+    [],
+    ...extraArgs
   );
   const balance = await tokenLibrary.getAccount(
     connection,
-    user.atas[token.toString()].address
+    user.atas[token.toString()].address,
+    undefined,
+    tokenProgram
   );
 
   debugLog(
