@@ -491,6 +491,7 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -517,6 +518,7 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -553,6 +555,7 @@ describe("Fusion Swap", () => {
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
           escrow: escrow,
+          tokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -577,6 +580,7 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -668,6 +672,7 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -939,6 +944,7 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -969,6 +975,7 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: splToken.NATIVE_MINT,
             escrow: escrow.escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -992,6 +999,7 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -1007,6 +1015,7 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
             escrowSrcAta: state.escrows[1].ata,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()
@@ -1021,6 +1030,7 @@ describe("Fusion Swap", () => {
             maker: state.charlie.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: state.escrows[0].escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.charlie.keypair])
           .rpc()
@@ -1101,6 +1111,7 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             escrow: escrow.escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc();
@@ -1237,6 +1248,7 @@ describe("Fusion Swap", () => {
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             escrow: escrow,
+            tokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.alice.keypair])
           .rpc()

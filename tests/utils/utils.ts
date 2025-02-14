@@ -250,6 +250,7 @@ export class TestState {
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
     protocolDstAta = null,
     integratorDstAta = null,
+    tokenProgram = splToken.TOKEN_PROGRAM_ID,
   }): any {
     return {
       taker,
@@ -264,6 +265,7 @@ export class TestState {
       takerDstAta,
       protocolDstAta,
       integratorDstAta,
+      tokenProgram,
     };
   }
 
@@ -284,6 +286,7 @@ export class TestState {
     integratorDstAta = null,
     estimatedDstAmount = this.defaultDstAmount,
     dutchAuctionData = this.auction,
+    tokenProgram = splToken.TOKEN_PROGRAM_ID,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -348,6 +351,7 @@ export class TestState {
         srcMint,
         dstMint,
         escrow,
+        tokenProgram,
       })
       .signers([this.alice.keypair])
       .rpc();
