@@ -509,7 +509,7 @@ fn close_escrow<'info>(
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
-pub fn get_dst_amount(
+fn get_dst_amount(
     initial_src_amount: u64,
     initial_dst_amount: u64,
     src_amount: u64,
