@@ -506,7 +506,7 @@ async function createAtasUsers(
   return users;
 }
 
-async function mintTokens(
+export async function mintTokens(
   token: anchor.web3.PublicKey,
   user: User,
   amount: number,

@@ -24,6 +24,7 @@ anchor-lang = { version = "0.30.1", features = ["init-if-needed"]}
 anchor-spl = "0.30.1"
 common = { path =  "../../common" }
 whitelist = { path = "../whitelist", features = ["no-entrypoint"] }
+muldiv = "1.0.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ["cfg(solana)"] }

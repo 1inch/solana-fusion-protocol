@@ -3,6 +3,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 use common::constants;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
+use muldiv::MulDiv;
 
 pub mod dutch_auction;
 pub mod error;
@@ -522,20 +523,19 @@ pub fn get_dst_amount(
     opt_data: Option<&DutchAuctionData>,
 ) -> Result<u64> {
     let mut result = src_amount
-        .checked_mul(initial_dst_amount)
-        .ok_or(error::EscrowError::IntegerOverflow)?
-        .div_ceil(initial_src_amount);
+        .mul_div_ceil(initial_dst_amount, initial_src_amount)
+        .ok_or(error::EscrowError::IntegerOverflow)?;
 
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
         result = result
-            .checked_mul(
+            .mul_div_ceil(
                 BASE_1E5
                     .checked_add(rate_bump)
                     .ok_or(error::EscrowError::IntegerOverflow)?,
+                BASE_1E5,
             )
-            .ok_or(error::EscrowError::IntegerOverflow)?
-            .div_ceil(BASE_1E5);
+            .ok_or(error::EscrowError::IntegerOverflow)?;
     }
     Ok(result)
 }

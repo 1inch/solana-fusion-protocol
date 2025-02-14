@@ -10,6 +10,7 @@ import {
   buildEscrowTraits,
   createWhitelistedAccount,
   debugLog,
+  mintTokens,
   numberToBuffer,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
@@ -117,6 +118,86 @@ describe("Fusion Swap", () => {
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
+    });
+
+    it("Execute the trade without u64 overflow", async () => {
+      // amount * amount is greater than u64::max
+      const amount = new anchor.BN(10 * Math.pow(10, 9));
+
+      await mintTokens(
+        state.tokens[0],
+        state.alice,
+        amount.toNumber(),
+        provider,
+        payer
+      );
+
+      await mintTokens(
+        state.tokens[1],
+        state.bob,
+        amount.toNumber(),
+        provider,
+        payer
+      );
+
+      const escrow = await state.initEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        srcAmount: amount,
+        dstAmount: amount,
+        estimatedDstAmount: amount,
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.order_id, amount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[state.tokens[1].toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[state.tokens[1].toString()].address,
+        ],
+        transactionPromise
+      );
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+
+      expect(results).to.be.deep.eq([
+        BigInt(amount.toNumber()),
+        BigInt(amount.toNumber()),
+        -BigInt(amount.toNumber()),
+      ]);
+
+      // Burn excess tokens to not affect the global state
+      await splToken.burn(
+        provider.connection,
+        state.alice.keypair,
+        state.alice.atas[state.tokens[1].toString()].address,
+        state.tokens[1],
+        state.alice.keypair,
+        amount.toNumber()
+      );
+
+      await splToken.burn(
+        provider.connection,
+        state.bob.keypair,
+        state.bob.atas[state.tokens[0].toString()].address,
+        state.tokens[0],
+        state.bob.keypair,
+        amount.toNumber()
+      );
     });
 
     it("Execute the trade with different taker's receiver wallet", async () => {
