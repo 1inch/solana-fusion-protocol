@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use common::constants;
+use common::constants::DISCRIMINATOR;
 
 pub mod error;
 use error::WhitelistError;
@@ -47,7 +47,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = owner,
-        space = constants::DISCRIMINATOR + WhitelistState::INIT_SPACE,
+        space = DISCRIMINATOR + WhitelistState::INIT_SPACE,
         seeds = [WHITELIST_STATE_SEED],
         bump,
     )]
@@ -73,7 +73,7 @@ pub struct Register<'info> {
     #[account(
         init,
         payer = owner,
-        space = constants::DISCRIMINATOR + ResolverAccess::INIT_SPACE,
+        space = DISCRIMINATOR + ResolverAccess::INIT_SPACE,
         seeds = [RESOLVER_ACCESS_SEED, user.key().as_ref()],
         bump,
     )]

@@ -1,13 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
-use common::constants;
+use common::constants::{BASE_1E2, BASE_1E5, DISCRIMINATOR};
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 
 pub mod dutch_auction;
 pub mod error;
 
-use crate::constants::BASE_1E5;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
@@ -52,7 +51,7 @@ pub mod fusion_swap {
         let surplus_percentage = (compact_fees >> 32) as u8;
 
         require!(
-            surplus_percentage as u64 <= constants::BASE_1E2,
+            surplus_percentage as u64 <= BASE_1E2,
             EscrowError::InvalidProtocolSurplusFee
         );
 
@@ -308,7 +307,7 @@ pub struct Create<'info> {
     #[account(
         init,
         payer = maker,
-        space = constants::DISCRIMINATOR + Escrow::INIT_SPACE,
+        space = DISCRIMINATOR + Escrow::INIT_SPACE,
         seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
         bump,
     )]
@@ -519,7 +518,7 @@ pub fn get_dst_amount(
     let mut result = src_amount
         .checked_mul(initial_dst_amount)
         .ok_or(error::EscrowError::IntegerOverflow)?
-        .div_ceil(initial_src_amount);
+        / initial_src_amount;
 
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
@@ -530,7 +529,7 @@ pub fn get_dst_amount(
                     .ok_or(error::EscrowError::IntegerOverflow)?,
             )
             .ok_or(error::EscrowError::IntegerOverflow)?
-            .div_ceil(BASE_1E5);
+            / BASE_1E5;
     }
     Ok(result)
 }
@@ -545,11 +544,11 @@ fn get_fee_amounts(
     let integrator_fee_amount = min_dst_amount
         .checked_mul(integrator_fee)
         .ok_or(EscrowError::IntegerOverflow)?
-        / constants::BASE_1E5;
+        / BASE_1E5;
     let mut protocol_fee_amount = min_dst_amount
         .checked_mul(protocol_fee)
         .ok_or(EscrowError::IntegerOverflow)?
-        / constants::BASE_1E5;
+        / BASE_1E5;
 
     let actual_dst_amount = (min_dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
@@ -559,7 +558,7 @@ fn get_fee_amounts(
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
             .checked_mul(surplus_percentage)
             .ok_or(EscrowError::IntegerOverflow)?
-            / constants::BASE_1E2;
+            / BASE_1E2;
     }
 
     Ok((
