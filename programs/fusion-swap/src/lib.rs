@@ -527,7 +527,7 @@ pub fn get_dst_amount(
         .div_ceil(initial_src_amount);
 
     if let Some(data) = opt_data {
-        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data)?;
+        let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
         result = result
             .checked_mul(
                 BASE_1E5
