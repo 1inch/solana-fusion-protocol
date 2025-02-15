@@ -18,15 +18,7 @@ pub mod fusion_swap {
     use super::*;
 
     pub fn create(ctx: Context<Create>, _order_id: u32, order: EscrowData) -> Result<()> {
-        require!(
-            ctx.accounts.dst_mint.key() == order.dst_mint,
-            EscrowError::InconsistentDstMint
-        );
-
-        require!(
-            order.src_amount == order.src_remaining,
-            EscrowError::InconsistentSrcRemaining
-        );
+        let order = order.init(&ctx);
 
         require!(
             order.src_amount != 0 && order.min_dst_amount != 0,
@@ -467,6 +459,7 @@ pub struct FeeConfig {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct EscrowData {
     /// The token that the maker wants to receive
+    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value.
     dst_mint: Pubkey,
 
     /// Minimum amount of `dst_mint` tokens the maker wants to receive
@@ -477,6 +470,7 @@ pub struct EscrowData {
     src_amount: u64,
 
     /// Remaining amount of `src_mint` tokens available for fill
+    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value.
     src_remaining: u64,
 
     /// Unix timestamp indicating when the escrow expires   
@@ -496,6 +490,14 @@ pub struct EscrowData {
 
     /// Dutch auction parameters defining price adjustments over time
     dutch_auction_data: DutchAuctionData,
+}
+
+impl EscrowData {
+    pub fn init(mut self, ctx: &Context<Create>) -> Self {
+        self.dst_mint = ctx.accounts.dst_mint.key();
+        self.src_remaining = self.src_amount;
+        self
+    }
 }
 
 #[account]
