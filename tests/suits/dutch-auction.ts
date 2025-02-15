@@ -36,10 +36,10 @@ describe("Dutch Auction", () => {
   const auction = {
     startTime: 0, // we update it before each test
     duration: 32000,
-    initialRateBump: 10000,
+    initialRateBump: 50000,
     pointsAndTimeDeltas: [
       { rateBump: 20000, timeDelta: 10000 },
-      { rateBump: 50000, timeDelta: 20000 },
+      { rateBump: 10000, timeDelta: 20000 },
     ],
   };
 
@@ -147,12 +147,12 @@ describe("Dutch Auction", () => {
       splBankrunToken.getAccount(provider.connection, state.escrows[0].ata)
     ).to.be.rejectedWith(splBankrunToken.TokenAccountNotFoundError);
 
-    const dstAmountWithRateBumpMin = BigInt(
+    const dstAmountWithRateBumpMax = BigInt(
       (state.defaultDstAmount.toNumber() *
         (BASE_POINTS + auction.initialRateBump)) /
         BASE_POINTS
     );
-    const dstAmountWithRateBumpMax = BigInt(
+    const dstAmountWithRateBumpMin = BigInt(
       (state.defaultDstAmount.toNumber() *
         (BASE_POINTS + auction.pointsAndTimeDeltas[0].rateBump)) /
         BASE_POINTS
@@ -200,12 +200,12 @@ describe("Dutch Auction", () => {
       splBankrunToken.getAccount(provider.connection, state.escrows[0].ata)
     ).to.be.rejectedWith(splBankrunToken.TokenAccountNotFoundError);
 
-    const dstAmountWithRateBumpMin = BigInt(
+    const dstAmountWithRateBumpMax = BigInt(
       (state.defaultDstAmount.toNumber() *
         (BASE_POINTS + auction.initialRateBump)) /
         BASE_POINTS
     );
-    const dstAmountWithRateBumpMax = BigInt(
+    const dstAmountWithRateBumpMin = BigInt(
       (state.defaultDstAmount.toNumber() *
         (BASE_POINTS + auction.pointsAndTimeDeltas[1].rateBump)) /
         BASE_POINTS
