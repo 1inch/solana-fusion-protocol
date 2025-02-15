@@ -518,7 +518,7 @@ fn get_dst_amount(
     let mut result = src_amount
         .checked_mul(initial_dst_amount)
         .ok_or(error::EscrowError::IntegerOverflow)?
-        / initial_src_amount;
+        .div_ceil(initial_src_amount);
 
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
@@ -529,7 +529,7 @@ fn get_dst_amount(
                     .ok_or(error::EscrowError::IntegerOverflow)?,
             )
             .ok_or(error::EscrowError::IntegerOverflow)?
-            / BASE_1E5;
+            .div_ceil(BASE_1E5);
     }
     Ok(result)
 }
