@@ -7,7 +7,6 @@ import {
   setCurrentTime,
   TestState,
   trackReceivedTokenAndTx,
-  buildCompactFee,
 } from "../utils/utils";
 import { BankrunProvider } from "anchor-bankrun";
 import { BanksClient, ProgramTestContext } from "solana-bankrun";

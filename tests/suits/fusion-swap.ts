@@ -6,7 +6,6 @@ import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import {
   TestState,
-  buildCompactFee,
   createWhitelistedAccount,
   debugLog,
   numberToBuffer,

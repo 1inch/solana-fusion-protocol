@@ -18,9 +18,11 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
-import { EscrowData } from "../target/types/fusion_swap";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
+const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
+const escrowDataType = FusionSwapIDL.types.find((t) => t.name === "EscrowData");
+type EscrowData = (typeof escrowDataType)["type"]["fields"];
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -259,7 +261,7 @@ export class TestState {
     provider,
     payer,
     srcMint,
-    escrowData = {},
+    escrowData,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -307,7 +309,7 @@ export class TestState {
     }
 
     await escrowProgram.methods
-      .create(this.order_id, escrowData)
+      .create(this.order_id, escrowData as EscrowData)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
         srcMint,
@@ -540,17 +542,6 @@ async function prepareNativeTokens({ amount, user, provider, payer }) {
     payer,
     user.keypair,
   ]);
-}
-
-export function buildCompactFee(fee: Partial<CompactFee>): anchor.BN {
-  const { protocolFee = 0, integratorFee = 0, surplus = 0 } = fee;
-  return new anchor.BN(
-    (
-      BigInt(protocolFee & 0xffff) +
-      (BigInt(integratorFee & 0xffff) << 16n) +
-      (BigInt(surplus & 0xff) << 32n)
-    ).toString()
-  );
 }
 
 export async function setCurrentTime(
