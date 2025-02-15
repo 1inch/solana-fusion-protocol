@@ -81,7 +81,9 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        makerReceiver: state.charlie.keypair.publicKey,
+        escrowData: state.escrowData({
+          receiver: state.charlie.keypair.publicKey,
+        }),
       });
       const transactionPromise = () =>
         program.methods
@@ -217,7 +219,9 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
+        escrowData: state.escrowData({
+          dstMint: splToken.NATIVE_MINT,
+        }),
       });
 
       const transactionPromise = () =>
@@ -262,8 +266,13 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ protocolFee: 10000 }), // 10%
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        escrowData: state.escrowData({
+          fee: {
+            protocolFee: 10000, // 10%
+            protocolDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
+          },
+        }),
       });
 
       const transactionPromise = () =>
@@ -307,9 +316,13 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ integratorFee: 15000 }), // 15%
-        integratorDstAta:
-          state.charlie.atas[state.tokens[1].toString()].address,
+        escrowData: state.escrowData({
+          fee: {
+            integratorFee: 15000, // 15%
+            integratorDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
+          },
+        }),
       });
 
       const transactionPromise = () =>
@@ -474,16 +487,10 @@ describe("Fusion Swap", () => {
         program.methods
           .create(
             order_id,
-            state.defaultExpirationTime,
-            new anchor.BN(0), // srcAmount
-            state.defaultDstAmount,
-            false, // native_dst_asset
-            state.alice.keypair.publicKey,
-            new anchor.BN(0), // compact_fees
-            null, // protocol_dst_ata
-            null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
-            state.auction // dutch_auction_data
+            state.escrowData({
+              srcAmount: new anchor.BN(0),
+              srcRemaining: new anchor.BN(0),
+            })
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -500,16 +507,9 @@ describe("Fusion Swap", () => {
         program.methods
           .create(
             order_id,
-            state.defaultExpirationTime,
-            state.defaultSrcAmount,
-            new anchor.BN(0), // minDstAmount
-            false, // native_dst_asset
-            state.alice.keypair.publicKey,
-            new anchor.BN(0), // compact_fees
-            null, // protocol_dst_ata
-            null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
-            state.auction // dutch_auction_data
+            state.escrowData({
+              minDstAmount: new anchor.BN(0),
+            })
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -534,19 +534,7 @@ describe("Fusion Swap", () => {
       );
 
       await program.methods
-        .create(
-          order_id,
-          state.defaultExpirationTime,
-          state.defaultSrcAmount,
-          state.defaultDstAmount,
-          false, // native_dst_asset
-          state.alice.keypair.publicKey,
-          new anchor.BN(0), // compact_fees
-          null, // protocol_dst_ata
-          null, // integrator_dst_ata
-          state.defaultDstAmount, // estimated_dst_amount
-          state.auction // dutch_auction_data
-        )
+        .create(order_id, state.escrowData())
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],
@@ -558,19 +546,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .create(
-            order_id,
-            state.defaultExpirationTime,
-            state.defaultSrcAmount,
-            state.defaultDstAmount,
-            false, // native_dst_asset
-            state.alice.keypair.publicKey,
-            new anchor.BN(0), // compact_fees
-            null, // protocol_dst_ata
-            null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
-            state.auction // dutch_auction_data
-          )
+          .create(order_id, state.escrowData())
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -651,16 +627,9 @@ describe("Fusion Swap", () => {
         program.methods
           .create(
             order_id,
-            state.defaultExpirationTime,
-            state.defaultSrcAmount,
-            state.defaultDstAmount,
-            false, // native_dst_asset
-            state.alice.keypair.publicKey,
-            buildCompactFee({ surplus: 146 }), // 146%
-            null, // protocol_dst_ata
-            null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
-            state.auction // dutch_auction_data
+            state.escrowData({
+              fee: { surplusPercentage: 146 }, // 146%
+            })
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -678,8 +647,13 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ protocolFee: 10000 }), // 10%
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        escrowData: state.escrowData({
+          fee: {
+            protocolFee: 10000, // 10%
+            protocolDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
+          },
+        }),
       });
 
       await expect(
@@ -703,8 +677,13 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ protocolFee: 10000 }), // 10%
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        escrowData: state.escrowData({
+          fee: {
+            protocolFee: 10000, // 10%
+            protocolDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
+          },
+        }),
       });
 
       await expect(
@@ -726,9 +705,13 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ integratorFee: 10000 }), // 10%
-        integratorDstAta:
-          state.charlie.atas[state.tokens[1].toString()].address,
+        escrowData: state.escrowData({
+          fee: {
+            integratorFee: 10000, // 10%
+            integratorDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
+          },
+        }),
       });
 
       await expect(
@@ -752,9 +735,13 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        compactFees: buildCompactFee({ integratorFee: 10000 }), // 10%
-        integratorDstAta:
-          state.charlie.atas[state.tokens[1].toString()].address,
+        escrowData: state.escrowData({
+          fee: {
+            integratorFee: 10000, // 10%
+            integratorDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
+          },
+        }),
       });
 
       await expect(
@@ -832,9 +819,12 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        srcAmount: _srcAmount,
-        minDstAmount: _dstAmount,
-        estimatedDstAmount: _dstAmount,
+        escrowData: state.escrowData({
+          srcAmount: _srcAmount,
+          srcRemaining: _srcAmount,
+          minDstAmount: _dstAmount,
+          estimatedDstAmount: _dstAmount,
+        }),
       });
 
       let transactionPromise = () =>
@@ -1123,8 +1113,10 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
-        nativeDstAsset: true,
+        escrowData: state.escrowData({
+          dstMint: splToken.NATIVE_MINT,
+          nativeDstAsset: true,
+        }),
       });
 
       await program.methods
@@ -1162,7 +1154,9 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
+        escrowData: state.escrowData({
+          dstMint: splToken.NATIVE_MINT,
+        }),
       });
 
       await expect(
@@ -1198,16 +1192,9 @@ describe("Fusion Swap", () => {
         program.methods
           .create(
             order_id,
-            state.defaultExpirationTime,
-            state.defaultSrcAmount,
-            state.defaultDstAmount,
-            true, // native_dst_asset
-            state.alice.keypair.publicKey,
-            new anchor.BN(0), // compact_fees
-            null, // protocol_dst_ata
-            null, // integrator_dst_ata
-            state.defaultDstAmount, // estimated_dst_amount
-            state.auction // dutch_auction_data
+            state.escrowData({
+              nativeDstAsset: true,
+            })
           )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
@@ -1225,8 +1212,10 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
-        useNativeDstAsset: false,
+        escrowData: state.escrowData({
+          dstMint: splToken.NATIVE_MINT,
+          useNativeDstAsset: false,
+        }),
       });
 
       const transactionPromise = () =>

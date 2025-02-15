@@ -71,7 +71,9 @@ describe("Dutch Auction", () => {
       escrowProgram: program,
       payer,
       provider: banksClient,
-      dutchAuctionData: auction,
+      escrowData: {
+        dutchAuctionData: auction,
+      },
     });
   });
 
@@ -256,35 +258,27 @@ describe("Dutch Auction", () => {
   });
 
   it("Execute the trade with surplus", async () => {
-    const auction = {
-      startTime: Math.floor(new Date().getTime() / 1000),
-      get auctionFinishTime() {
-        return this.startTime + 32000;
-      },
-      initialRateBump: 10000,
-      pointsAndTimeDeltas: [],
-    };
-
-    // rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.startTime);
-
-    const escrow = await state.createEscrow({
+    state.escrows[0] = await state.createEscrow({
       escrowProgram: program,
       payer,
       provider: banksClient,
-      compactFees: buildCompactFee({ surplus: 50 }), // 50%
-      protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-      estimatedDstAmount: state.defaultDstAmount,
-      dutchAuctionData: auction,
+      escrowData: state.escrowData({
+        fee: {
+          surplusPercentage: 50, // 50%
+          protocolDstAta:
+            state.charlie.atas[state.tokens[1].toString()].address,
+        },
+        dutchAuctionData: auction,
+      }),
     });
 
     const transactionPromise = () =>
       program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount)
+        .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
+            escrow: state.escrows[0].escrow,
+            escrowSrcAta: state.escrows[0].ata,
             protocolDstAta:
               state.charlie.atas[state.tokens[1].toString()].address,
           })
@@ -303,7 +297,7 @@ describe("Dutch Auction", () => {
       transactionPromise
     );
     await expect(
-      splBankrunToken.getAccount(provider.connection, escrow.ata)
+      splBankrunToken.getAccount(provider.connection, state.escrows[0].ata)
     ).to.be.rejectedWith(splBankrunToken.TokenAccountNotFoundError);
 
     const dstAmountWithRateBump = BigInt(
@@ -331,32 +325,30 @@ describe("Dutch Auction", () => {
       pointsAndTimeDeltas: [],
     };
 
-    // rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.startTime);
-
-    const estimatedDstAmount = state.defaultDstAmount;
-    const escrow = await state.createEscrow({
+    state.escrows[0] = await state.createEscrow({
       escrowProgram: program,
       payer,
       provider: banksClient,
-      compactFees: buildCompactFee({
-        protocolFee: 10000,
-        integratorFee: 15000,
-        surplus: 50,
-      }), // 10%, 15%, 50%
-      protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-      integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
-      estimatedDstAmount,
-      dutchAuctionData: auction,
+      escrowData: state.escrowData({
+        fee: {
+          protocolFee: 10000, // 10%
+          integratorFee: 15000, // 15%
+          surplusPercentage: 50, // 50%
+          protocolDstAta:
+            state.charlie.atas[state.tokens[1].toString()].address,
+          integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
+        },
+        dutchAuctionData: auction,
+      }),
     });
 
     const transactionPromise = () =>
       program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount)
+        .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
+            escrow: state.escrows[0].escrow,
+            escrowSrcAta: state.escrows[0].ata,
             protocolDstAta:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorDstAta:
@@ -378,7 +370,7 @@ describe("Dutch Auction", () => {
       transactionPromise
     );
     await expect(
-      splBankrunToken.getAccount(provider.connection, escrow.ata)
+      splBankrunToken.getAccount(provider.connection, state.escrows[0].ata)
     ).to.be.rejectedWith(splBankrunToken.TokenAccountNotFoundError);
 
     const dstAmountWithRateBump = BigInt(
@@ -392,8 +384,9 @@ describe("Dutch Auction", () => {
       (dstAmountWithRateBump -
         integratorFee -
         protocolFee -
-        BigInt(estimatedDstAmount.toNumber())) /
+        BigInt(state.defaultDstAmount.toNumber())) /
       2n;
+
     expect(results).to.be.deep.eq([
       dstAmountWithRateBump - integratorFee - protocolFee - surplus,
       BigInt(state.defaultSrcAmount.toNumber()),

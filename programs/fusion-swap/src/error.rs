@@ -24,4 +24,8 @@ pub enum EscrowError {
     InconsistentIntegratorFeeConfig,
     #[msg("Integer overflow")]
     IntegerOverflow,
+    #[msg("Inconsistent dst mint token")]
+    InconsistentDstMint,
+    #[msg("Inconsistent src remaining amount")]
+    InconsistentSrcRemaining,
 }
