@@ -556,13 +556,12 @@ fn get_fee_amounts(
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = dst_amount
-        .checked_mul(integrator_fee)
-        .ok_or(EscrowError::IntegerOverflow)?
-        / constants::BASE_1E5;
+        .mul_div_floor(integrator_fee, constants::BASE_1E5)
+        .ok_or(EscrowError::IntegerOverflow)?;
+
     let mut protocol_fee_amount = dst_amount
-        .checked_mul(protocol_fee)
-        .ok_or(EscrowError::IntegerOverflow)?
-        / constants::BASE_1E5;
+        .mul_div_floor(protocol_fee, constants::BASE_1E5)
+        .ok_or(EscrowError::IntegerOverflow)?;
 
     let actual_dst_amount = (dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
@@ -570,9 +569,8 @@ fn get_fee_amounts(
 
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
-            .checked_mul(surplus_percentage)
-            .ok_or(EscrowError::IntegerOverflow)?
-            / constants::BASE_1E2;
+            .mul_div_floor(surplus_percentage, constants::BASE_1E2)
+            .ok_or(EscrowError::IntegerOverflow)?;
     }
 
     Ok((
