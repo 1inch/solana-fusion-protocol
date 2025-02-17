@@ -101,6 +101,9 @@ pub mod fusion_swap {
 
         require!(amount != 0, EscrowError::InvalidAmount);
 
+        // Update src_remaining
+        ctx.accounts.escrow.src_remaining -= amount;
+
         // Escrow => Taker
         anchor_spl::token::transfer(
             CpiContext::new_with_signer(
@@ -119,9 +122,6 @@ pub mod fusion_swap {
             ),
             amount,
         )?;
-
-        // Update src_remaining
-        ctx.accounts.escrow.src_remaining -= amount;
 
         let dst_amount = get_dst_amount(
             ctx.accounts.escrow.src_amount,
