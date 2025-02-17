@@ -529,10 +529,7 @@ pub fn get_dst_amount(
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
         result = result
-            .mul_div_ceil(
-                BASE_1E5 + rate_bump,
-                BASE_1E5,
-            )
+            .mul_div_ceil(BASE_1E5 + rate_bump, BASE_1E5)
             .ok_or(error::EscrowError::IntegerOverflow)?;
     }
     Ok(result)
