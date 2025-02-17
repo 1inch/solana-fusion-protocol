@@ -21,8 +21,10 @@ import { BankrunProvider } from "anchor-bankrun";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
-const escrowDataType = FusionSwapIDL.types.find((t) => t.name === "EscrowData");
-type EscrowData = (typeof escrowDataType)["type"]["fields"];
+const orderConfigType = FusionSwapIDL.types.find(
+  (t) => t.name === "OrderConfig"
+);
+type OrderConfig = (typeof orderConfigType)["type"]["fields"];
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -261,16 +263,19 @@ export class TestState {
     provider,
     payer,
     srcMint,
-    escrowData,
+    dstMint,
+    orderConfig,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     srcMint?: anchor.web3.PublicKey;
-    escrowData?: Partial<EscrowData>;
+    dstMint?: anchor.web3.PublicKey;
+    orderConfig?: Partial<OrderConfig>;
   }): Promise<Escrow> {
     srcMint = srcMint ?? this.tokens[0];
-    escrowData = { ...this.escrowData(), ...escrowData };
+    dstMint = dstMint ?? this.tokens[1];
+    orderConfig = { ...this.orderConfig(), ...orderConfig };
 
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -292,15 +297,15 @@ export class TestState {
       // TODO: research Bankrun native token support if needed
       if (srcMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
-          amount: escrowData.srcAmount,
+          amount: orderConfig.srcAmount,
           user: this.alice,
           provider,
           payer,
         });
       }
-      if (escrowData.dstMint == splToken.NATIVE_MINT) {
+      if (orderConfig.dstMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
-          amount: escrowData.minDstAmount,
+          amount: orderConfig.minDstAmount,
           user: this.bob,
           provider,
           payer,
@@ -309,11 +314,11 @@ export class TestState {
     }
 
     await escrowProgram.methods
-      .create(this.order_id, escrowData as EscrowData)
+      .create(orderConfig as OrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
         srcMint,
-        dstMint: escrowData.dstMint,
+        dstMint,
         escrow,
       })
       .signers([this.alice.keypair])
@@ -328,16 +333,15 @@ export class TestState {
     return order_id;
   }
 
-  escrowData(params: Partial<EscrowData> = {}): EscrowData {
+  orderConfig(params: Partial<OrderConfig> = {}): OrderConfig {
     return {
-      dstMint: this.tokens[1],
-      minDstAmount: this.defaultDstAmount,
+      id: this.order_id,
       srcAmount: this.defaultSrcAmount,
-      srcRemaining: this.defaultSrcAmount,
+      minDstAmount: this.defaultDstAmount,
+      estimatedDstAmount: this.defaultDstAmount,
       expirationTime: this.defaultExpirationTime,
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
-      estimatedDstAmount: this.defaultDstAmount,
       dutchAuctionData: this.auction,
       ...params,
       fee: {

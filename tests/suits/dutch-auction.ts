@@ -70,7 +70,7 @@ describe("Dutch Auction", () => {
       escrowProgram: program,
       payer,
       provider: banksClient,
-      escrowData: {
+      orderConfig: {
         dutchAuctionData: auction,
       },
     });
@@ -261,7 +261,7 @@ describe("Dutch Auction", () => {
       escrowProgram: program,
       payer,
       provider: banksClient,
-      escrowData: state.escrowData({
+      orderConfig: state.orderConfig({
         fee: {
           surplusPercentage: 50, // 50%
           protocolDstAta:
@@ -328,7 +328,7 @@ describe("Dutch Auction", () => {
       escrowProgram: program,
       payer,
       provider: banksClient,
-      escrowData: state.escrowData({
+      orderConfig: state.orderConfig({
         fee: {
           protocolFee: 10000, // 10%
           integratorFee: 15000, // 15%

@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
@@ -21,9 +19,7 @@ pub const BASE_1E5: u64 = 100_000;
 pub mod fusion_swap {
     use super::*;
 
-    pub fn create(ctx: Context<Create>, _order_id: u32, order: EscrowData) -> Result<()> {
-        let order = order.init(&ctx);
-
+    pub fn create(ctx: Context<Create>, order: OrderConfig) -> Result<()> {
         require!(
             order.src_amount != 0 && order.min_dst_amount != 0,
             EscrowError::InvalidAmount
@@ -33,8 +29,6 @@ pub mod fusion_swap {
             ctx.accounts.dst_mint.key() == spl_token::native_mint::id() || !order.native_dst_asset,
             EscrowError::InconsistentNativeDstTrait
         );
-
-        let escrow = &mut ctx.accounts.escrow;
 
         require!(
             Clock::get()?.unix_timestamp <= order.expiration_time as i64,
@@ -66,7 +60,19 @@ pub mod fusion_swap {
             return Err(EscrowError::InconsistentIntegratorFeeConfig.into());
         }
 
-        escrow.set_inner(order.into());
+        let escrow = &mut ctx.accounts.escrow;
+        escrow.set_inner(Escrow {
+            src_amount: order.src_amount,
+            src_remaining: order.src_amount,
+            dst_mint: ctx.accounts.dst_mint.key(),
+            min_dst_amount: order.min_dst_amount,
+            expiration_time: order.expiration_time,
+            native_dst_asset: order.native_dst_asset,
+            receiver: order.receiver,
+            fee: order.fee,
+            estimated_dst_amount: order.estimated_dst_amount,
+            dutch_auction_data: order.dutch_auction_data,
+        });
 
         // Maker => Escrow
         anchor_spl::token::transfer(
@@ -263,7 +269,7 @@ pub mod fusion_swap {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32)]
+#[instruction(order: OrderConfig)]
 pub struct Create<'info> {
     /// `maker`, who is willing to sell src token for dst token
     #[account(mut, signer)]
@@ -287,7 +293,7 @@ pub struct Create<'info> {
         init,
         payer = maker,
         space = DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -459,16 +465,23 @@ pub struct FeeConfig {
     integrator_dst_ata: Option<Pubkey>,
 }
 
-/// Core data structure for an escrow
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct EscrowData {
-    /// The token that the maker wants to receive
-    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value.
-    dst_mint: Pubkey,
-
-    /// Minimum amount of `dst_mint` tokens the maker wants to receive
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct OrderConfig {
+    id: u32,
+    src_amount: u64,
     min_dst_amount: u64,
+    estimated_dst_amount: u64,
+    expiration_time: u32,
+    native_dst_asset: bool,
+    receiver: Pubkey,
+    fee: FeeConfig,
+    dutch_auction_data: DutchAuctionData,
+}
 
+/// Core data structure for an escrow
+#[account]
+#[derive(InitSpace)]
+pub struct Escrow {
     /// Amount of `src_mint` tokens the maker is offering to sell
     /// The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account.
     src_amount: u64,
@@ -476,6 +489,16 @@ pub struct EscrowData {
     /// Remaining amount of `src_mint` tokens available for fill
     /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value.
     src_remaining: u64,
+
+    /// The token that the maker wants to receive
+    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value.
+    dst_mint: Pubkey,
+
+    /// Minimum amount of `dst_mint` tokens the maker wants to receive
+    min_dst_amount: u64,
+
+    /// Estimated amount of `dst_mint` tokens the maker expects to receive.
+    estimated_dst_amount: u64,
 
     /// Unix timestamp indicating when the escrow expires   
     expiration_time: u32,
@@ -489,45 +512,8 @@ pub struct EscrowData {
     /// See {FeeConfig}
     fee: FeeConfig,
 
-    /// Estimated amount of `dst_mint` tokens the maker expects to receive.
-    estimated_dst_amount: u64,
-
     /// Dutch auction parameters defining price adjustments over time
     dutch_auction_data: DutchAuctionData,
-}
-
-impl EscrowData {
-    pub fn init(mut self, ctx: &Context<Create>) -> Self {
-        self.dst_mint = ctx.accounts.dst_mint.key();
-        self.src_remaining = self.src_amount;
-        self
-    }
-}
-
-#[account]
-#[derive(InitSpace)]
-pub struct Escrow {
-    data: EscrowData,
-}
-
-// Implement Deref to allow Escrow to access EscrowData fields directly
-impl Deref for Escrow {
-    type Target = EscrowData;
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl DerefMut for Escrow {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
-impl From<EscrowData> for Escrow {
-    fn from(data: EscrowData) -> Self {
-        Escrow { data }
-    }
 }
 
 // Function to close the escrow account
