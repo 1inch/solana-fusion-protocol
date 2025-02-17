@@ -111,7 +111,12 @@ pub mod fusion_swap {
         require!(amount != 0, EscrowError::InvalidAmount);
 
         // Update src_remaining
-        ctx.accounts.escrow.src_remaining -= amount;
+        ctx.accounts.escrow.src_remaining = ctx
+            .accounts
+            .escrow
+            .src_remaining
+            .checked_sub(amount)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
 
         // Escrow => Taker
         transfer_checked(
@@ -524,7 +529,7 @@ pub struct Escrow {
     /// Estimated amount of `dst_mint` tokens the maker expects to receive.
     estimated_dst_amount: u64,
 
-    /// Unix timestamp indicating when the escrow expires   
+    /// Unix timestamp indicating when the escrow expires
     expiration_time: u32,
 
     /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
@@ -604,19 +609,29 @@ fn get_fee_amounts(
         .mul_div_floor(protocol_fee, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
-    let actual_dst_amount = (dst_amount - protocol_fee_amount)
-        .checked_sub(integrator_fee_amount)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+    let actual_dst_amount = (dst_amount
+        .checked_sub(protocol_fee_amount)
+        .ok_or(ProgramError::ArithmeticOverflow)?)
+    .checked_sub(integrator_fee_amount)
+    .ok_or(ProgramError::ArithmeticOverflow)?;
 
     if actual_dst_amount > estimated_dst_amount {
-        protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
-            .mul_div_floor(surplus_percentage, BASE_1E2)
+        protocol_fee_amount = protocol_fee_amount
+            .checked_add(
+                (actual_dst_amount - estimated_dst_amount)
+                    .mul_div_floor(surplus_percentage, BASE_1E2)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            )
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        dst_amount - protocol_fee_amount - integrator_fee_amount,
+        dst_amount
+            .checked_sub(protocol_fee_amount)
+            .ok_or(ProgramError::ArithmeticOverflow)?
+            .checked_sub(integrator_fee_amount)
+            .ok_or(ProgramError::ArithmeticOverflow)?,
     ))
 }
