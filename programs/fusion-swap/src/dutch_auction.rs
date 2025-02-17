@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 /// Max amount of points in the dutch auction data
-pub const MAX_AUCTION_POINTS: usize = 5;
+const MAX_AUCTION_POINTS: usize = 5;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct PointAndTimeDelta {

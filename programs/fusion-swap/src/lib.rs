@@ -1,90 +1,77 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
-use common::constants;
+use common::constants::DISCRIMINATOR;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 use muldiv::MulDiv;
 
 pub mod dutch_auction;
 pub mod error;
 
-use crate::constants::BASE_1E5;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
+
+pub const BASE_1E2: u64 = 100;
+pub const BASE_1E5: u64 = 100_000;
 
 #[program]
 pub mod fusion_swap {
     use super::*;
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        _order_id: u32,
-        expiration_time: u32, // Order expiration time, unix timestamp
-        src_amount: u64,      // Amount of tokens maker wants to sell
-        dst_amount: u64,      // Amount of tokens maker wants in exchange
-        traits: u8,
-        receiver: Pubkey, // Owner of the account which will receive dst_token
-        compact_fees: u64,
-        protocol_dst_ata: Option<Pubkey>,
-        integrator_dst_ata: Option<Pubkey>,
-        estimated_dst_amount: u64,
-        dutch_auction_data: DutchAuctionData,
-    ) -> Result<()> {
-        if src_amount == 0 || dst_amount == 0 {
-            return err!(EscrowError::InvalidAmount);
-        }
+    pub fn create(ctx: Context<Create>, order: OrderConfig) -> Result<()> {
+        require!(
+            order.src_amount != 0 && order.min_dst_amount != 0,
+            EscrowError::InvalidAmount
+        );
 
-        if ctx.accounts.dst_mint.key() != spl_token::native_mint::id() && native_dst_asset(traits) {
-            return err!(EscrowError::InconsistentNativeDstTrait);
-        }
+        require!(
+            ctx.accounts.dst_mint.key() == spl_token::native_mint::id() || !order.native_dst_asset,
+            EscrowError::InconsistentNativeDstTrait
+        );
 
-        let escrow = &mut ctx.accounts.escrow;
+        require!(
+            Clock::get()?.unix_timestamp <= order.expiration_time as i64,
+            EscrowError::OrderExpired
+        );
 
-        let clock: Clock = Clock::get()?;
-        if (expiration_time as i64) < clock.unix_timestamp {
-            return err!(EscrowError::OrderExpired);
-        }
+        require!(
+            order.fee.surplus_percentage as u64 <= BASE_1E2,
+            EscrowError::InvalidProtocolSurplusFee
+        );
 
-        let protocol_fee = compact_fees as u16;
-        let integrator_fee = (compact_fees >> 16) as u16;
-        let surplus_percentage = (compact_fees >> 32) as u8;
+        require!(
+            order.estimated_dst_amount >= order.min_dst_amount,
+            EscrowError::InvalidEstimatedTakingAmount
+        );
 
-        if surplus_percentage as u64 > constants::BASE_1E2 {
-            return Err(EscrowError::InvalidProtocolSurplusFee.into());
-        }
-
-        if estimated_dst_amount < dst_amount {
-            return Err(EscrowError::InvalidEstimatedTakingAmount.into());
-        }
-
-        if ((protocol_fee > 0 || surplus_percentage > 0) && protocol_dst_ata.is_none())
-            || (protocol_fee == 0 && surplus_percentage == 0 && protocol_dst_ata.is_some())
+        if ((order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
+            && order.fee.protocol_dst_ata.is_none())
+            || (order.fee.protocol_fee == 0
+                && order.fee.surplus_percentage == 0
+                && order.fee.protocol_dst_ata.is_some())
         {
             return Err(EscrowError::InconsistentProtocolFeeConfig.into());
         }
 
-        if (integrator_fee > 0 && integrator_dst_ata.is_none())
-            || (integrator_fee == 0 && integrator_dst_ata.is_some())
+        if (order.fee.integrator_fee > 0 && order.fee.integrator_dst_ata.is_none())
+            || (order.fee.integrator_fee == 0 && order.fee.integrator_dst_ata.is_some())
         {
             return Err(EscrowError::InconsistentIntegratorFeeConfig.into());
         }
 
+        let escrow = &mut ctx.accounts.escrow;
         escrow.set_inner(Escrow {
-            src_amount,                            // Amount of tokens maker wants to sell
-            src_remaining: src_amount,             // Remaining amount to be filled
-            dst_amount,                            // Amount of tokens maker wants in exchange
-            dst_mint: ctx.accounts.dst_mint.key(), // token maker wants in exchange
-            expiration_time,
-            traits,
-            receiver,
-            protocol_fee,
-            protocol_dst_ata,
-            integrator_fee,
-            integrator_dst_ata,
-            surplus_percentage,
-            estimated_dst_amount,
-            dutch_auction_data,
+            src_amount: order.src_amount,
+            src_remaining: order.src_amount,
+            dst_mint: ctx.accounts.dst_mint.key(),
+            min_dst_amount: order.min_dst_amount,
+            expiration_time: order.expiration_time,
+            native_dst_asset: order.native_dst_asset,
+            receiver: order.receiver,
+            fee: order.fee,
+            estimated_dst_amount: order.estimated_dst_amount,
+            dutch_auction_data: order.dutch_auction_data,
         });
 
         // Maker => Escrow
@@ -97,30 +84,25 @@ pub mod fusion_swap {
                     authority: ctx.accounts.maker.to_account_info(),
                 },
             ),
-            src_amount,
+            escrow.src_amount,
         )
     }
 
     pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
-        let clock: Clock = Clock::get()?;
-        if (ctx.accounts.escrow.expiration_time as i64) < clock.unix_timestamp {
-            return err!(EscrowError::OrderExpired);
-        }
+        require!(
+            Clock::get()?.unix_timestamp <= ctx.accounts.escrow.expiration_time as i64,
+            EscrowError::OrderExpired
+        );
 
-        if ctx.accounts.escrow.src_remaining < amount {
-            return err!(EscrowError::NotEnoughTokensInEscrow);
-        }
+        require!(
+            amount <= ctx.accounts.escrow.src_remaining,
+            EscrowError::NotEnoughTokensInEscrow
+        );
 
-        if amount == 0 {
-            return err!(EscrowError::InvalidAmount);
-        }
+        require!(amount != 0, EscrowError::InvalidAmount);
 
-        // Check if partial fills are allowed if this is the case
-        if ctx.accounts.escrow_src_ata.amount > amount
-            && !allow_partial_fills(ctx.accounts.escrow.traits)
-        {
-            return err!(EscrowError::PartialFillNotAllowed);
-        }
+        // Update src_remaining
+        ctx.accounts.escrow.src_remaining -= amount;
 
         // Escrow => Taker
         anchor_spl::token::transfer(
@@ -141,20 +123,17 @@ pub mod fusion_swap {
             amount,
         )?;
 
-        // Update src_remaining
-        ctx.accounts.escrow.src_remaining -= amount;
-
         let dst_amount = get_dst_amount(
             ctx.accounts.escrow.src_amount,
-            ctx.accounts.escrow.dst_amount,
+            ctx.accounts.escrow.min_dst_amount,
             amount,
             Some(&ctx.accounts.escrow.dutch_auction_data),
         )?;
 
-        let (protocol_fee_amount, integrator_fee_amount, actual_amount) = get_fee_amounts(
-            ctx.accounts.escrow.integrator_fee as u64,
-            ctx.accounts.escrow.protocol_fee as u64,
-            ctx.accounts.escrow.surplus_percentage as u64,
+        let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
+            ctx.accounts.escrow.fee.integrator_fee as u64,
+            ctx.accounts.escrow.fee.protocol_fee as u64,
+            ctx.accounts.escrow.fee.surplus_percentage as u64,
             dst_amount,
             get_dst_amount(
                 ctx.accounts.escrow.src_amount,
@@ -207,20 +186,17 @@ pub mod fusion_swap {
         }
 
         // Taker => Maker
-        if native_dst_asset(ctx.accounts.escrow.traits) {
-            // Transfer SOL using System Program
-            let ix = anchor_lang::solana_program::system_instruction::transfer(
-                &ctx.accounts.taker.key(),
-                &ctx.accounts.maker_receiver.key(),
-                actual_amount,
-            );
-            anchor_lang::solana_program::program::invoke(
-                &ix,
-                &[
-                    ctx.accounts.taker.to_account_info(),
-                    ctx.accounts.maker_receiver.to_account_info(),
+        if ctx.accounts.escrow.native_dst_asset {
+            // Transfer native SOL
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
                     ctx.accounts.system_program.to_account_info(),
-                ],
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.taker.to_account_info(),
+                        to: ctx.accounts.maker_receiver.to_account_info(),
+                    },
+                ),
+                maker_dst_amount,
             )?;
         } else {
             let maker_dst_ata = ctx
@@ -239,7 +215,7 @@ pub mod fusion_swap {
                         authority: ctx.accounts.taker.to_account_info(),
                     },
                 ),
-                actual_amount,
+                maker_dst_amount,
             )?;
         }
 
@@ -290,8 +266,8 @@ pub mod fusion_swap {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32)]
-pub struct Initialize<'info> {
+#[instruction(order: OrderConfig)]
+pub struct Create<'info> {
     /// `maker`, who is willing to sell src token for dst token
     #[account(mut, signer)]
     maker: Signer<'info>,
@@ -313,8 +289,8 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = maker,
-        space = constants::DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        space = DISCRIMINATOR + Escrow::INIT_SPACE,
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -330,7 +306,6 @@ pub struct Initialize<'info> {
 
     associated_token_program: Program<'info, AssociatedToken>,
     token_program: Program<'info, Token>,
-    rent: Sysvar<'info, Rent>,
     system_program: Program<'info, System>,
 }
 
@@ -394,13 +369,13 @@ pub struct Fill<'info> {
 
     #[account(
         mut,
-        constraint = Some(protocol_dst_ata.key()) == escrow.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
+        constraint = Some(protocol_dst_ata.key()) == escrow.fee.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
     )]
     protocol_dst_ata: Option<Box<Account<'info, TokenAccount>>>,
 
     #[account(
         mut,
-        constraint = Some(integrator_dst_ata.key()) == escrow.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
+        constraint = Some(integrator_dst_ata.key()) == escrow.fee.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
     )]
     integrator_dst_ata: Option<Box<Account<'info, TokenAccount>>>,
 
@@ -467,22 +442,74 @@ pub struct Cancel<'info> {
     token_program: Program<'info, Token>,
 }
 
+/// Configuration for fees applied to the escrow
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct FeeConfig {
+    /// Protocol fee in basis points where `BASE_1E5` = 100%
+    protocol_fee: u16,
+
+    /// Integrator fee in basis points where `BASE_1E5` = 100%
+    integrator_fee: u16,
+
+    /// Percentage of positive slippage taken by the protocol as an additional fee.
+    /// Value in basis points where `BASE_1E2` = 100%
+    surplus_percentage: u8,
+
+    /// Associated token account for collecting protocol fees
+    protocol_dst_ata: Option<Pubkey>,
+
+    /// Associated token account for collecting integrator fees
+    integrator_dst_ata: Option<Pubkey>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct OrderConfig {
+    id: u32,
+    src_amount: u64,
+    min_dst_amount: u64,
+    estimated_dst_amount: u64,
+    expiration_time: u32,
+    native_dst_asset: bool,
+    receiver: Pubkey,
+    fee: FeeConfig,
+    dutch_auction_data: DutchAuctionData,
+}
+
+/// Core data structure for an escrow
 #[account]
 #[derive(InitSpace)]
 pub struct Escrow {
-    dst_mint: Pubkey,
-    dst_amount: u64,
+    /// Amount of `src_mint` tokens the maker is offering to sell
+    /// The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account.
     src_amount: u64,
+
+    /// Remaining amount of `src_mint` tokens available for fill
+    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value.
     src_remaining: u64,
-    expiration_time: u32,
-    traits: u8,
-    receiver: Pubkey,
-    protocol_fee: u16,
-    protocol_dst_ata: Option<Pubkey>,
-    integrator_fee: u16,
-    integrator_dst_ata: Option<Pubkey>,
-    surplus_percentage: u8,
+
+    /// The token that the maker wants to receive
+    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value.
+    dst_mint: Pubkey,
+
+    /// Minimum amount of `dst_mint` tokens the maker wants to receive
+    min_dst_amount: u64,
+
+    /// Estimated amount of `dst_mint` tokens the maker expects to receive.
     estimated_dst_amount: u64,
+
+    /// Unix timestamp indicating when the escrow expires   
+    expiration_time: u32,
+
+    /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
+    native_dst_asset: bool,
+
+    /// The wallet which will receive the `dst_mint` tokens
+    receiver: Pubkey,
+
+    /// See {FeeConfig}
+    fee: FeeConfig,
+
+    /// Dutch auction parameters defining price adjustments over time
     dutch_auction_data: DutchAuctionData,
 }
 
@@ -516,14 +543,14 @@ fn close_escrow<'info>(
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
-pub fn get_dst_amount(
+fn get_dst_amount(
     initial_src_amount: u64,
     initial_dst_amount: u64,
     src_amount: u64,
     opt_data: Option<&DutchAuctionData>,
 ) -> Result<u64> {
-    let mut result = src_amount
-        .mul_div_ceil(initial_dst_amount, initial_src_amount)
+    let mut result = initial_dst_amount
+        .mul_div_ceil(src_amount, initial_src_amount)
         .ok_or(error::EscrowError::IntegerOverflow)?;
 
     if let Some(data) = opt_data {
@@ -535,16 +562,6 @@ pub fn get_dst_amount(
     Ok(result)
 }
 
-// Flag that defines if the order can be filled partially
-pub fn allow_partial_fills(traits: u8) -> bool {
-    traits & 0b00000001 != 0
-}
-
-// Flag that defines if the dst asset should be sent as native token
-pub fn native_dst_asset(traits: u8) -> bool {
-    traits & 0b00000010 != 0
-}
-
 fn get_fee_amounts(
     integrator_fee: u64,
     protocol_fee: u64,
@@ -553,11 +570,11 @@ fn get_fee_amounts(
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = dst_amount
-        .mul_div_floor(integrator_fee, constants::BASE_1E5)
+        .mul_div_floor(integrator_fee, BASE_1E5)
         .ok_or(EscrowError::IntegerOverflow)?;
 
     let mut protocol_fee_amount = dst_amount
-        .mul_div_floor(protocol_fee, constants::BASE_1E5)
+        .mul_div_floor(protocol_fee, BASE_1E5)
         .ok_or(EscrowError::IntegerOverflow)?;
 
     let actual_dst_amount = (dst_amount - protocol_fee_amount)
@@ -566,7 +583,7 @@ fn get_fee_amounts(
 
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
-            .mul_div_floor(surplus_percentage, constants::BASE_1E2)
+            .mul_div_floor(surplus_percentage, BASE_1E2)
             .ok_or(EscrowError::IntegerOverflow)?;
     }
 

@@ -12,8 +12,6 @@ pub enum EscrowError {
     NotEnoughTokensInEscrow,
     #[msg("Order expired")]
     OrderExpired,
-    #[msg("Partial fill not allowed")]
-    PartialFillNotAllowed,
     #[msg("Seller receiver mismatch")]
     SellerReceiverMismatch,
     #[msg("Invalid estimated taking amount")]

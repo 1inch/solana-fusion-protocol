@@ -20,6 +20,11 @@ import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
+const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
+const orderConfigType = FusionSwapIDL.types.find(
+  (t) => t.name === "OrderConfig"
+);
+type OrderConfig = (typeof orderConfigType)["type"]["fields"];
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -39,20 +44,6 @@ export type CompactFee = {
   integratorFee: number;
   surplus: number;
 };
-
-export function buildEscrowTraits({
-  isPartialFill = true,
-  isNativeDstAsset = false,
-}): number {
-  let traits = 0;
-  if (isPartialFill) {
-    traits |= 1;
-  }
-  if (isNativeDstAsset) {
-    traits |= 2;
-  }
-  return traits;
-}
 
 export function debugLog(message?: any, ...optionalParams: any[]): void {
   if (process.env.DEBUG) {
@@ -267,29 +258,25 @@ export class TestState {
     };
   }
 
-  async initEscrow({
+  async createEscrow({
     escrowProgram,
     provider,
     payer,
-    expirationTime = this.defaultExpirationTime,
-    srcAmount = this.defaultSrcAmount,
-    dstAmount = this.defaultDstAmount,
-    srcMint = this.tokens[0],
-    dstMint = this.tokens[1],
-    allowPartialFills = true,
-    useNativeDstAsset = false,
-    makerReceiver = this.alice.keypair.publicKey,
-    compactFees = new anchor.BN(0),
-    protocolDstAta = null,
-    integratorDstAta = null,
-    estimatedDstAmount = this.defaultDstAmount,
-    dutchAuctionData = this.auction,
+    srcMint,
+    dstMint,
+    orderConfig,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
-    [key: string]: any;
+    srcMint?: anchor.web3.PublicKey;
+    dstMint?: anchor.web3.PublicKey;
+    orderConfig?: Partial<OrderConfig>;
   }): Promise<Escrow> {
+    srcMint = srcMint ?? this.tokens[0];
+    dstMint = dstMint ?? this.tokens[1];
+    orderConfig = { ...this.orderConfig(), ...orderConfig };
+
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
@@ -310,15 +297,15 @@ export class TestState {
       // TODO: research Bankrun native token support if needed
       if (srcMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
-          amount: srcAmount,
+          amount: orderConfig.srcAmount,
           user: this.alice,
           provider,
           payer,
         });
       }
-      if (dstMint == splToken.NATIVE_MINT) {
+      if (orderConfig.dstMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
-          amount: dstAmount,
+          amount: orderConfig.minDstAmount,
           user: this.bob,
           provider,
           payer,
@@ -327,22 +314,7 @@ export class TestState {
     }
 
     await escrowProgram.methods
-      .initialize(
-        this.order_id,
-        expirationTime,
-        srcAmount,
-        dstAmount,
-        buildEscrowTraits({
-          isPartialFill: allowPartialFills,
-          isNativeDstAsset: useNativeDstAsset,
-        }),
-        makerReceiver,
-        compactFees,
-        protocolDstAta,
-        integratorDstAta,
-        estimatedDstAmount,
-        dutchAuctionData
-      )
+      .create(orderConfig as OrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
         srcMint,
@@ -359,6 +331,28 @@ export class TestState {
     const order_id = this.order_id;
     this.order_id = this.order_id + 1;
     return order_id;
+  }
+
+  orderConfig(params: Partial<OrderConfig> = {}): OrderConfig {
+    return {
+      id: this.order_id,
+      srcAmount: this.defaultSrcAmount,
+      minDstAmount: this.defaultDstAmount,
+      estimatedDstAmount: this.defaultDstAmount,
+      expirationTime: this.defaultExpirationTime,
+      nativeDstAsset: false,
+      receiver: this.alice.keypair.publicKey,
+      dutchAuctionData: this.auction,
+      ...params,
+      fee: {
+        protocolFee: 0,
+        integratorFee: 0,
+        surplusPercentage: 0,
+        protocolDstAta: null,
+        integratorDstAta: null,
+        ...(params.fee ?? {}),
+      },
+    };
   }
 }
 
@@ -552,17 +546,6 @@ async function prepareNativeTokens({ amount, user, provider, payer }) {
     payer,
     user.keypair,
   ]);
-}
-
-export function buildCompactFee(fee: Partial<CompactFee>): anchor.BN {
-  const { protocolFee = 0, integratorFee = 0, surplus = 0 } = fee;
-  return new anchor.BN(
-    (
-      BigInt(protocolFee & 0xffff) +
-      (BigInt(integratorFee & 0xffff) << 16n) +
-      (BigInt(surplus & 0xff) << 32n)
-    ).toString()
-  );
 }
 
 export async function setCurrentTime(
