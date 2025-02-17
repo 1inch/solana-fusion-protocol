@@ -187,19 +187,16 @@ pub mod fusion_swap {
 
         // Taker => Maker
         if ctx.accounts.escrow.native_dst_asset {
-            // Transfer SOL using System Program
-            let ix = anchor_lang::solana_program::system_instruction::transfer(
-                &ctx.accounts.taker.key(),
-                &ctx.accounts.maker_receiver.key(),
-                maker_dst_amount,
-            );
-            anchor_lang::solana_program::program::invoke(
-                &ix,
-                &[
-                    ctx.accounts.taker.to_account_info(),
-                    ctx.accounts.maker_receiver.to_account_info(),
+            // Transfer native SOL
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
                     ctx.accounts.system_program.to_account_info(),
-                ],
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.taker.to_account_info(),
+                        to: ctx.accounts.maker_receiver.to_account_info(),
+                    },
+                ),
+                maker_dst_amount,
             )?;
         } else {
             let maker_dst_ata = ctx
