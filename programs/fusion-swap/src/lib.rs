@@ -332,13 +332,11 @@ pub struct Create<'info> {
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
-        mut,
         constraint = protocol_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentProtocolFeeConfig
     )]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(
-        mut,
         constraint = integrator_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentIntegratorFeeConfig
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
