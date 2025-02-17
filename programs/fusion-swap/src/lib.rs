@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
-use common::constants::{BASE_1E2, BASE_1E5, DISCRIMINATOR};
+use common::constants::DISCRIMINATOR;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 use muldiv::MulDiv;
 
@@ -13,6 +13,9 @@ pub mod error;
 use error::EscrowError;
 
 declare_id!("AKEVm47qyu5E2LgBDrXifJjS2WJ7i4D1f9REzYvJEsLg");
+
+pub const BASE_1E2: u64 = 100;
+pub const BASE_1E5: u64 = 100_000;
 
 #[program]
 pub mod fusion_swap {
