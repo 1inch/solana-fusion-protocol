@@ -5,6 +5,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{spl_token, Mint, Token, TokenAccount};
 use common::constants::{BASE_1E2, BASE_1E5, DISCRIMINATOR};
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
+use muldiv::MulDiv;
 
 pub mod dutch_auction;
 pub mod error;
@@ -563,20 +564,14 @@ fn get_dst_amount(
     opt_data: Option<&DutchAuctionData>,
 ) -> Result<u64> {
     let mut result = src_amount
-        .checked_mul(initial_dst_amount)
-        .ok_or(error::EscrowError::IntegerOverflow)?
-        .div_ceil(initial_src_amount);
+        .mul_div_ceil(initial_dst_amount, initial_src_amount)
+        .ok_or(error::EscrowError::IntegerOverflow)?;
 
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
         result = result
-            .checked_mul(
-                BASE_1E5
-                    .checked_add(rate_bump)
-                    .ok_or(error::EscrowError::IntegerOverflow)?,
-            )
-            .ok_or(error::EscrowError::IntegerOverflow)?
-            .div_ceil(BASE_1E5);
+            .mul_div_ceil(BASE_1E5 + rate_bump, BASE_1E5)
+            .ok_or(error::EscrowError::IntegerOverflow)?;
     }
     Ok(result)
 }
@@ -589,13 +584,12 @@ fn get_fee_amounts(
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = min_dst_amount
-        .checked_mul(integrator_fee)
-        .ok_or(EscrowError::IntegerOverflow)?
-        / BASE_1E5;
+        .mul_div_floor(integrator_fee, BASE_1E5)
+        .ok_or(EscrowError::IntegerOverflow)?;
+
     let mut protocol_fee_amount = min_dst_amount
-        .checked_mul(protocol_fee)
-        .ok_or(EscrowError::IntegerOverflow)?
-        / BASE_1E5;
+        .mul_div_floor(protocol_fee, BASE_1E5)
+        .ok_or(EscrowError::IntegerOverflow)?;
 
     let actual_dst_amount = (min_dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
@@ -603,9 +597,8 @@ fn get_fee_amounts(
 
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
-            .checked_mul(surplus_percentage)
-            .ok_or(EscrowError::IntegerOverflow)?
-            / BASE_1E2;
+            .mul_div_floor(surplus_percentage, BASE_1E2)
+            .ok_or(EscrowError::IntegerOverflow)?;
     }
 
     Ok((
