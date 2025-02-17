@@ -276,8 +276,10 @@ export class TestState {
     escrowProgram,
     provider,
     payer,
-    srcMint,
-    dstMint,
+    srcMint = this.tokens[0],
+    dstMint = this.tokens[1],
+    protocolDstAta = null,
+    integratorDstAta = null,
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
   }: {
@@ -286,11 +288,11 @@ export class TestState {
     payer: anchor.web3.Keypair;
     srcMint?: anchor.web3.PublicKey;
     dstMint?: anchor.web3.PublicKey;
+    protocolDstAta?: anchor.web3.PublicKey;
+    integratorDstAta?: anchor.web3.PublicKey;
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
   }): Promise<Escrow> {
-    srcMint = srcMint ?? this.tokens[0];
-    dstMint = dstMint ?? this.tokens[1];
     orderConfig = { ...this.orderConfig(), ...orderConfig };
 
     // Derive escrow address
@@ -336,6 +338,8 @@ export class TestState {
         maker: this.alice.keypair.publicKey,
         srcMint,
         dstMint,
+        protocolDstAta,
+        integratorDstAta,
         escrow,
         srcTokenProgram,
       })
@@ -366,8 +370,6 @@ export class TestState {
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
-        protocolDstAta: null,
-        integratorDstAta: null,
         ...(params.fee ?? {}),
       },
     };

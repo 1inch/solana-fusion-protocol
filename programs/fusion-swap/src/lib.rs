@@ -53,16 +53,16 @@ pub mod fusion_swap {
         );
 
         if ((order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-            && order.fee.protocol_dst_ata.is_none())
+            && ctx.accounts.protocol_dst_ata.is_none())
             || (order.fee.protocol_fee == 0
                 && order.fee.surplus_percentage == 0
-                && order.fee.protocol_dst_ata.is_some())
+                && ctx.accounts.protocol_dst_ata.is_some())
         {
             return Err(EscrowError::InconsistentProtocolFeeConfig.into());
         }
 
-        if (order.fee.integrator_fee > 0 && order.fee.integrator_dst_ata.is_none())
-            || (order.fee.integrator_fee == 0 && order.fee.integrator_dst_ata.is_some())
+        if (order.fee.integrator_fee > 0 && ctx.accounts.integrator_dst_ata.is_none())
+            || (order.fee.integrator_fee == 0 && ctx.accounts.integrator_dst_ata.is_some())
         {
             return Err(EscrowError::InconsistentIntegratorFeeConfig.into());
         }
@@ -77,6 +77,12 @@ pub mod fusion_swap {
             native_dst_asset: order.native_dst_asset,
             receiver: order.receiver,
             fee: order.fee,
+            protocol_dst_ata: ctx.accounts.protocol_dst_ata.as_ref().map(|acc| acc.key()),
+            integrator_dst_ata: ctx
+                .accounts
+                .integrator_dst_ata
+                .as_ref()
+                .map(|acc| acc.key()),
             estimated_dst_amount: order.estimated_dst_amount,
             dutch_auction_data: order.dutch_auction_data,
         });
@@ -325,6 +331,16 @@ pub struct Create<'info> {
     )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    #[account(
+        constraint = protocol_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentProtocolFeeConfig
+    )]
+    protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+
+    #[account(
+        constraint = integrator_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentIntegratorFeeConfig
+    )]
+    integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+
     associated_token_program: Program<'info, AssociatedToken>,
     src_token_program: Interface<'info, TokenInterface>,
     system_program: Program<'info, System>,
@@ -392,13 +408,13 @@ pub struct Fill<'info> {
 
     #[account(
         mut,
-        constraint = Some(protocol_dst_ata.key()) == escrow.fee.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
+        constraint = Some(protocol_dst_ata.key()) == escrow.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
     )]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(
         mut,
-        constraint = Some(integrator_dst_ata.key()) == escrow.fee.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
+        constraint = Some(integrator_dst_ata.key()) == escrow.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
@@ -481,12 +497,6 @@ pub struct FeeConfig {
     /// Percentage of positive slippage taken by the protocol as an additional fee.
     /// Value in basis points where `BASE_1E2` = 100%
     surplus_percentage: u8,
-
-    /// Associated token account for collecting protocol fees
-    protocol_dst_ata: Option<Pubkey>,
-
-    /// Associated token account for collecting integrator fees
-    integrator_dst_ata: Option<Pubkey>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -535,6 +545,12 @@ pub struct Escrow {
 
     /// See {FeeConfig}
     fee: FeeConfig,
+
+    /// Associated token account for collecting protocol fees
+    protocol_dst_ata: Option<Pubkey>,
+
+    /// Associated token account for collecting integrator fees
+    integrator_dst_ata: Option<Pubkey>,
 
     /// Dutch auction parameters defining price adjustments over time
     dutch_auction_data: DutchAuctionData,

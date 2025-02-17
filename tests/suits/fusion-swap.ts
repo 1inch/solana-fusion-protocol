@@ -585,11 +585,11 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+        integratorDstAta: null,
         orderConfig: state.orderConfig({
           fee: {
             protocolFee: 10000, // 10%
-            protocolDstAta:
-              state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
       });
@@ -635,11 +635,12 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
+        protocolDstAta: null,
+        integratorDstAta:
+          state.charlie.atas[state.tokens[1].toString()].address,
         orderConfig: state.orderConfig({
           fee: {
             integratorFee: 15000, // 15%
-            integratorDstAta:
-              state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
       });
@@ -815,6 +816,8 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -835,6 +838,8 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -860,6 +865,8 @@ describe("Fusion Swap", () => {
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
+          protocolDstAta: null,
+          integratorDstAta: null,
           escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
@@ -873,6 +880,8 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -958,6 +967,8 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -966,16 +977,83 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: InvalidProtocolSurplusFee");
     });
 
+    it("Doesn't create escrow with protocol_dst_ata from different mint", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      await expect(
+        program.methods
+          .create(
+            state.orderConfig({
+              id: order_id,
+              fee: { protocolFee: 10000 }, // 10%
+            })
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            protocolDstAta:
+              state.charlie.atas[state.tokens[0].toString()].address,
+            integratorDstAta: null,
+            escrow: escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
+    });
+
+    it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
+      const order_id = state.increaseOrderID();
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(order_id, 4),
+        ],
+        program.programId
+      );
+
+      await expect(
+        program.methods
+          .create(
+            state.orderConfig({
+              id: order_id,
+              fee: { integratorFee: 10000 }, // 10%
+            })
+          )
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta:
+              state.charlie.atas[state.tokens[0].toString()].address,
+            escrow: escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
+    });
+
     it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
         orderConfig: state.orderConfig({
           fee: {
             protocolFee: 10000, // 10%
-            protocolDstAta:
-              state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
       });
@@ -1001,11 +1079,10 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
+        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
         orderConfig: state.orderConfig({
           fee: {
             protocolFee: 10000, // 10%
-            protocolDstAta:
-              state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
       });
@@ -1029,11 +1106,11 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
+        integratorDstAta:
+          state.charlie.atas[state.tokens[1].toString()].address,
         orderConfig: state.orderConfig({
           fee: {
             integratorFee: 10000, // 10%
-            integratorDstAta:
-              state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
       });
@@ -1059,11 +1136,11 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
+        integratorDstAta:
+          state.charlie.atas[state.tokens[1].toString()].address,
         orderConfig: state.orderConfig({
           fee: {
             integratorFee: 10000, // 10%
-            integratorDstAta:
-              state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
       });
@@ -1526,6 +1603,8 @@ describe("Fusion Swap", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })

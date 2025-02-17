@@ -261,11 +261,10 @@ describe("Dutch Auction", () => {
       escrowProgram: program,
       payer,
       provider: banksClient,
+      protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
       orderConfig: state.orderConfig({
         fee: {
           surplusPercentage: 50, // 50%
-          protocolDstAta:
-            state.charlie.atas[state.tokens[1].toString()].address,
         },
         dutchAuctionData: auction,
       }),
@@ -328,14 +327,13 @@ describe("Dutch Auction", () => {
       escrowProgram: program,
       payer,
       provider: banksClient,
+      protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
+      integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
       orderConfig: state.orderConfig({
         fee: {
           protocolFee: 10000, // 10%
           integratorFee: 15000, // 15%
           surplusPercentage: 50, // 50%
-          protocolDstAta:
-            state.charlie.atas[state.tokens[1].toString()].address,
-          integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
         },
         dutchAuctionData: auction,
       }),
