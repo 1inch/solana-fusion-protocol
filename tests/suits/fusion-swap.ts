@@ -140,13 +140,15 @@ describe("Fusion Swap", () => {
         payer
       );
 
-      const escrow = await state.initEscrow({
+      const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
-        srcAmount: amount,
-        dstAmount: amount,
-        estimatedDstAmount: amount,
+        escrowData: state.escrowData({
+          srcAmount: amount,
+          minDstAmount: amount,
+          estimatedDstAmount: amount,
+        }),
       });
 
       const transactionPromise = () =>
