@@ -114,18 +114,18 @@ pub mod fusion_swap {
         // Update src_remaining
         ctx.accounts.escrow.src_remaining -= amount;
 
-        let min_dst_amount = get_dst_amount(
+        let dst_amount = get_dst_amount(
             ctx.accounts.escrow.src_amount,
             ctx.accounts.escrow.min_dst_amount,
             amount,
             Some(&ctx.accounts.escrow.dutch_auction_data),
         )?;
 
-        let (protocol_fee_amount, integrator_fee_amount, actual_amount) = get_fee_amounts(
+        let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
             ctx.accounts.escrow.fee.integrator_fee as u64,
             ctx.accounts.escrow.fee.protocol_fee as u64,
             ctx.accounts.escrow.fee.surplus_percentage as u64,
-            min_dst_amount,
+            dst_amount,
             get_dst_amount(
                 ctx.accounts.escrow.src_amount,
                 ctx.accounts.escrow.estimated_dst_amount,
@@ -182,7 +182,7 @@ pub mod fusion_swap {
             let ix = anchor_lang::solana_program::system_instruction::transfer(
                 &ctx.accounts.taker.key(),
                 &ctx.accounts.maker_receiver.key(),
-                actual_amount,
+                maker_dst_amount,
             );
             anchor_lang::solana_program::program::invoke(
                 &ix,
@@ -209,7 +209,7 @@ pub mod fusion_swap {
                         authority: ctx.accounts.taker.to_account_info(),
                     },
                 ),
-                actual_amount,
+                maker_dst_amount,
             )?;
         }
 
@@ -563,8 +563,8 @@ fn get_dst_amount(
     src_amount: u64,
     opt_data: Option<&DutchAuctionData>,
 ) -> Result<u64> {
-    let mut result = src_amount
-        .mul_div_ceil(initial_dst_amount, initial_src_amount)
+    let mut result = initial_dst_amount
+        .mul_div_ceil(src_amount, initial_src_amount)
         .ok_or(error::EscrowError::IntegerOverflow)?;
 
     if let Some(data) = opt_data {
@@ -580,18 +580,18 @@ fn get_fee_amounts(
     integrator_fee: u64,
     protocol_fee: u64,
     surplus_percentage: u64,
-    min_dst_amount: u64,
+    dst_amount: u64,
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
-    let integrator_fee_amount = min_dst_amount
+    let integrator_fee_amount = dst_amount
         .mul_div_floor(integrator_fee, BASE_1E5)
         .ok_or(EscrowError::IntegerOverflow)?;
 
-    let mut protocol_fee_amount = min_dst_amount
+    let mut protocol_fee_amount = dst_amount
         .mul_div_floor(protocol_fee, BASE_1E5)
         .ok_or(EscrowError::IntegerOverflow)?;
 
-    let actual_dst_amount = (min_dst_amount - protocol_fee_amount)
+    let actual_dst_amount = (dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
         .ok_or(EscrowError::IntegerOverflow)?;
 
@@ -604,6 +604,6 @@ fn get_fee_amounts(
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        min_dst_amount - protocol_fee_amount - integrator_fee_amount,
+        dst_amount - protocol_fee_amount - integrator_fee_amount,
     ))
 }
