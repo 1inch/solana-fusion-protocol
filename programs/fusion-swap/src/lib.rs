@@ -578,13 +578,13 @@ fn get_dst_amount(
 ) -> Result<u64> {
     let mut result = initial_dst_amount
         .mul_div_ceil(src_amount, initial_src_amount)
-        .ok_or(error::EscrowError::IntegerOverflow)?;
+        .ok_or(ProgramError::ArithmeticOverflow)?;
 
     if let Some(data) = opt_data {
         let rate_bump = calculate_rate_bump(Clock::get()?.unix_timestamp as u64, data);
         result = result
             .mul_div_ceil(BASE_1E5 + rate_bump, BASE_1E5)
-            .ok_or(error::EscrowError::IntegerOverflow)?;
+            .ok_or(ProgramError::ArithmeticOverflow)?;
     }
     Ok(result)
 }
@@ -598,20 +598,20 @@ fn get_fee_amounts(
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = dst_amount
         .mul_div_floor(integrator_fee, BASE_1E5)
-        .ok_or(EscrowError::IntegerOverflow)?;
+        .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let mut protocol_fee_amount = dst_amount
         .mul_div_floor(protocol_fee, BASE_1E5)
-        .ok_or(EscrowError::IntegerOverflow)?;
+        .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let actual_dst_amount = (dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
-        .ok_or(EscrowError::IntegerOverflow)?;
+        .ok_or(ProgramError::ArithmeticOverflow)?;
 
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
             .mul_div_floor(surplus_percentage, BASE_1E2)
-            .ok_or(EscrowError::IntegerOverflow)?;
+            .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
     Ok((

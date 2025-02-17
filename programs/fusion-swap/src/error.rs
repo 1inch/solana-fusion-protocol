@@ -22,6 +22,4 @@ pub enum EscrowError {
     InconsistentProtocolFeeConfig,
     #[msg("Inconsistent integrator fee config")]
     InconsistentIntegratorFeeConfig,
-    #[msg("Integer overflow")]
-    IntegerOverflow,
 }
