@@ -23,27 +23,24 @@ async function cancel(
   program: Program<FusionSwap>,
   makerKeypair: Keypair,
   srcMint: PublicKey,
-  orderId: number,
+  orderHash: string,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<void> {
-  const escrow = findEscrowAddress(
-    program.programId,
-    makerKeypair.publicKey,
-    orderId
+  const orderHashBytes = Array.from(orderHash.match(/../g) || [], (h) =>
+    parseInt(h, 16)
   );
 
-  const cancelIx = await program.methods
-    .cancel(orderId)
+  const cancelTx = await program.methods
+    .cancel(orderHashBytes)
     .accountsPartial({
       maker: makerKeypair.publicKey,
       srcMint,
-      escrow,
       srcTokenProgram,
     })
     .signers([makerKeypair])
     .instruction();
 
-  const tx = new Transaction().add(cancelIx);
+  const tx = new Transaction().add(cancelTx);
 
   const signature = await sendAndConfirmTransaction(connection, tx, [
     makerKeypair,
@@ -54,7 +51,7 @@ async function cancel(
 async function main() {
   const clusterUrl = getClusterUrlEnv();
   const makerKeypairPath = prompt("Enter maker keypair path: ");
-  const orderId = Number(prompt("Enter order id: "));
+  const orderHash = prompt("Enter order hash: ");
 
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
@@ -65,20 +62,19 @@ async function main() {
     const escrowAddr = findEscrowAddress(
       fusionSwap.programId,
       makerKeypair.publicKey,
-      orderId
+      orderHash
     );
-    const escrowAccount = await fusionSwap.account.escrow.fetch(escrowAddr);
-    console.log(JSON.stringify(escrowAccount));
+    console.log(JSON.stringify(escrowAddr));
   } catch (e) {
     console.error(
-      `Escrow with order id = ${orderId} and maker = ${makerKeypair.publicKey.toString()} does not exist`
+      `Escrow with order hash = ${orderHash} and maker = ${makerKeypair.publicKey.toString()} does not exist`
     );
     return;
   }
 
   const srcMint = new PublicKey(prompt("Enter src mint public key: "));
 
-  await cancel(connection, fusionSwap, makerKeypair, srcMint, orderId);
+  await cancel(connection, fusionSwap, makerKeypair, srcMint, orderHash);
 }
 
 main();
