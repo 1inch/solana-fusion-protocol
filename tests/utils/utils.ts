@@ -6,6 +6,7 @@ import {
   PublicKey,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import { sha256 } from "@noble/hashes/sha256";
 import * as splBankrunToken from "spl-token-bankrun";
 import {
   AccountInfoBytes,
@@ -35,7 +36,7 @@ export type User = {
 
 export type Escrow = {
   escrow: anchor.web3.PublicKey;
-  order_id: number;
+  orderConfig: OrderConfig;
   ata: anchor.web3.PublicKey;
 };
 
@@ -276,37 +277,39 @@ export class TestState {
     escrowProgram,
     provider,
     payer,
-    srcMint = this.tokens[0],
-    dstMint = this.tokens[1],
-    protocolDstAta = null,
-    integratorDstAta = null,
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
-    srcMint?: anchor.web3.PublicKey;
-    dstMint?: anchor.web3.PublicKey;
-    protocolDstAta?: anchor.web3.PublicKey;
-    integratorDstAta?: anchor.web3.PublicKey;
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
   }): Promise<Escrow> {
-    orderConfig = { ...this.orderConfig(), ...orderConfig };
+    const defaultOrderConfig = this.orderConfig();
+    orderConfig = {
+      ...defaultOrderConfig,
+      ...orderConfig,
+      fee: {
+        ...defaultOrderConfig.fee,
+        ...((orderConfig ?? { fee: {} }).fee ?? {}),
+      },
+    };
+
+    const program = anchor.workspace.FusionSwap as anchor.Program<FusionSwap>;
 
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
-        numberToBuffer(this.order_id, 4),
+        sha256(program.coder.types.encode("orderConfig", orderConfig)),
       ],
       escrowProgram.programId
     );
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
-      srcMint,
+      orderConfig.srcMint,
       escrow,
       true,
       srcTokenProgram
@@ -314,7 +317,7 @@ export class TestState {
 
     if (provider instanceof anchor.AnchorProvider) {
       // TODO: research Bankrun native token support if needed
-      if (srcMint == splToken.NATIVE_MINT) {
+      if (orderConfig.srcMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
           amount: orderConfig.srcAmount,
           user: this.alice,
@@ -336,28 +339,26 @@ export class TestState {
       .create(orderConfig as OrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
-        srcMint,
-        dstMint,
-        protocolDstAta,
-        integratorDstAta,
+        srcMint: orderConfig.srcMint,
+        dstMint: orderConfig.dstMint,
+        protocolDstAta: orderConfig.fee.protocolDstAta,
+        integratorDstAta: orderConfig.fee.integratorDstAta,
         escrow,
         srcTokenProgram,
       })
       .signers([this.alice.keypair])
       .rpc();
 
-    return { escrow, order_id: this.increaseOrderID(), ata: escrowAta };
-  }
-
-  increaseOrderID(): number {
-    const order_id = this.order_id;
-    this.order_id = this.order_id + 1;
-    return order_id;
+    return {
+      escrow,
+      orderConfig,
+      ata: escrowAta,
+    };
   }
 
   orderConfig(params: Partial<OrderConfig> = {}): OrderConfig {
     return {
-      id: this.order_id,
+      id: this.order_id++,
       srcAmount: this.defaultSrcAmount,
       minDstAmount: this.defaultDstAmount,
       estimatedDstAmount: this.defaultDstAmount,
@@ -365,8 +366,12 @@ export class TestState {
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
+      srcMint: this.tokens[0],
+      dstMint: this.tokens[1],
       ...params,
       fee: {
+        protocolDstAta: null,
+        integratorDstAta: null,
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
