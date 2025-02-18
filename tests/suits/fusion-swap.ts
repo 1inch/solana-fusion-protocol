@@ -1775,6 +1775,16 @@ describe("Fusion Swap", () => {
 
   describe("Tests tx cost", () => {
     it("Calculate and print tx cost", async () => {
+      const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
+            [
+              anchor.utils.bytes.utf8.encode("escrow"),
+              state.alice.keypair.publicKey.toBuffer(),
+              numberToBuffer(state.order_id - 2, 4), // first order_id in test
+            ],
+            program.programId
+          );
+          console.log('bump', bump);
+
       const inst = await program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accountsPartial(state.buildAccountsDataForFill({}))

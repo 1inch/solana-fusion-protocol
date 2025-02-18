@@ -296,7 +296,7 @@ export class TestState {
     orderConfig = { ...this.orderConfig(), ...orderConfig };
 
     // Derive escrow address
-    const [escrow, bump] = anchor.web3.PublicKey.findProgramAddressSync(
+    const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
@@ -304,7 +304,6 @@ export class TestState {
       ],
       escrowProgram.programId
     );
-    console.log('bump', bump);
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
       srcMint,
