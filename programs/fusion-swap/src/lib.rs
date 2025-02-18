@@ -418,11 +418,6 @@ pub struct Fill<'info> {
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    // TODO initialize this account as well as 'maker_dst_ata'
-    // this needs providing receiver address and adding
-    // associated_token::mint = dst_mint,
-    // associated_token::authority = receiver
-    // constraint
     /// Taker's ATA of src_mint
     #[account(
         mut,
