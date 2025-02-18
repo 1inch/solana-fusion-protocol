@@ -13,13 +13,16 @@
     "new": "anchor new",
     "sync": "anchor keys sync",
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "debug": "DEBUG=1 anchor test"
+    "debug": "DEBUG=1 anchor test",
+    "deploy:fusion_swap": "anchor clean && anchor keys sync && anchor build && anchor deploy --program-name fusion-swap --provider.cluster ",
+    "deploy:whitelist": "anchor clean && anchor keys sync && anchor build && anchor deploy --program-name whitelist --provider.cluster "
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
     "@solana/spl-token": "^0.4.9",
     "anchor-bankrun": "^0.5.0",
     "borsh": "^2.0.0",
+    "prompt-sync": "^4.2.0",
     "solana-bankrun": "^0.4.0",
     "spl-token-bankrun": "^0.2.6",
     "tweetnacl": "^1.0.3"
