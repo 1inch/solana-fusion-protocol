@@ -52,20 +52,16 @@ pub mod fusion_swap {
             EscrowError::InvalidEstimatedTakingAmount
         );
 
-        if ((order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-            && ctx.accounts.protocol_dst_ata.is_none())
-            || (order.fee.protocol_fee == 0
-                && order.fee.surplus_percentage == 0
-                && ctx.accounts.protocol_dst_ata.is_some())
-        {
-            return Err(EscrowError::InconsistentProtocolFeeConfig.into());
-        }
+        require!(
+            (order.fee.protocol_fee == 0 && order.fee.surplus_percentage == 0)
+                == ctx.accounts.protocol_dst_ata.is_none(),
+            EscrowError::InconsistentProtocolFeeConfig
+        );
 
-        if (order.fee.integrator_fee > 0 && ctx.accounts.integrator_dst_ata.is_none())
-            || (order.fee.integrator_fee == 0 && ctx.accounts.integrator_dst_ata.is_some())
-        {
-            return Err(EscrowError::InconsistentIntegratorFeeConfig.into());
-        }
+        require!(
+            (order.fee.integrator_fee == 0) == ctx.accounts.integrator_dst_ata.is_none(),
+            EscrowError::InconsistentIntegratorFeeConfig
+        );
 
         let escrow = &mut ctx.accounts.escrow;
         escrow.set_inner(Escrow {
