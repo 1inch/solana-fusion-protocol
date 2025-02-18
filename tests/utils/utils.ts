@@ -376,6 +376,7 @@ export class TestState {
   }
 }
 
+let tokensCounter = 0;
 export async function createTokens(
   num: number,
   provider: anchor.AnchorProvider | BanksClient,
@@ -389,9 +390,9 @@ export async function createTokens(
       ? [splToken, provider.connection, [undefined, programId]]
       : [splBankrunToken, provider, [programId]];
 
-  for (let i = 0; i < num; ++i) {
+  for (let i = 0; i < num; ++i, ++tokensCounter) {
     const keypair = anchor.web3.Keypair.fromSeed(
-      new Uint8Array(32).fill(i + 101)
+      new Uint8Array(32).fill(tokensCounter + 101)
     );
     tokens.push(
       await tokenLibrary.createMint(
@@ -408,6 +409,7 @@ export async function createTokens(
   return tokens;
 }
 
+let usersCounter = 0;
 async function createUsers(
   num: number,
   tokens: Array<anchor.web3.PublicKey>,
@@ -415,8 +417,10 @@ async function createUsers(
   payer: anchor.web3.Keypair
 ): Promise<Array<User>> {
   let usersKeypairs: Array<anchor.web3.Keypair> = [];
-  for (let i = 0; i < num; ++i) {
-    const keypair = anchor.web3.Keypair.fromSeed(new Uint8Array(32).fill(i));
+  for (let i = 0; i < num; ++i, ++usersCounter) {
+    const keypair = anchor.web3.Keypair.fromSeed(
+      new Uint8Array(32).fill(usersCounter)
+    );
     usersKeypairs.push(keypair);
     if (provider instanceof anchor.AnchorProvider) {
       await provider.connection.requestAirdrop(
