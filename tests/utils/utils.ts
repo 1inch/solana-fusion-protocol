@@ -390,7 +390,9 @@ export async function createTokens(
       : [splBankrunToken, provider, [programId]];
 
   for (let i = 0; i < num; ++i) {
-    const keypair = anchor.web3.Keypair.fromSeed(new Uint8Array(32).fill(i + 101));
+    const keypair = anchor.web3.Keypair.fromSeed(
+      new Uint8Array(32).fill(i + 101)
+    );
     tokens.push(
       await tokenLibrary.createMint(
         connection,

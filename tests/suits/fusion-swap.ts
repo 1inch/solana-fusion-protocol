@@ -1776,28 +1776,36 @@ describe("Fusion Swap", () => {
   describe("Tests tx cost", () => {
     it("Calculate and print tx cost", async () => {
       const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
-            [
-              anchor.utils.bytes.utf8.encode("escrow"),
-              state.alice.keypair.publicKey.toBuffer(),
-              numberToBuffer(state.order_id - 2, 4), // first order_id in test
-            ],
-            program.programId
-          );
-          console.log('bump', bump);
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          numberToBuffer(state.order_id - 2, 4), // first order_id in test
+        ],
+        program.programId
+      );
+      console.log("bump", bump);
 
       const inst = await program.methods
         .fill(state.escrows[0].order_id, state.defaultSrcAmount)
         .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .instruction();
-      console.log('inst.data.length', inst.data.length + inst.keys.length * 32);
+      console.log("inst.data.length", inst.data.length + inst.keys.length * 32);
 
-      const computeUnits = await getSimulationComputeUnits(provider.connection, [inst], state.bob.keypair.publicKey, []);
-      console.log('computeUnits', computeUnits);
+      const computeUnits = await getSimulationComputeUnits(
+        provider.connection,
+        [inst],
+        state.bob.keypair.publicKey,
+        []
+      );
+      console.log("computeUnits", computeUnits);
 
       // calculate rent
-      const escrowRent = await provider.connection.getMinimumBalanceForRentExemption(escrowDataLength);
-      console.log('escrowRent', escrowRent);
+      const escrowRent =
+        await provider.connection.getMinimumBalanceForRentExemption(
+          escrowDataLength
+        );
+      console.log("escrowRent", escrowRent);
 
       // const tokenAccountRent = await provider.connection.getMinimumBalanceForRentExemption(splToken.AccountLayout.span);
       // console.log('tokenAccountRent', tokenAccountRent);
