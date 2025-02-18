@@ -238,7 +238,7 @@ pub mod fusion_swap {
         Ok(())
     }
 
-    pub fn cancel(ctx: Context<Cancel>, order: OrderConfig) -> Result<()> {
+    pub fn cancel(ctx: Context<Cancel>, order_hash: [u8; 32]) -> Result<()> {
         // return remaining src tokens back to maker
         transfer_checked(
             CpiContext::new_with_signer(
@@ -252,7 +252,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    &hash(order.try_to_vec()?.as_ref()).to_bytes(),
+                    &order_hash,
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -270,7 +270,7 @@ pub mod fusion_swap {
             &[&[
                 "escrow".as_bytes(),
                 ctx.accounts.maker.key().as_ref(),
-                &hash(order.try_to_vec()?.as_ref()).to_bytes(),
+                &order_hash,
                 &[ctx.bumps.escrow],
             ]],
         ))
@@ -441,7 +441,7 @@ pub struct Fill<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order: OrderConfig)]
+#[instruction(order_hash: [u8; 32])]
 pub struct Cancel<'info> {
     /// Account that created the escrow
     #[account(mut, signer)]
@@ -457,8 +457,7 @@ pub struct Cancel<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            // &hash(order.try_to_vec()?.as_ref()).to_bytes(),
-            &(|o: &OrderConfig| -> Result<[u8; 32]> { Ok(hash(o.try_to_vec()?.as_ref()).to_bytes()) })(&order)?,
+            &order_hash,
         ],
         bump,
     )]

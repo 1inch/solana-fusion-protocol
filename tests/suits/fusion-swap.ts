@@ -563,9 +563,13 @@ describe("Fusion Swap", () => {
           srcTokenProgram: tokenProgram,
         });
 
+        const orderHash = sha256(
+          program.coder.types.encode("orderConfig", escrow.orderConfig)
+        );
+
         const transactionPromise = () =>
           program.methods
-            .cancel(escrow.orderConfig)
+            .cancel(Array.from(orderHash))
             .accountsPartial({
               maker: state.alice.keypair.publicKey,
               srcMint,
@@ -1338,9 +1342,13 @@ describe("Fusion Swap", () => {
     });
 
     it("Cancel the trade", async () => {
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)
+      );
+
       const transactionPromise = () =>
         program.methods
-          .cancel(state.escrows[0].orderConfig)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1371,9 +1379,13 @@ describe("Fusion Swap", () => {
         },
       });
 
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", escrow.orderConfig)
+      );
+
       const transactionPromise = () =>
         program.methods
-          .cancel(escrow.orderConfig)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: splToken.NATIVE_MINT,
@@ -1395,9 +1407,13 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong order_id", async () => {
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", state.escrows[1].orderConfig)
+      );
+
       await expect(
         program.methods
-          .cancel(state.escrows[1].orderConfig)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1410,9 +1426,13 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong escrow ata", async () => {
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)
+      );
+
       await expect(
         program.methods
-          .cancel(state.escrows[0].orderConfig)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1426,9 +1446,13 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong maker", async () => {
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)
+      );
+
       await expect(
         program.methods
-          .cancel(state.escrows[0].orderConfig)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.charlie.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1506,10 +1530,14 @@ describe("Fusion Swap", () => {
         -BigInt(state.defaultDstAmount.divn(2).toNumber()),
       ]);
 
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", escrow.orderConfig)
+      );
+
       // Cancel the trade
       const transactionPromiseCancel = () =>
         program.methods
-          .cancel(escrow.orderConfig)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
