@@ -143,9 +143,9 @@ pub mod fusion_swap {
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
-            ctx.accounts.escrow.fee.integrator_fee as u64,
-            ctx.accounts.escrow.fee.protocol_fee as u64,
-            ctx.accounts.escrow.fee.surplus_percentage as u64,
+            ctx.accounts.escrow.fee.integrator_fee,
+            ctx.accounts.escrow.fee.protocol_fee,
+            ctx.accounts.escrow.fee.surplus_percentage,
             dst_amount,
             get_dst_amount(
                 ctx.accounts.escrow.src_amount,
@@ -591,31 +591,33 @@ fn get_dst_amount(
 }
 
 fn get_fee_amounts(
-    integrator_fee: u64,
-    protocol_fee: u64,
-    surplus_percentage: u64,
+    integrator_fee: u16,
+    protocol_fee: u16,
+    surplus_percentage: u8,
     dst_amount: u64,
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = dst_amount
-        .mul_div_floor(integrator_fee, BASE_1E5)
+        .mul_div_floor(integrator_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let mut protocol_fee_amount = dst_amount
-        .mul_div_floor(protocol_fee, BASE_1E5)
+        .mul_div_floor(protocol_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
-    // Here we know protocol_fee_amount and integrator_fee_amount are < dst_amount
-    // since the max value of u16, which is the type from which both are made,
-    // is less than BASE_1E5.
-    let actual_dst_amount = (dst_amount - protocol_fee_amount) // safe, for the reason above.
+    // sub is unchecked as we know that `protocol_fee_amount < dst_amount`
+    // since the max value of u16 is less than BASE_1E5.
+    let actual_dst_amount = (dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     if actual_dst_amount > estimated_dst_amount {
-        protocol_fee_amount += (actual_dst_amount - estimated_dst_amount) // safe, because of the
-            // `if` block we are in
-            .mul_div_floor(surplus_percentage, BASE_1E2)
+        // sub is unсhecked due to the `if` block we are in
+        // add is unchecked as initially we know `protocol_fee_amount < dst_amount - actual_dst_amount`
+        // which after addition becomes `protocol_fee_amount < dst_amount - estimated_dst_amount`
+        // as surplus_percentage is at most BASE_1E2
+        protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
+            .mul_div_floor(surplus_percentage as u64, BASE_1E2)
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
