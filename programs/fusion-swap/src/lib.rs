@@ -133,6 +133,7 @@ pub mod fusion_swap {
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
                     order_id.to_be_bytes().as_ref(),
+                    ctx.accounts.src_mint.key().as_ref(),
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -249,6 +250,7 @@ pub mod fusion_swap {
                 &ctx.accounts.escrow,
                 ctx.accounts.escrow_src_ata.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
+                ctx.accounts.src_mint.to_account_info(),
                 order_id,
                 ctx.bumps.escrow,
             )?;
@@ -272,6 +274,7 @@ pub mod fusion_swap {
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
                     order_id.to_be_bytes().as_ref(),
+                    ctx.accounts.src_mint.key().as_ref(),
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -284,6 +287,7 @@ pub mod fusion_swap {
             &ctx.accounts.escrow,
             ctx.accounts.escrow_src_ata.to_account_info(),
             ctx.accounts.maker.to_account_info(),
+            ctx.accounts.src_mint.to_account_info(),
             order_id,
             ctx.bumps.escrow,
         )
@@ -316,7 +320,7 @@ pub struct Create<'info> {
         init,
         payer = maker,
         space = DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref(), src_mint.key().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -371,7 +375,6 @@ pub struct Fill<'info> {
     maker_receiver: AccountInfo<'info>,
 
     /// Maker asset
-    // TODO: Add src_mint to escrow or seeds
     src_mint: Box<InterfaceAccount<'info, Mint>>,
     /// Taker asset
     #[account(
@@ -382,7 +385,7 @@ pub struct Fill<'info> {
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -453,13 +456,12 @@ pub struct Cancel<'info> {
     maker: Signer<'info>,
 
     /// Maker asset
-    // TODO: Add src_mint to escrow or seeds
     src_mint: InterfaceAccount<'info, Mint>,
 
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -534,7 +536,7 @@ pub struct Escrow {
     /// Estimated amount of `dst_mint` tokens the maker expects to receive.
     estimated_dst_amount: u64,
 
-    /// Unix timestamp indicating when the escrow expires   
+    /// Unix timestamp indicating when the escrow expires
     expiration_time: u32,
 
     /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
@@ -562,6 +564,7 @@ fn close_escrow<'info>(
     escrow: &Account<'info, Escrow>,
     escrow_src_ata: AccountInfo<'info>,
     maker: AccountInfo<'info>,
+    src_mint: AccountInfo<'info>,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
@@ -577,6 +580,7 @@ fn close_escrow<'info>(
             "escrow".as_bytes(),
             maker.key().as_ref(),
             order_id.to_be_bytes().as_ref(),
+            src_mint.key().as_ref(),
             &[escrow_bump],
         ]],
     ))?;

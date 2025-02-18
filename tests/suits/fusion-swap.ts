@@ -798,6 +798,7 @@ describe("Fusion Swap", () => {
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
+          state.tokens[0].toBuffer(),
         ],
         program.programId
       );
@@ -855,6 +856,7 @@ describe("Fusion Swap", () => {
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
+          state.tokens[0].toBuffer(),
         ],
         program.programId
       );
@@ -951,6 +953,7 @@ describe("Fusion Swap", () => {
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
+          state.tokens[0].toBuffer(),
         ],
         program.programId
       );
@@ -984,6 +987,7 @@ describe("Fusion Swap", () => {
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
+          state.tokens[0].toBuffer(),
         ],
         program.programId
       );
@@ -1018,6 +1022,7 @@ describe("Fusion Swap", () => {
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
+          state.tokens[0].toBuffer(),
         ],
         program.programId
       );
@@ -1587,6 +1592,7 @@ describe("Fusion Swap", () => {
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
+          state.tokens[0].toBuffer(),
         ],
         program.programId
       );
@@ -1689,7 +1695,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: ConstraintAssociated");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
   });
 

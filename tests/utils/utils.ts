@@ -301,6 +301,7 @@ export class TestState {
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
         numberToBuffer(this.order_id, 4),
+        srcMint.toBuffer(),
       ],
       escrowProgram.programId
     );
