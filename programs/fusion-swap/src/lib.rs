@@ -69,21 +69,20 @@ pub mod fusion_swap {
 
         let escrow = &mut ctx.accounts.escrow;
         escrow.set_inner(Escrow {
-            src_amount: order.src_amount,
             src_remaining: order.src_amount,
-            min_dst_amount: order.min_dst_amount,
-            expiration_time: order.expiration_time,
-            native_dst_asset: order.native_dst_asset,
-            receiver: order.receiver,
-            fee: order.fee,
-            protocol_dst_ata: ctx.accounts.protocol_dst_ata.as_ref().map(|acc| acc.key()),
-            integrator_dst_ata: ctx
-                .accounts
-                .integrator_dst_ata
-                .as_ref()
-                .map(|acc| acc.key()),
-            estimated_dst_amount: order.estimated_dst_amount,
-            dutch_auction_data: order.dutch_auction_data,
+            // min_dst_amount: order.min_dst_amount,
+            // expiration_time: order.expiration_time,
+            // native_dst_asset: order.native_dst_asset,
+            // receiver: order.receiver,
+            // fee: order.fee,
+            // protocol_dst_ata: ctx.accounts.protocol_dst_ata.as_ref().map(|acc| acc.key()),
+            // integrator_dst_ata: ctx
+            //     .accounts
+            //     .integrator_dst_ata
+            //     .as_ref()
+            //     .map(|acc| acc.key()),
+            // estimated_dst_amount: order.estimated_dst_amount,
+            // dutch_auction_data: order.dutch_auction_data,
         });
 
         // Maker => Escrow
@@ -97,14 +96,14 @@ pub mod fusion_swap {
                     authority: ctx.accounts.maker.to_account_info(),
                 },
             ),
-            escrow.src_amount,
+            order.src_amount,
             ctx.accounts.src_mint.decimals,
         )
     }
 
-    pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
+    pub fn fill(ctx: Context<Fill>, order: OrderConfig, amount: u64) -> Result<()> {
         require!(
-            Clock::get()?.unix_timestamp <= ctx.accounts.escrow.expiration_time as i64,
+            Clock::get()?.unix_timestamp <= order.expiration_time as i64,
             EscrowError::OrderExpired
         );
 
@@ -131,7 +130,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    order_id.to_be_bytes().as_ref(),
+                    order.id.to_be_bytes().as_ref(),
                     ctx.accounts.src_mint.key().as_ref(),
                     ctx.accounts.dst_mint.key().as_ref(),
                     &[ctx.bumps.escrow],
@@ -142,20 +141,20 @@ pub mod fusion_swap {
         )?;
 
         let dst_amount = get_dst_amount(
-            ctx.accounts.escrow.src_amount,
-            ctx.accounts.escrow.min_dst_amount,
+            order.src_amount,
+            order.min_dst_amount,
             amount,
-            Some(&ctx.accounts.escrow.dutch_auction_data),
+            Some(&order.dutch_auction_data),
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
-            ctx.accounts.escrow.fee.integrator_fee as u64,
-            ctx.accounts.escrow.fee.protocol_fee as u64,
-            ctx.accounts.escrow.fee.surplus_percentage as u64,
+            order.fee.integrator_fee as u64,
+            order.fee.protocol_fee as u64,
+            order.fee.surplus_percentage as u64,
             dst_amount,
             get_dst_amount(
-                ctx.accounts.escrow.src_amount,
-                ctx.accounts.escrow.estimated_dst_amount,
+                order.src_amount,
+                order.estimated_dst_amount,
                 amount,
                 None,
             )?,
@@ -208,7 +207,7 @@ pub mod fusion_swap {
         }
 
         // Taker => Maker
-        if ctx.accounts.escrow.native_dst_asset {
+        if order.native_dst_asset {
             // Transfer native SOL
             anchor_lang::system_program::transfer(
                 CpiContext::new(
@@ -252,7 +251,7 @@ pub mod fusion_swap {
                 ctx.accounts.maker.to_account_info(),
                 ctx.accounts.src_mint.to_account_info(),
                 ctx.accounts.dst_mint.key(),
-                order_id,
+                order.id,
                 ctx.bumps.escrow,
             )?;
         }
@@ -260,7 +259,13 @@ pub mod fusion_swap {
         Ok(())
     }
 
-    pub fn cancel(ctx: Context<Cancel>, order_id: u32, dst_mint_key: Pubkey) -> Result<()> {
+    pub fn cancel(
+        ctx: Context<Cancel>,
+        dst_mint_key: Pubkey,
+        order: OrderConfig,
+        protocol_dst_ata: Option<Pubkey>,
+        integrator_dst_ata: Option<Pubkey>,
+    ) -> Result<()> {
         // return remaining src tokens back to maker
         transfer_checked(
             CpiContext::new_with_signer(
@@ -274,7 +279,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    order_id.to_be_bytes().as_ref(),
+                    order.id.to_be_bytes().as_ref(),
                     ctx.accounts.src_mint.key().as_ref(),
                     dst_mint_key.as_ref(),
                     &[ctx.bumps.escrow],
@@ -291,7 +296,7 @@ pub mod fusion_swap {
             ctx.accounts.maker.to_account_info(),
             ctx.accounts.src_mint.to_account_info(),
             dst_mint_key,
-            order_id,
+            order.id,
             ctx.bumps.escrow,
         )
     }
@@ -323,7 +328,32 @@ pub struct Create<'info> {
         init,
         payer = maker,
         space = DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref(), src_mint.key().as_ref(), dst_mint.key().as_ref()],
+        seeds = [
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            order.id.to_be_bytes().as_ref(),
+            src_mint.key().as_ref(),
+            dst_mint.key().as_ref(),
+            order.src_amount.to_be_bytes().as_ref(),
+            order.min_dst_amount.to_be_bytes().as_ref(),
+            order.estimated_dst_amount.to_be_bytes().as_ref(),
+            order.expiration_time.to_be_bytes().as_ref(),
+            &[order.native_dst_asset as u8],
+            order.receiver.as_ref(),
+            order.fee.protocol_fee.to_be_bytes().as_ref(),
+            order.fee.integrator_fee.to_be_bytes().as_ref(),
+            order.fee.surplus_percentage.to_be_bytes().as_ref(),
+            order.dutch_auction_data.start_time.to_be_bytes().as_ref(),
+            order.dutch_auction_data.duration.to_be_bytes().as_ref(),
+            order.dutch_auction_data.initial_rate_bump.to_be_bytes().as_ref(),
+            // TODO: points?
+            if let Some(x) = protocol_dst_ata {
+                x.key().as_ref()
+            } else {
+                &[]
+            },
+            // integrator_dst_ata,
+        ],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -354,7 +384,7 @@ pub struct Create<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32)]
+#[instruction(order: OrderConfig)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]
@@ -373,7 +403,7 @@ pub struct Fill<'info> {
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
     #[account(
-        constraint = escrow.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
+        constraint = order.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
     )]
     maker_receiver: AccountInfo<'info>,
 
@@ -385,7 +415,28 @@ pub struct Fill<'info> {
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref(), dst_mint.key().as_ref()],
+        seeds = [
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            order.id.to_be_bytes().as_ref(),
+            src_mint.key().as_ref(),
+            dst_mint.key().as_ref(),
+            order.src_amount.to_be_bytes().as_ref(),
+            order.min_dst_amount.to_be_bytes().as_ref(),
+            order.estimated_dst_amount.to_be_bytes().as_ref(),
+            order.expiration_time.to_be_bytes().as_ref(),
+            &[order.native_dst_asset as u8],
+            order.receiver.as_ref(),
+            order.fee.protocol_fee.to_be_bytes().as_ref(),
+            order.fee.integrator_fee.to_be_bytes().as_ref(),
+            order.fee.surplus_percentage.to_be_bytes().as_ref(),
+            order.dutch_auction_data.start_time.to_be_bytes().as_ref(),
+            order.dutch_auction_data.duration.to_be_bytes().as_ref(),
+            order.dutch_auction_data.initial_rate_bump.to_be_bytes().as_ref(),
+            // TODO: points?
+            protocol_dst_ata,
+            integrator_dst_ata,
+        ],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -409,16 +460,8 @@ pub struct Fill<'info> {
     )]
     maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    #[account(
-        mut,
-        constraint = Some(protocol_dst_ata.key()) == escrow.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
-    )]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    #[account(
-        mut,
-        constraint = Some(integrator_dst_ata.key()) == escrow.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
-    )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     // TODO initialize this account as well as 'maker_dst_ata'
@@ -449,7 +492,7 @@ pub struct Fill<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32, dst_mint_key: Pubkey)]
+#[instruction(order: OrderConfig, dst_mint_key: Pubkey, protocol_dst_ata: Option<Pubkey>, integrator_dst_ata: Option<Pubkey>)]
 pub struct Cancel<'info> {
     /// Account that created the escrow
     #[account(mut, signer)]
@@ -461,7 +504,28 @@ pub struct Cancel<'info> {
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref(), dst_mint_key.as_ref()],
+        seeds = [
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            order.id.to_be_bytes().as_ref(),
+            src_mint.key().as_ref(),
+            dst_mint_key.as_ref(),
+            order.src_amount.to_be_bytes().as_ref(),
+            order.min_dst_amount.to_be_bytes().as_ref(),
+            order.estimated_dst_amount.to_be_bytes().as_ref(),
+            order.expiration_time.to_be_bytes().as_ref(),
+            &[order.native_dst_asset as u8],
+            order.receiver.as_ref(),
+            order.fee.protocol_fee.to_be_bytes().as_ref(),
+            order.fee.integrator_fee.to_be_bytes().as_ref(),
+            order.fee.surplus_percentage.to_be_bytes().as_ref(),
+            order.dutch_auction_data.start_time.to_be_bytes().as_ref(),
+            order.dutch_auction_data.duration.to_be_bytes().as_ref(),
+            order.dutch_auction_data.initial_rate_bump.to_be_bytes().as_ref(),
+            // TODO: points?
+            protocol_dst_ata,
+            integrator_dst_ata,
+        ],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -518,40 +582,40 @@ pub struct OrderConfig {
 #[account]
 #[derive(InitSpace)]
 pub struct Escrow {
-    /// Amount of `src_mint` tokens the maker is offering to sell
-    /// The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account.
-    src_amount: u64,
+    // /// Amount of `src_mint` tokens the maker is offering to sell
+    // /// The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account.
+    // src_amount: u64,
 
     /// Remaining amount of `src_mint` tokens available for fill
     /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value.
     src_remaining: u64,
 
-    /// Minimum amount of `dst_mint` tokens the maker wants to receive
-    min_dst_amount: u64,
+    // /// Minimum amount of `dst_mint` tokens the maker wants to receive
+    // min_dst_amount: u64,
 
-    /// Estimated amount of `dst_mint` tokens the maker expects to receive.
-    estimated_dst_amount: u64,
+    // /// Estimated amount of `dst_mint` tokens the maker expects to receive.
+    // estimated_dst_amount: u64,
 
-    /// Unix timestamp indicating when the escrow expires
-    expiration_time: u32,
+    // /// Unix timestamp indicating when the escrow expires
+    // expiration_time: u32,
 
-    /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
-    native_dst_asset: bool,
+    // /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
+    // native_dst_asset: bool,
 
-    /// The wallet which will receive the `dst_mint` tokens
-    receiver: Pubkey,
+    // /// The wallet which will receive the `dst_mint` tokens
+    // receiver: Pubkey,
 
-    /// See {FeeConfig}
-    fee: FeeConfig,
+    // /// See {FeeConfig}
+    // fee: FeeConfig,
 
-    /// Associated token account for collecting protocol fees
-    protocol_dst_ata: Option<Pubkey>,
+    // /// Associated token account for collecting protocol fees
+    // protocol_dst_ata: Option<Pubkey>,
 
-    /// Associated token account for collecting integrator fees
-    integrator_dst_ata: Option<Pubkey>,
+    // /// Associated token account for collecting integrator fees
+    // integrator_dst_ata: Option<Pubkey>,
 
-    /// Dutch auction parameters defining price adjustments over time
-    dutch_auction_data: DutchAuctionData,
+    // /// Dutch auction parameters defining price adjustments over time
+    // dutch_auction_data: DutchAuctionData,
 }
 
 // Function to close the escrow account
