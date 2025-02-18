@@ -111,12 +111,8 @@ pub mod fusion_swap {
         require!(amount != 0, EscrowError::InvalidAmount);
 
         // Update src_remaining
-        ctx.accounts.escrow.src_remaining = ctx
-            .accounts
-            .escrow
-            .src_remaining
-            .checked_sub(amount)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+        ctx.accounts.escrow.src_remaining -= amount; // safe since we check for amount <=
+                                                     // src_remaining above.
 
         // Escrow => Taker
         transfer_checked(
@@ -609,6 +605,8 @@ fn get_fee_amounts(
         .mul_div_floor(protocol_fee, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
+    // using checked arithemetic here as overflow appear to be possible,
+    // depending on the protocol_fee and integrator_fee values.
     let actual_dst_amount = (dst_amount
         .checked_sub(protocol_fee_amount)
         .ok_or(ProgramError::ArithmeticOverflow)?)
@@ -618,13 +616,16 @@ fn get_fee_amounts(
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount = protocol_fee_amount
             .checked_add(
-                (actual_dst_amount - estimated_dst_amount)
+                (actual_dst_amount - estimated_dst_amount) // safe, because of the `if` block we are
+                    // in.
                     .mul_div_floor(surplus_percentage, BASE_1E2)
                     .ok_or(ProgramError::ArithmeticOverflow)?,
             )
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
+    // using checked arithemetic here as overflow appear to be possible,
+    // depending on the protocol_fee and integrator_fee values.
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
