@@ -621,13 +621,9 @@ fn get_fee_amounts(
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
-    // using checked arithemetic here as overflow appear to be possible,
-    // depending on the protocol_fee and integrator_fee values.
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        (dst_amount - protocol_fee_amount)
-            .checked_sub(integrator_fee_amount)
-            .ok_or(ProgramError::ArithmeticOverflow)?,
+        dst_amount - protocol_fee_amount - integrator_fee_amount,
     ))
 }
