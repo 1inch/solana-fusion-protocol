@@ -302,6 +302,7 @@ export class TestState {
         this.alice.keypair.publicKey.toBuffer(),
         numberToBuffer(this.order_id, 4),
         srcMint.toBuffer(),
+        dstMint.toBuffer(),
       ],
       escrowProgram.programId
     );

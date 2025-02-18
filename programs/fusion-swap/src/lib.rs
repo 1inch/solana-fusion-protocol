@@ -71,7 +71,6 @@ pub mod fusion_swap {
         escrow.set_inner(Escrow {
             src_amount: order.src_amount,
             src_remaining: order.src_amount,
-            dst_mint: ctx.accounts.dst_mint.key(),
             min_dst_amount: order.min_dst_amount,
             expiration_time: order.expiration_time,
             native_dst_asset: order.native_dst_asset,
@@ -134,6 +133,7 @@ pub mod fusion_swap {
                     ctx.accounts.maker.key().as_ref(),
                     order_id.to_be_bytes().as_ref(),
                     ctx.accounts.src_mint.key().as_ref(),
+                    ctx.accounts.dst_mint.key().as_ref(),
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -251,6 +251,7 @@ pub mod fusion_swap {
                 ctx.accounts.escrow_src_ata.to_account_info(),
                 ctx.accounts.maker.to_account_info(),
                 ctx.accounts.src_mint.to_account_info(),
+                ctx.accounts.dst_mint.key(),
                 order_id,
                 ctx.bumps.escrow,
             )?;
@@ -259,7 +260,7 @@ pub mod fusion_swap {
         Ok(())
     }
 
-    pub fn cancel(ctx: Context<Cancel>, order_id: u32) -> Result<()> {
+    pub fn cancel(ctx: Context<Cancel>, order_id: u32, dst_mint_key: Pubkey) -> Result<()> {
         // return remaining src tokens back to maker
         transfer_checked(
             CpiContext::new_with_signer(
@@ -275,6 +276,7 @@ pub mod fusion_swap {
                     ctx.accounts.maker.key().as_ref(),
                     order_id.to_be_bytes().as_ref(),
                     ctx.accounts.src_mint.key().as_ref(),
+                    dst_mint_key.as_ref(),
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -288,6 +290,7 @@ pub mod fusion_swap {
             ctx.accounts.escrow_src_ata.to_account_info(),
             ctx.accounts.maker.to_account_info(),
             ctx.accounts.src_mint.to_account_info(),
+            dst_mint_key,
             order_id,
             ctx.bumps.escrow,
         )
@@ -320,7 +323,7 @@ pub struct Create<'info> {
         init,
         payer = maker,
         space = DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref(), src_mint.key().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref(), src_mint.key().as_ref(), dst_mint.key().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -377,15 +380,12 @@ pub struct Fill<'info> {
     /// Maker asset
     src_mint: Box<InterfaceAccount<'info, Mint>>,
     /// Taker asset
-    #[account(
-        constraint = escrow.dst_mint == dst_mint.key(),
-    )]
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref(), dst_mint.key().as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -449,7 +449,7 @@ pub struct Fill<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32)]
+#[instruction(order_id: u32, dst_mint_key: Pubkey)]
 pub struct Cancel<'info> {
     /// Account that created the escrow
     #[account(mut, signer)]
@@ -461,7 +461,7 @@ pub struct Cancel<'info> {
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref()],
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref(), src_mint.key().as_ref(), dst_mint_key.as_ref()],
         bump,
     )]
     escrow: Box<Account<'info, Escrow>>,
@@ -526,10 +526,6 @@ pub struct Escrow {
     /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value.
     src_remaining: u64,
 
-    /// The token that the maker wants to receive
-    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value.
-    dst_mint: Pubkey,
-
     /// Minimum amount of `dst_mint` tokens the maker wants to receive
     min_dst_amount: u64,
 
@@ -565,6 +561,7 @@ fn close_escrow<'info>(
     escrow_src_ata: AccountInfo<'info>,
     maker: AccountInfo<'info>,
     src_mint: AccountInfo<'info>,
+    dst_mint_key: Pubkey,
     order_id: u32,
     escrow_bump: u8,
 ) -> Result<()> {
@@ -581,6 +578,7 @@ fn close_escrow<'info>(
             maker.key().as_ref(),
             order_id.to_be_bytes().as_ref(),
             src_mint.key().as_ref(),
+            dst_mint_key.as_ref(),
             &[escrow_bump],
         ]],
     ))?;

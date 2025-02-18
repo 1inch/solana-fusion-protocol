@@ -553,7 +553,10 @@ describe("Fusion Swap", () => {
 
         const transactionPromise = () =>
           program.methods
-            .cancel(escrow.order_id)
+            .cancel(
+              escrow.order_id,
+              state.tokens[1],
+            )
             .accountsPartial({
               maker: state.alice.keypair.publicKey,
               srcMint,
@@ -799,6 +802,7 @@ describe("Fusion Swap", () => {
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
           state.tokens[0].toBuffer(),
+          state.tokens[1].toBuffer(),
         ],
         program.programId
       );
@@ -857,6 +861,7 @@ describe("Fusion Swap", () => {
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
           state.tokens[0].toBuffer(),
+          state.tokens[1].toBuffer(),
         ],
         program.programId
       );
@@ -954,6 +959,7 @@ describe("Fusion Swap", () => {
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
           state.tokens[0].toBuffer(),
+          state.tokens[1].toBuffer(),
         ],
         program.programId
       );
@@ -988,6 +994,7 @@ describe("Fusion Swap", () => {
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
           state.tokens[0].toBuffer(),
+          state.tokens[1].toBuffer(),
         ],
         program.programId
       );
@@ -1023,6 +1030,7 @@ describe("Fusion Swap", () => {
           state.alice.keypair.publicKey.toBuffer(),
           numberToBuffer(order_id, 4),
           state.tokens[0].toBuffer(),
+          state.tokens[1].toBuffer(),
         ],
         program.programId
       );
@@ -1329,7 +1337,10 @@ describe("Fusion Swap", () => {
     it("Cancel the trade", async () => {
       const transactionPromise = () =>
         program.methods
-          .cancel(state.escrows[0].order_id)
+          .cancel(
+            state.escrows[0].order_id,
+            state.tokens[1],
+          )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1360,7 +1371,10 @@ describe("Fusion Swap", () => {
 
       const transactionPromise = () =>
         program.methods
-          .cancel(escrow.order_id)
+          .cancel(
+            escrow.order_id,
+            state.tokens[1],
+          )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: splToken.NATIVE_MINT,
@@ -1384,7 +1398,10 @@ describe("Fusion Swap", () => {
     it("Doesn't cancel the trade with the wrong order_id", async () => {
       await expect(
         program.methods
-          .cancel(state.escrows[1].order_id)
+          .cancel(
+            state.escrows[1].order_id,
+            state.tokens[1],
+          )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1399,7 +1416,10 @@ describe("Fusion Swap", () => {
     it("Doesn't cancel the trade with the wrong escrow ata", async () => {
       await expect(
         program.methods
-          .cancel(state.escrows[0].order_id)
+          .cancel(
+            state.escrows[0].order_id,
+            state.tokens[1],
+          )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1415,7 +1435,10 @@ describe("Fusion Swap", () => {
     it("Doesn't cancel the trade with the wrong maker", async () => {
       await expect(
         program.methods
-          .cancel(state.escrows[0].order_id)
+          .cancel(
+            state.escrows[0].order_id,
+            state.tokens[1],
+          )
           .accountsPartial({
             maker: state.charlie.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1496,7 +1519,10 @@ describe("Fusion Swap", () => {
       // Cancel the trade
       const transactionPromiseCancel = () =>
         program.methods
-          .cancel(escrow.order_id)
+          .cancel(
+            escrow.order_id,
+            state.tokens[1],
+          )
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1616,7 +1642,7 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentNativeDstTrait.");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Execute the trade and transfer wSOL if native_dst_asset = false and native dst mint is provided", async () => {
