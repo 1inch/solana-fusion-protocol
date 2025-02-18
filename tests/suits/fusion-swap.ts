@@ -4,6 +4,7 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
+import { getSimulationComputeUnits } from "@solana-developers/helpers";
 import {
   TestState,
   createTokens,
@@ -28,6 +29,22 @@ describe("Fusion Swap", () => {
 
   const payer = (provider.wallet as NodeWallet).payer;
   debugLog(`Payer ::`, payer.publicKey.toString());
+
+  const escrowDataLength =
+    8 + // Anchor discriminator
+    32 + // dst_mint
+    8 + // dst_amount
+    8 + // src_amount
+    8 + // src_remaining
+    4 + // expiration_time
+    1 + // traits
+    32 + // receiver
+    2 + // protocol_fee
+    33 + // protocol_dst_ata
+    2 + // integrator_fee
+    33 + // integrator_dst_ata
+    1 + // surplus_percentage
+    8; // estimated_dst_amount
 
   let state: TestState;
 
@@ -1753,6 +1770,27 @@ describe("Fusion Swap", () => {
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
+    });
+  });
+
+  describe("Tests tx cost", () => {
+    it("Calculate and print tx cost", async () => {
+      const inst = await program.methods
+        .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+        .accountsPartial(state.buildAccountsDataForFill({}))
+        .signers([state.bob.keypair])
+        .instruction();
+      console.log('inst.data.length', inst.data.length + inst.keys.length * 32);
+
+      const computeUnits = await getSimulationComputeUnits(provider.connection, [inst], state.bob.keypair.publicKey, []);
+      console.log('computeUnits', computeUnits);
+
+      // calculate rent
+      const escrowRent = await provider.connection.getMinimumBalanceForRentExemption(escrowDataLength);
+      console.log('escrowRent', escrowRent);
+
+      // const tokenAccountRent = await provider.connection.getMinimumBalanceForRentExemption(splToken.AccountLayout.span);
+      // console.log('tokenAccountRent', tokenAccountRent);
     });
   });
 });

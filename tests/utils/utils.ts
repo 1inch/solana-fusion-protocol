@@ -296,7 +296,7 @@ export class TestState {
     orderConfig = { ...this.orderConfig(), ...orderConfig };
 
     // Derive escrow address
-    const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+    const [escrow, bump] = anchor.web3.PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
@@ -304,6 +304,7 @@ export class TestState {
       ],
       escrowProgram.programId
     );
+    console.log('bump', bump);
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
       srcMint,
@@ -390,6 +391,7 @@ export async function createTokens(
       : [splBankrunToken, provider, [programId]];
 
   for (let i = 0; i < num; ++i) {
+    const keypair = anchor.web3.Keypair.fromSeed(new Uint8Array(32).fill(i + 101));
     tokens.push(
       await tokenLibrary.createMint(
         connection,
@@ -397,7 +399,7 @@ export async function createTokens(
         payer.publicKey,
         null,
         6,
-        undefined,
+        keypair,
         ...extraArgs
       )
     );
@@ -413,7 +415,7 @@ async function createUsers(
 ): Promise<Array<User>> {
   let usersKeypairs: Array<anchor.web3.Keypair> = [];
   for (let i = 0; i < num; ++i) {
-    const keypair = anchor.web3.Keypair.generate();
+    const keypair = anchor.web3.Keypair.fromSeed(new Uint8Array(32).fill(i));
     usersKeypairs.push(keypair);
     if (provider instanceof anchor.AnchorProvider) {
       await provider.connection.requestAirdrop(
