@@ -626,8 +626,9 @@ fn get_fee_amounts(
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        (dst_amount - protocol_fee_amount)
-            .checked_sub(integrator_fee_amount)
+        (dst_amount - integrator_fee_amount) // Safe, due to how integrator_fee_amount is computed
+            // and integrator_fee < BASE_1E5
+            .checked_sub(protocol_fee_amount)
             .ok_or(ProgramError::ArithmeticOverflow)?,
     ))
 }
