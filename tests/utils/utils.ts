@@ -286,15 +286,7 @@ export class TestState {
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
   }): Promise<Escrow> {
-    const defaultOrderConfig = this.orderConfig();
-    orderConfig = {
-      ...defaultOrderConfig,
-      ...orderConfig,
-      fee: {
-        ...defaultOrderConfig.fee,
-        ...((orderConfig ?? { fee: {} }).fee ?? {}),
-      },
-    };
+    orderConfig = this.orderConfig(orderConfig);
 
     const program = anchor.workspace.FusionSwap as anchor.Program<FusionSwap>;
 

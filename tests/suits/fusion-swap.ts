@@ -605,7 +605,6 @@ describe("Fusion Swap", () => {
           fee: {
             protocolDstAta:
               state.charlie.atas[state.tokens[1].toString()].address,
-            integratorDstAta: null,
             protocolFee: 10000, // 10%
           },
         },
@@ -654,7 +653,6 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta: null,
             integratorDstAta:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 15000, // 15%
