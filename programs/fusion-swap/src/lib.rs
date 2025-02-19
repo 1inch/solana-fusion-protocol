@@ -112,7 +112,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    &hash(order.try_to_vec()?.as_ref()).to_bytes(),
+                    &order_hash(&order)?,
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -229,7 +229,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    &hash(order.try_to_vec()?.as_ref()).to_bytes(),
+                    &order_hash(&order)?,
                     &[ctx.bumps.escrow],
                 ]],
             ))?;
@@ -303,8 +303,7 @@ pub struct Create<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            // &hash(order.try_to_vec()?.as_ref()).to_bytes(),
-            &(|o: &OrderConfig| -> Result<[u8; 32]> { Ok(hash(o.try_to_vec()?.as_ref()).to_bytes()) })(&order)?,
+            &order_hash(&order)?,
         ],
         bump,
     )]
@@ -374,8 +373,7 @@ pub struct Fill<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            // &hash(order.try_to_vec()?.as_ref()).to_bytes(),
-            &(|o: &OrderConfig| -> Result<[u8; 32]> { Ok(hash(o.try_to_vec()?.as_ref()).to_bytes()) })(&order)?,
+            &order_hash(&order)?,
         ],
         bump,
     )]
@@ -515,6 +513,10 @@ pub struct OrderConfig {
     dutch_auction_data: DutchAuctionData,
     src_mint: Pubkey,
     dst_mint: Pubkey,
+}
+
+fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
+    Ok(hash(order.try_to_vec()?.as_ref()).to_bytes())
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
