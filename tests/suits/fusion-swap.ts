@@ -4,7 +4,10 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { getSimulationComputeUnits } from "@solana-developers/helpers";
+import {
+  sendAndConfirmTransaction,
+  Transaction,
+} from "@solana/web3.js";
 import {
   TestState,
   createTokens,
@@ -14,6 +17,8 @@ import {
   mintTokens,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
+  getInstractionCost,
+  waitForNewBlock,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
 import { sha256 } from "@noble/hashes/sha256";
@@ -1805,30 +1810,70 @@ describe("Fusion Swap", () => {
 
   describe("Tests tx cost", () => {
     it.only("Calculate and print tx cost", async () => {
+      // create new escrow
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+      });
+
+      // get bump
       const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
-            [
-              anchor.utils.bytes.utf8.encode("escrow"),
-              state.alice.keypair.publicKey.toBuffer(),
-              sha256(program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)),
-            ],
-            program.programId
-          );
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          sha256(program.coder.types.encode("orderConfig", escrow.orderConfig)),
+        ],
+        program.programId
+      );
       console.log("bump", bump);
 
-      const inst = await program.methods
-        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
-        .accountsPartial(state.buildAccountsDataForFill({}))
+      // create instruction
+      const createTxData = await getInstractionCost(escrow.inst, provider.connection, state.alice.keypair.publicKey);
+      console.log("inst.data.length Create", createTxData.length);
+      console.log("computeUnits Create", createTxData.computeUnits);
+
+      const txCreate = new Transaction().add(escrow.inst);
+      await sendAndConfirmTransaction(provider.connection, txCreate, [state.alice.keypair]);
+      await waitForNewBlock(provider.connection, 1);
+
+      // fill instruction
+      const instFill = await program.methods
+        .fill(escrow.orderConfig, state.defaultSrcAmount)
+        .accountsPartial(state.buildAccountsDataForFill({
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+        }))
         .signers([state.bob.keypair])
         .instruction();
-      console.log("inst.data.length", inst.data.length + inst.keys.length * 32);
 
-      const computeUnits = await getSimulationComputeUnits(
-        provider.connection,
-        [inst],
-        state.bob.keypair.publicKey,
-        []
+      const fillTxData = await getInstractionCost(instFill, provider.connection, state.bob.keypair.publicKey);
+      console.log("inst.data.length Fill", fillTxData.length);
+      console.log("computeUnits Fill", fillTxData.computeUnits);
+
+      // cancel instruction
+      const orderHash = sha256(
+        program.coder.types.encode("orderConfig", escrow.orderConfig)
       );
-      console.log("computeUnits", computeUnits);
+      const instCancel = await program.methods
+      .cancel(Array.from(orderHash))
+      .accountsPartial({
+        maker: state.alice.keypair.publicKey,
+        srcMint: state.tokens[0],
+        escrow: escrow.escrow,
+        srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+      })
+      .signers([state.alice.keypair])
+      .instruction();
+
+      const cancelTxData = await getInstractionCost(instCancel, provider.connection, state.alice.keypair.publicKey);
+      console.log("inst.data.length Cancel", cancelTxData.length);
+      console.log("computeUnits Cancel", cancelTxData.computeUnits);
+
+      // calculate rent
+      const ataRent = await provider.connection.getMinimumBalanceForRentExemption(splToken.AccountLayout.span);
+      console.log('tokenAccountRent', ataRent);
+
     });
   });
 });
