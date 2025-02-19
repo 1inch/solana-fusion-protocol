@@ -107,7 +107,7 @@ export class TestState {
   order_id = 0;
   defaultSrcAmount = new anchor.BN(100);
   defaultDstAmount = new anchor.BN(30);
-  defaultExpirationTime = ~~(new Date().getTime() / 1000) + 86400; // now + 1 day
+  defaultExpirationTime = 0xffffffff; // ~~(new Date().getTime() / 1000) + 86400; // now + 1 day
   auction = {
     startTime: 0xffffffff - 32000, // default auction start in the far far future and order use default formula
     duration: 32000,
@@ -373,6 +373,7 @@ export class TestState {
   }
 }
 
+let tokensCounter = 0;
 export async function createTokens(
   num: number,
   provider: anchor.AnchorProvider | BanksClient,
@@ -386,7 +387,10 @@ export async function createTokens(
       ? [splToken, provider.connection, [undefined, programId]]
       : [splBankrunToken, provider, [programId]];
 
-  for (let i = 0; i < num; ++i) {
+  for (let i = 0; i < num; ++i, ++tokensCounter) {
+    const keypair = anchor.web3.Keypair.fromSeed(
+      new Uint8Array(32).fill(tokensCounter + 101)
+    );
     tokens.push(
       await tokenLibrary.createMint(
         connection,
@@ -394,7 +398,7 @@ export async function createTokens(
         payer.publicKey,
         null,
         6,
-        undefined,
+        keypair,
         ...extraArgs
       )
     );
@@ -402,6 +406,7 @@ export async function createTokens(
   return tokens;
 }
 
+let usersCounter = 0;
 async function createUsers(
   num: number,
   tokens: Array<anchor.web3.PublicKey>,
@@ -409,8 +414,10 @@ async function createUsers(
   payer: anchor.web3.Keypair
 ): Promise<Array<User>> {
   let usersKeypairs: Array<anchor.web3.Keypair> = [];
-  for (let i = 0; i < num; ++i) {
-    const keypair = anchor.web3.Keypair.generate();
+  for (let i = 0; i < num; ++i, ++usersCounter) {
+    const keypair = anchor.web3.Keypair.fromSeed(
+      new Uint8Array(32).fill(usersCounter)
+    );
     usersKeypairs.push(keypair);
     if (provider instanceof anchor.AnchorProvider) {
       await provider.connection.requestAirdrop(

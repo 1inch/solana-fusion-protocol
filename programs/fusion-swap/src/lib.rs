@@ -113,7 +113,7 @@ pub mod fusion_swap {
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
                     &order_hash(&order)?,
-                    &[ctx.bumps.escrow],
+                    &[251],
                 ]],
             ),
             amount,
@@ -230,7 +230,7 @@ pub mod fusion_swap {
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
                     &order_hash(&order)?,
-                    &[ctx.bumps.escrow],
+                    &[251],
                 ]],
             ))?;
         }
@@ -253,7 +253,7 @@ pub mod fusion_swap {
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
                     &order_hash,
-                    &[ctx.bumps.escrow],
+                    &[251],
                 ]],
             ),
             ctx.accounts.escrow_src_ata.amount,
@@ -271,7 +271,7 @@ pub mod fusion_swap {
                 "escrow".as_bytes(),
                 ctx.accounts.maker.key().as_ref(),
                 &order_hash,
-                &[ctx.bumps.escrow],
+                &[251],
             ]],
         ))
     }
@@ -375,7 +375,7 @@ pub struct Fill<'info> {
             maker.key().as_ref(),
             &order_hash(&order)?,
         ],
-        bump,
+        bump = 251,
     )]
     /// CHECK: skip
     escrow: AccountInfo<'info>,
@@ -457,7 +457,7 @@ pub struct Cancel<'info> {
             maker.key().as_ref(),
             &order_hash,
         ],
-        bump,
+        bump = 251,
     )]
     /// CHECK: skip
     escrow: AccountInfo<'info>,

@@ -4,6 +4,7 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
+import { getSimulationComputeUnits } from "@solana-developers/helpers";
 import {
   TestState,
   createTokens,
@@ -1799,6 +1800,35 @@ describe("Fusion Swap", () => {
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
+    });
+  });
+
+  describe("Tests tx cost", () => {
+    it.only("Calculate and print tx cost", async () => {
+      const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
+            [
+              anchor.utils.bytes.utf8.encode("escrow"),
+              state.alice.keypair.publicKey.toBuffer(),
+              sha256(program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)),
+            ],
+            program.programId
+          );
+      console.log("bump", bump);
+
+      const inst = await program.methods
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
+        .accountsPartial(state.buildAccountsDataForFill({}))
+        .signers([state.bob.keypair])
+        .instruction();
+      console.log("inst.data.length", inst.data.length + inst.keys.length * 32);
+
+      const computeUnits = await getSimulationComputeUnits(
+        provider.connection,
+        [inst],
+        state.bob.keypair.publicKey,
+        []
+      );
+      console.log("computeUnits", computeUnits);
     });
   });
 });
