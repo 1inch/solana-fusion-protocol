@@ -52,14 +52,16 @@ pub mod fusion_swap {
             EscrowError::InvalidEstimatedTakingAmount
         );
 
+        // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
         require!(
-            (order.fee.protocol_fee == 0 && order.fee.surplus_percentage == 0)
-                == ctx.accounts.protocol_dst_ata.is_none(),
+            (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
+                == ctx.accounts.protocol_dst_ata.is_some(),
             EscrowError::InconsistentProtocolFeeConfig
         );
 
+        // Iff integrator fee is positive, integrator_dst_ata must be set
         require!(
-            (order.fee.integrator_fee == 0) == ctx.accounts.integrator_dst_ata.is_none(),
+            (order.fee.integrator_fee > 0) == ctx.accounts.integrator_dst_ata.is_some(),
             EscrowError::InconsistentIntegratorFeeConfig
         );
 
