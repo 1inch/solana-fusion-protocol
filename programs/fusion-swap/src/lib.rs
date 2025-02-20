@@ -286,6 +286,72 @@ pub mod fusion_swap {
             ctx.bumps.escrow,
         )
     }
+
+    pub fn cancel_by_resolver(ctx: Context<CancelByResolver>, order_id: u32) -> Result<()> {
+        require!(
+            Clock::get()?.unix_timestamp >= ctx.accounts.escrow.expiration_time as i64,
+            EscrowError::OrderNotExpired
+        );
+
+        let cancellation_fee = ctx.accounts.escrow.fee.cancellation_fee as u64;
+        let resolver_amount = ctx
+            .accounts
+            .escrow
+            .src_remaining
+            .mul_div_floor(cancellation_fee, BASE_1E5)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+
+        // Transfer cancellation fee to resolver
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.src_token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.escrow_src_ata.to_account_info(),
+                    mint: ctx.accounts.src_mint.to_account_info(),
+                    to: ctx.accounts.resolver_src_ata.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                &[&[
+                    "escrow".as_bytes(),
+                    ctx.accounts.maker.key().as_ref(),
+                    order_id.to_be_bytes().as_ref(),
+                    &[ctx.bumps.escrow],
+                ]],
+            ),
+            resolver_amount,
+            ctx.accounts.src_mint.decimals,
+        )?;
+
+        // Return the remaining src tokens back to the maker
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.src_token_program.to_account_info(),
+                TransferChecked {
+                    from: ctx.accounts.escrow_src_ata.to_account_info(),
+                    mint: ctx.accounts.src_mint.to_account_info(),
+                    to: ctx.accounts.maker_src_ata.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                &[&[
+                    "escrow".as_bytes(),
+                    ctx.accounts.maker.key().as_ref(),
+                    order_id.to_be_bytes().as_ref(),
+                    &[ctx.bumps.escrow],
+                ]],
+            ),
+            ctx.accounts.escrow_src_ata.amount - resolver_amount,
+            ctx.accounts.src_mint.decimals,
+        )?;
+
+        close_escrow(
+            ctx.accounts.src_token_program.to_account_info(),
+            &ctx.accounts.escrow,
+            ctx.accounts.escrow_src_ata.to_account_info(),
+            ctx.accounts.maker.to_account_info(),
+            order_id,
+            ctx.bumps.escrow,
+        )
+    }
 }
 
 #[derive(Accounts)]
@@ -478,6 +544,66 @@ pub struct Cancel<'info> {
     src_token_program: Interface<'info, TokenInterface>,
 }
 
+#[derive(Accounts)]
+#[instruction(order_id: u32)]
+pub struct CancelByResolver<'info> {
+    /// Account that cancels the escrow
+    #[account(mut, signer)]
+    resolver: Signer<'info>,
+
+    /// Account allowed to cancel the order
+    #[account(
+        seeds = [whitelist::RESOLVER_ACCESS_SEED, resolver.key().as_ref()],
+        bump,
+        seeds::program = whitelist::ID,
+    )]
+    resolver_access: Account<'info, whitelist::ResolverAccess>,
+
+    /// CHECK: check is not necessary as maker is not spending any funds
+    #[account(mut)]
+    maker: AccountInfo<'info>,
+
+    /// Maker asset
+    src_mint: InterfaceAccount<'info, Mint>,
+
+    /// Account to store order conditions
+    #[account(
+        mut,
+        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        bump,
+    )]
+    escrow: Box<Account<'info, Escrow>>,
+
+    /// ATA of src_mint to store escrowed tokens
+    #[account(
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
+    )]
+    escrow_src_ata: InterfaceAccount<'info, TokenAccount>,
+
+    /// Maker's ATA of src_mint
+    #[account(
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
+    )]
+    maker_src_ata: InterfaceAccount<'info, TokenAccount>,
+
+    /// Resolver's ATA of src_mint
+    #[account(
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = resolver,
+        associated_token::token_program = src_token_program,
+    )]
+    resolver_src_ata: InterfaceAccount<'info, TokenAccount>,
+
+    src_token_program: Interface<'info, TokenInterface>,
+}
+
 /// Configuration for fees applied to the escrow
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct FeeConfig {
@@ -490,6 +616,10 @@ pub struct FeeConfig {
     /// Percentage of positive slippage taken by the protocol as an additional fee.
     /// Value in basis points where `BASE_1E2` = 100%
     surplus_percentage: u8,
+
+    /// Fee charged to the maker if the order is cancelled by resolver
+    /// Value in basis points where `BASE_1E5` = 100%
+    cancellation_fee: u16,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
