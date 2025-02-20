@@ -25,7 +25,9 @@ describe.skip("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = new Program(FUSION_SWAP_NATIVE_IDL as FusionSwapNative, { connection: provider.connection });
+  const program = new Program(FUSION_SWAP_NATIVE_IDL as FusionSwapNative, {
+    connection: provider.connection,
+  });
   const whitelistProgram = anchor.workspace
     .Whitelist as anchor.Program<Whitelist>;
 
@@ -54,13 +56,17 @@ describe.skip("Fusion Swap Native", () => {
 
   describe("Single escrow", () => {
     it("Execute the trade", async () => {
-      const transactionPromise = () => 
+      const transactionPromise = () =>
         program.methods
           .fill(state.escrows[0].order_id, state.defaultSrcAmount)
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -105,7 +111,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -169,7 +179,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -222,7 +236,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -259,7 +277,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintTokenMint");
     });
 
@@ -285,7 +307,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -331,7 +357,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -424,7 +454,11 @@ describe.skip("Fusion Swap Native", () => {
             })
             .signers([state.bob.keypair])
             .transaction()
-            .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+            .then((tx) =>
+              sendAndConfirmTransaction(provider.connection, tx, [
+                state.bob.keypair,
+              ])
+            );
 
         const results = await trackReceivedTokenAndTx(
           provider.connection,
@@ -473,7 +507,11 @@ describe.skip("Fusion Swap Native", () => {
             })
             .signers([state.bob.keypair])
             .transaction()
-            .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+            .then((tx) =>
+              sendAndConfirmTransaction(provider.connection, tx, [
+                state.bob.keypair,
+              ])
+            );
 
         const results = await trackReceivedTokenAndTx(
           provider.connection,
@@ -533,7 +571,11 @@ describe.skip("Fusion Swap Native", () => {
             })
             .signers([state.bob.keypair])
             .transaction()
-            .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+            .then((tx) =>
+              sendAndConfirmTransaction(provider.connection, tx, [
+                state.bob.keypair,
+              ])
+            );
 
         const results = await trackReceivedTokenAndTx(
           provider.connection,
@@ -575,7 +617,11 @@ describe.skip("Fusion Swap Native", () => {
             })
             .signers([state.alice.keypair])
             .transaction()
-            .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]));
+            .then((tx) =>
+              sendAndConfirmTransaction(provider.connection, tx, [
+                state.alice.keypair,
+              ])
+            );
 
         const results = await trackReceivedTokenAndTx(
           provider.connection,
@@ -621,7 +667,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -673,7 +723,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -704,7 +758,11 @@ describe.skip("Fusion Swap Native", () => {
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
     });
 
@@ -754,7 +812,11 @@ describe.skip("Fusion Swap Native", () => {
         )
         .signers([state.bob.keypair])
         .transaction()
-        .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+        .then((tx) =>
+          sendAndConfirmTransaction(provider.connection, tx, [
+            state.bob.keypair,
+          ])
+        );
 
       // Check that token account exists after trade and has expected balance
       const aliceYAta = await splToken.getAccount(
@@ -841,7 +903,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InvalidAmount");
 
       // minDstAmount = 0
@@ -864,7 +930,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InvalidAmount");
     });
 
@@ -892,7 +962,11 @@ describe.skip("Fusion Swap Native", () => {
         })
         .signers([state.alice.keypair])
         .transaction()
-        .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]));
+        .then((tx) =>
+          sendAndConfirmTransaction(provider.connection, tx, [
+            state.alice.keypair,
+          ])
+        );
 
       await expect(
         program.methods
@@ -908,7 +982,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("already in use");
     });
 
@@ -919,7 +997,11 @@ describe.skip("Fusion Swap Native", () => {
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
@@ -934,7 +1016,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintTokenOwner");
     });
 
@@ -949,7 +1035,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintTokenMint");
     });
 
@@ -966,7 +1056,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: SellerReceiverMismatch");
     });
 
@@ -1000,7 +1094,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InvalidProtocolSurplusFee");
     });
 
@@ -1035,7 +1133,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
@@ -1070,7 +1172,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
     });
 
@@ -1100,7 +1206,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
@@ -1128,7 +1238,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
@@ -1159,7 +1273,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
     });
 
@@ -1188,7 +1306,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
     });
 
@@ -1199,7 +1321,11 @@ describe.skip("Fusion Swap Native", () => {
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       let results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1226,7 +1352,11 @@ describe.skip("Fusion Swap Native", () => {
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1274,7 +1404,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       let results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1306,7 +1440,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1338,7 +1476,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1371,7 +1513,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1403,7 +1549,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1428,7 +1578,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
@@ -1445,7 +1599,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintTokenOwner");
     });
 
@@ -1461,7 +1619,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.charlie.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.charlie.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.charlie.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
@@ -1488,7 +1650,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.charlie.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.charlie.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.charlie.keypair,
+            ])
+          )
       ).to.be.rejectedWith(
         "AnchorError caused by account: resolver_access. Error Code: AccountNotInitialized"
       );
@@ -1513,7 +1679,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const resultsFill = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1545,7 +1715,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          );
 
       const resultsCancel = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1584,7 +1758,11 @@ describe.skip("Fusion Swap Native", () => {
         )
         .signers([state.bob.keypair])
         .transaction()
-        .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+        .then((tx) =>
+          sendAndConfirmTransaction(provider.connection, tx, [
+            state.bob.keypair,
+          ])
+        );
 
       const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
         state.alice.keypair.publicKey
@@ -1624,7 +1802,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
     });
 
@@ -1658,7 +1840,11 @@ describe.skip("Fusion Swap Native", () => {
           })
           .signers([state.alice.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.alice.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.alice.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: InconsistentNativeDstTrait.");
     });
 
@@ -1689,7 +1875,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
       const results = await trackReceivedTokenAndTx(
         provider.connection,
@@ -1725,7 +1915,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintTokenOwner");
     });
 
@@ -1740,7 +1934,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]))
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          )
       ).to.be.rejectedWith("Error Code: ConstraintAssociated");
     });
   });
@@ -1753,7 +1951,11 @@ describe.skip("Fusion Swap Native", () => {
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.bob.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.bob.keypair,
+            ])
+          );
 
         // Add Charlie to the whitelist
         await createWhitelistedAccount(
@@ -1776,7 +1978,11 @@ describe.skip("Fusion Swap Native", () => {
           )
           .signers([state.charlie.keypair])
           .transaction()
-          .then((tx) => sendAndConfirmTransaction(provider.connection, tx, [state.charlie.keypair]));
+          .then((tx) =>
+            sendAndConfirmTransaction(provider.connection, tx, [
+              state.charlie.keypair,
+            ])
+          );
 
         // Remove Charlie from the whitelist
         await removeWhitelistedAccount(state.charlie.keypair, payer);

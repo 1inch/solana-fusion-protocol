@@ -284,7 +284,9 @@ export class TestState {
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
   }: {
-    escrowProgram: anchor.Program<FusionSwap> | anchor.Program<FusionSwapNative>;
+    escrowProgram:
+      | anchor.Program<FusionSwap>
+      | anchor.Program<FusionSwapNative>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     srcMint?: anchor.web3.PublicKey;
@@ -347,7 +349,11 @@ export class TestState {
       .signers([this.alice.keypair])
       .transaction();
 
-    await sendAndConfirmTransaction((provider as anchor.AnchorProvider).connection, tx, [this.alice.keypair]);
+    await sendAndConfirmTransaction(
+      (provider as anchor.AnchorProvider).connection,
+      tx,
+      [this.alice.keypair]
+    );
 
     return { escrow, order_id: this.increaseOrderID(), ata: escrowAta };
   }
