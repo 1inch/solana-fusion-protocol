@@ -24,4 +24,6 @@ pub enum EscrowError {
     InconsistentIntegratorFeeConfig,
     #[msg("Order not expired")]
     OrderNotExpired,
+    #[msg("Invalid cancellation fee")]
+    InvalidCancellationFee,
 }

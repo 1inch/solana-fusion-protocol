@@ -15,8 +15,10 @@ const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
 chai.use(chaiAsPromised);
 
 describe("Cancel by Resolver", () => {
-  const defaultCancellationFee = 5000; // 5%
   const defaultSrcAmount = new anchor.BN(1000000);
+  const defaultCancellationPremium = defaultSrcAmount
+    .muln(5 * 100)
+    .divn(100 * 100); // 5%
   let provider: BankrunProvider;
   let banksClient: BanksClient;
   let context: ProgramTestContext;
@@ -50,8 +52,10 @@ describe("Cancel by Resolver", () => {
   });
 
   it("Resolver can cancel the order and receive a portion of the remaining tokens", async () => {
-    const cancellationFees = [1000, 2500, 7500]; // 1%, 2.5%, 7.5%
-    for (const cancellationFee of cancellationFees) {
+    const cancellationPremiums = [1, 2.5, 7.5].map((percentage) =>
+      defaultSrcAmount.muln(percentage * 100).divn(100 * 100)
+    );
+    for (const cancellationPremium of cancellationPremiums) {
       await setCurrentTime(context, Math.floor(Date.now() / 1000));
       const escrow = await state.createEscrow({
         escrowProgram: program,
@@ -60,7 +64,7 @@ describe("Cancel by Resolver", () => {
         orderConfig: state.orderConfig({
           srcAmount: defaultSrcAmount,
           fee: {
-            cancellationFee,
+            cancellationPremium,
           },
           expirationTime,
         }),
@@ -93,14 +97,8 @@ describe("Cancel by Resolver", () => {
       );
 
       expect(results).to.be.deep.eq([
-        BigInt(
-          Math.floor(
-            (defaultSrcAmount.toNumber() * (1e5 - cancellationFee)) / 1e5
-          )
-        ),
-        BigInt(
-          Math.floor((defaultSrcAmount.toNumber() * cancellationFee) / 1e5)
-        ),
+        BigInt(defaultSrcAmount.sub(cancellationPremium).toNumber()),
+        BigInt(cancellationPremium.toNumber()),
       ]);
     }
   });
@@ -112,7 +110,7 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         fee: {
-          cancellationFee: defaultCancellationFee,
+          cancellationPremium: defaultCancellationPremium,
         },
         expirationTime,
       }),
@@ -141,7 +139,7 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         fee: {
-          cancellationFee: defaultCancellationFee,
+          cancellationPremium: defaultCancellationPremium,
         },
         expirationTime,
       }),

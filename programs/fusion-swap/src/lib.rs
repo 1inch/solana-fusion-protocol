@@ -293,13 +293,11 @@ pub mod fusion_swap {
             EscrowError::OrderNotExpired
         );
 
-        let cancellation_fee = ctx.accounts.escrow.fee.cancellation_fee as u64;
-        let resolver_amount = ctx
-            .accounts
-            .escrow
-            .src_remaining
-            .mul_div_floor(cancellation_fee, BASE_1E5)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+        let cancellation_premium = ctx.accounts.escrow.fee.cancellation_premium;
+        require!(
+            cancellation_premium <= ctx.accounts.escrow.src_remaining,
+            EscrowError::InvalidCancellationFee
+        );
 
         // Transfer cancellation fee to resolver
         transfer_checked(
@@ -318,7 +316,7 @@ pub mod fusion_swap {
                     &[ctx.bumps.escrow],
                 ]],
             ),
-            resolver_amount,
+            cancellation_premium,
             ctx.accounts.src_mint.decimals,
         )?;
 
@@ -339,7 +337,7 @@ pub mod fusion_swap {
                     &[ctx.bumps.escrow],
                 ]],
             ),
-            ctx.accounts.escrow_src_ata.amount - resolver_amount,
+            ctx.accounts.escrow_src_ata.amount - cancellation_premium,
             ctx.accounts.src_mint.decimals,
         )?;
 
@@ -618,8 +616,8 @@ pub struct FeeConfig {
     surplus_percentage: u8,
 
     /// Fee charged to the maker if the order is cancelled by resolver
-    /// Value in basis points where `BASE_1E5` = 100%
-    cancellation_fee: u16,
+    /// Value in absolute token amount
+    cancellation_premium: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]

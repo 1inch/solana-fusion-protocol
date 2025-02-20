@@ -370,7 +370,7 @@ export class TestState {
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
-        cancellationFee: 0,
+        cancellationPremium: new anchor.BN(0),
         ...(params.fee ?? {}),
       },
     };
