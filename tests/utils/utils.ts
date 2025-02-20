@@ -335,7 +335,7 @@ export class TestState {
       }
     }
 
-    const tx = await escrowProgram.methods
+    const txBuilder = escrowProgram.methods
       .create(orderConfig as OrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
@@ -346,14 +346,19 @@ export class TestState {
         escrow,
         srcTokenProgram,
       })
-      .signers([this.alice.keypair])
-      .transaction();
+      .signers([this.alice.keypair]);
 
-    await sendAndConfirmTransaction(
-      (provider as anchor.AnchorProvider).connection,
-      tx,
-      [this.alice.keypair]
-    );
+    if (provider instanceof anchor.AnchorProvider) {
+      const tx = await txBuilder.transaction();
+
+      await sendAndConfirmTransaction(
+        provider.connection,
+        tx,
+        [payer, this.alice.keypair]
+      );
+    } else {
+      await txBuilder.rpc();
+    }
 
     return { escrow, order_id: this.increaseOrderID(), ata: escrowAta };
   }
