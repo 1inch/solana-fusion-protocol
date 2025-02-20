@@ -351,11 +351,10 @@ export class TestState {
     if (provider instanceof anchor.AnchorProvider) {
       const tx = await txBuilder.transaction();
 
-      await sendAndConfirmTransaction(
-        provider.connection,
-        tx,
-        [payer, this.alice.keypair]
-      );
+      await sendAndConfirmTransaction(provider.connection, tx, [
+        payer,
+        this.alice.keypair,
+      ]);
     } else {
       await txBuilder.rpc();
     }
