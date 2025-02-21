@@ -813,7 +813,14 @@ describe("Fusion Swap", () => {
         srcAmount: new anchor.BN(0),
       });
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       // srcAmount = 0
       await expect(
@@ -839,7 +846,14 @@ describe("Fusion Swap", () => {
         minDstAmount: new anchor.BN(0),
       });
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       await expect(
         program.methods
@@ -862,7 +876,14 @@ describe("Fusion Swap", () => {
     it("Fails to create if escrow has been created already", async () => {
       const orderConfig = state.orderConfig();
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       await program.methods
         .create(orderConfig as ReducedOrderConfig)
@@ -956,7 +977,14 @@ describe("Fusion Swap", () => {
         fee: { surplusPercentage: 146 }, // 146%
       });
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       await expect(
         program.methods
@@ -981,7 +1009,14 @@ describe("Fusion Swap", () => {
         fee: { protocolFee: 10000 }, // 10%
       });
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       await expect(
         program.methods
@@ -1007,7 +1042,14 @@ describe("Fusion Swap", () => {
         fee: { integratorFee: 10000 }, // 10%
       });
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       await expect(
         program.methods
@@ -1594,7 +1636,14 @@ describe("Fusion Swap", () => {
         nativeDstAsset: true,
       });
 
-      const [escrow] = state.findProgramAddressSync(orderConfig, program);
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
 
       await expect(
         program.methods

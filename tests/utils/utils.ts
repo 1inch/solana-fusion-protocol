@@ -36,53 +36,53 @@ type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
-}
+};
 type OrderConfig = ReducedOrderConfig & {
-  src_mint: anchor.web3.PublicKey,
-  dst_mint: anchor.web3.PublicKey,
-  receiver: anchor.web3.PublicKey,
+  src_mint: anchor.web3.PublicKey;
+  dst_mint: anchor.web3.PublicKey;
+  receiver: anchor.web3.PublicKey;
   fee: FeeConfig;
-}
+};
 
 const orderConfigSchema = {
   struct: {
-      id: "u32",
-      srcAmount: "u64",
-      minDstAmount: "u64",
-      estimatedDstAmount: "u64",
-      expirationTime: "u32",
-      nativeDstAsset: "bool",
-      receiver: { array: { type: "u8", len: 32 } },
-      fee: {
-        struct: {
-          protocolDstAta: { option: { array: { type: "u8", len: 32 } }},
-          integratorDstAta: { option: { array: { type: "u8", len: 32 } }},
-          protocolFee: "u16",
-          integratorFee: "u16",
-          surplusPercentage: "u8",
-        }
+    id: "u32",
+    srcAmount: "u64",
+    minDstAmount: "u64",
+    estimatedDstAmount: "u64",
+    expirationTime: "u32",
+    nativeDstAsset: "bool",
+    receiver: { array: { type: "u8", len: 32 } },
+    fee: {
+      struct: {
+        protocolDstAta: { option: { array: { type: "u8", len: 32 } } },
+        integratorDstAta: { option: { array: { type: "u8", len: 32 } } },
+        protocolFee: "u16",
+        integratorFee: "u16",
+        surplusPercentage: "u8",
       },
-      dutchAuctionData: {
-        struct: {
-          startTime: "u32",
-          duration: "u32",
-          initialRateBump: "u16",
-          pointsAndTimeDeltas: {
-            array: {
-              type: {
-                struct: {
-                  rateBump: "u16",
-                  timeDelta: "u16",
-                }
+    },
+    dutchAuctionData: {
+      struct: {
+        startTime: "u32",
+        duration: "u32",
+        initialRateBump: "u16",
+        pointsAndTimeDeltas: {
+          array: {
+            type: {
+              struct: {
+                rateBump: "u16",
+                timeDelta: "u16",
               },
-            }
-          }
-        }
+            },
+          },
+        },
       },
-      srcMint: { array: { type: "u8", len: 32 } },
-      dstMint: { array: { type: "u8", len: 32 } },
-  }
-}
+    },
+    srcMint: { array: { type: "u8", len: 32 } },
+    dstMint: { array: { type: "u8", len: 32 } },
+  },
+};
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -347,7 +347,14 @@ export class TestState {
     orderConfig = this.orderConfig(orderConfig);
 
     // Derive escrow address
-    const [escrow] = this.findProgramAddressSync(orderConfig, escrowProgram);
+    const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        anchor.utils.bytes.utf8.encode("escrow"),
+        this.alice.keypair.publicKey.toBuffer(),
+        getOrderHash(orderConfig),
+      ],
+      escrowProgram.programId
+    );
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
       orderConfig.srcMint,
@@ -422,17 +429,6 @@ export class TestState {
       },
     };
   }
-
-  findProgramAddressSync(orderConfig: OrderConfig, escrowProgram: anchor.Program<FusionSwap>): [PublicKey, number] {
-    return anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        anchor.utils.bytes.utf8.encode("escrow"),
-        this.alice.keypair.publicKey.toBuffer(),
-        getOrderHash(orderConfig),
-      ],
-      escrowProgram.programId
-    );
-  }
 }
 
 export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
@@ -455,10 +451,12 @@ export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
       startTime: orderConfig.dutchAuctionData.startTime,
       duration: orderConfig.dutchAuctionData.duration,
       initialRateBump: orderConfig.dutchAuctionData.initialRateBump,
-      pointsAndTimeDeltas: orderConfig.dutchAuctionData.pointsAndTimeDeltas.map((p) => ({
-        rateBump: p.rateBump,
-        timeDelta: p.timeDelta,
-      })),
+      pointsAndTimeDeltas: orderConfig.dutchAuctionData.pointsAndTimeDeltas.map(
+        (p) => ({
+          rateBump: p.rateBump,
+          timeDelta: p.timeDelta,
+        })
+      ),
     },
     srcMint: orderConfig.srcMint.toBuffer(),
     dstMint: orderConfig.dstMint.toBuffer(),

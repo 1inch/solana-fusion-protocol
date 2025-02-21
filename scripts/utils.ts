@@ -19,13 +19,13 @@ export type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
-}
+};
 export type OrderConfig = ReducedOrderConfig & {
-  src_mint: anchor.web3.PublicKey,
-  dst_mint: anchor.web3.PublicKey,
-  receiver: anchor.web3.PublicKey,
+  src_mint: anchor.web3.PublicKey;
+  dst_mint: anchor.web3.PublicKey;
+  receiver: anchor.web3.PublicKey;
   fee: FeeConfig;
-}
+};
 
 const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
 export type Escrow = (typeof escrowType)["type"]["fields"];
