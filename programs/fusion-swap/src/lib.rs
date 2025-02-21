@@ -619,45 +619,4 @@ fn get_fee_amounts(
         integrator_fee_amount,
         dst_amount - integrator_fee_amount - protocol_fee_amount,
     ))
-    // Here is why the above expression is safe and cannot overflow. dst_amount -
-    // integrator_fee_amount is safe due to how integrator_fee_amount is computed above. For the
-    // next substraction, we do the following reasoning.
-    //
-    // The max values of `integrator_fee_amount` and `protocol_fee_amount` is `0.65535 *
-    // dst_amount`.
-    //
-    // We have this checked sub operation a little above where we do ``` let actual_dst_amount =
-    // (dst_amount - protocol_fee_amount) .checked_sub(integrator_fee_amount)
-    // .ok_or(ProgramError::ArithmeticOverflow)?; ```
-    //
-    // If we are past this, we know `dst_amount > (protocol_fee_amount + integer_fee_amount)`. So
-    // at this point we know that the max value of `integrator_fee_amount` is `0.65535 *
-    // dst_amount` and `protocol_fee_amount` is `0.34465 * dst_amount`.
-    //
-    // Going forward, we have `protocol_fee_amount` getting increased by this term
-    // `(actual_dst_amount - estimated_dst_amount) .mul_div_floor(surplus_percentage as u64,
-    // BASE_1E2) .ok_or(ProgramError::ArithmeticOverflow)`
-    //
-    // So the question becomes if this term can take `protocol_fee_amount` above `0.34465 *
-    // dst_amount`.
-    //
-    // We know that `estimated_dst_amount < actual_dst_amount`. Let us assume that the min value of
-    // `estimated_dst_amount` is 0.  Then this term becomes `actual_dst_amount *
-    // surplus_percentage/100)`.
-    //
-    // substituting for `actual_dst_amount`, this is `(dst_amount - protocol_fee_amount -
-    // integrator_fee_amount) * surplus_percentage/100`. Let us assume max value of `100` for
-    // `surplus_percentage`. So this becomes `(dst_amount - protocol_fee_amount -
-    // integrator_fee_amount)`. so reflecting back to the original bump to `protocol_fee_amount`,
-    // it would be incremented to,
-    //
-    // `protocol_fee_amount + dst_amount - protocol_fee_amount - integrator_fee_amount`, and we are
-    // checking if this result will go beyond `0.34465 * dst_amount` and thus on simplifying this
-    // expression, it becomes
-    //
-    // `dst_amount - integrator_fee_amount` and we have assumed max value of `0.65535 * dst_amount`
-    // for `integer_fee_amount`, so this really becomes `0.34465 * dst_amount`.
-    //
-    // So the max that `protocol_fee_amount` can get upto is `0.34465 * dst_amount`, it seems. So
-    // this appear to be safe.
 }
