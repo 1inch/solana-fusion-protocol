@@ -18,6 +18,7 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
+import { getSimulationComputeUnits } from "@solana-developers/helpers";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -34,6 +35,7 @@ export type User = {
 };
 
 export type Escrow = {
+  inst: anchor.web3.TransactionInstruction | undefined;
   escrow: anchor.web3.PublicKey;
   order_id: number;
   ata: anchor.web3.PublicKey;
@@ -282,6 +284,7 @@ export class TestState {
     integratorDstAta = null,
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
+    needInstraction = false,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -292,6 +295,7 @@ export class TestState {
     integratorDstAta?: anchor.web3.PublicKey;
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
+    needInstraction?: boolean;
   }): Promise<Escrow> {
     orderConfig = { ...this.orderConfig(), ...orderConfig };
 
@@ -332,7 +336,23 @@ export class TestState {
       }
     }
 
-    await escrowProgram.methods
+    let inst : anchor.web3.TransactionInstruction | undefined = undefined;
+    if (needInstraction) {
+      inst = await escrowProgram.methods
+      .create(orderConfig as OrderConfig)
+      .accountsPartial({
+        maker: this.alice.keypair.publicKey,
+        srcMint,
+        dstMint,
+        protocolDstAta,
+        integratorDstAta,
+        escrow,
+        srcTokenProgram,
+      })
+      .signers([this.alice.keypair])
+      .instruction();
+    } else {
+      await escrowProgram.methods
       .create(orderConfig as OrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
@@ -345,8 +365,9 @@ export class TestState {
       })
       .signers([this.alice.keypair])
       .rpc();
+    }
 
-    return { escrow, order_id: this.increaseOrderID(), ata: escrowAta };
+    return { inst, escrow, order_id: this.increaseOrderID(), ata: escrowAta };
   }
 
   increaseOrderID(): number {
@@ -610,6 +631,47 @@ export async function setCurrentTime(
 
 export function numberToBuffer(n: number, bufSize: number) {
   return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
+}
+
+export async function getInstractionCost(
+  inst: anchor.web3.TransactionInstruction,
+  connection: anchor.web3.Connection,
+  signer: anchor.web3.PublicKey
+) {
+  return {
+    length: 32 + inst.data.length + inst.keys.length * 34, // 32 bytes for the program id, 34 bytes for each account key (+ is_signer flag - 1 byte, is_writable flag - 1 byte)
+    computeUnits: await getSimulationComputeUnits(
+      connection,
+      [inst],
+      signer,
+      []
+    ),
+  };
+}
+
+export async function waitForNewBlock(
+  connection: anchor.web3.Connection,
+  targetHeight: number
+): Promise<void> {
+  debugLog(`Waiting for ${targetHeight} new blocks`);
+  return new Promise(async (resolve: any) => {
+    // Get the last valid block height of the blockchain
+    const { lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+    // Set an interval to check for new blocks every 1000ms
+    const intervalId = setInterval(async () => {
+      // Get the new valid block height
+      const { lastValidBlockHeight: newValidBlockHeight } =
+        await connection.getLatestBlockhash();
+
+      // Check if the new valid block height is greater than the target block height
+      if (newValidBlockHeight > lastValidBlockHeight + targetHeight) {
+        // If the target block height is reached, clear the interval and resolve the promise
+        clearInterval(intervalId);
+        resolve();
+      }
+    }, 1000);
+  });
 }
 
 // Anchor test fails with "Account does not exist <pubkey>" error when account does not exist

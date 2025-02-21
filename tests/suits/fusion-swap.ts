@@ -4,7 +4,7 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { getSimulationComputeUnits } from "@solana-developers/helpers";
+import { sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import {
   TestState,
   createTokens,
@@ -15,6 +15,8 @@ import {
   numberToBuffer,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
+  getInstractionCost,
+  waitForNewBlock,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
 chai.use(chaiAsPromised);
@@ -29,22 +31,6 @@ describe("Fusion Swap", () => {
 
   const payer = (provider.wallet as NodeWallet).payer;
   debugLog(`Payer ::`, payer.publicKey.toString());
-
-  const escrowDataLength =
-    8 + // Anchor discriminator
-    32 + // dst_mint
-    8 + // dst_amount
-    8 + // src_amount
-    8 + // src_remaining
-    4 + // expiration_time
-    1 + // traits
-    32 + // receiver
-    2 + // protocol_fee
-    33 + // protocol_dst_ata
-    2 + // integrator_fee
-    33 + // integrator_dst_ata
-    1 + // surplus_percentage
-    8; // estimated_dst_amount
 
   let state: TestState;
 
@@ -1775,40 +1761,94 @@ describe("Fusion Swap", () => {
 
   describe("Tests tx cost", () => {
     it("Calculate and print tx cost", async () => {
+      // create new escrow
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        needInstraction: true,
+      });
+
+      // get bump
       const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(state.order_id - 2, 4), // first order_id in test
+          numberToBuffer(escrow.order_id, 4),
         ],
         program.programId
       );
       console.log("bump", bump);
 
-      const inst = await program.methods
-        .fill(state.escrows[0].order_id, state.defaultSrcAmount)
-        .accountsPartial(state.buildAccountsDataForFill({}))
-        .signers([state.bob.keypair])
-        .instruction();
-      console.log("inst.data.length", inst.data.length + inst.keys.length * 32);
-
-      const computeUnits = await getSimulationComputeUnits(
+      // create instruction
+      const createTxData = await getInstractionCost(
+        escrow.inst,
         provider.connection,
-        [inst],
-        state.bob.keypair.publicKey,
-        []
+        state.alice.keypair.publicKey
       );
-      console.log("computeUnits", computeUnits);
+      console.log("inst.data.length Create", createTxData.length);
+      console.log("computeUnits Create", createTxData.computeUnits);
+
+      const txCreate = new Transaction().add(escrow.inst);
+      await sendAndConfirmTransaction(provider.connection, txCreate, [
+        state.alice.keypair,
+      ]);
+      await waitForNewBlock(provider.connection, 1);
 
       // calculate rent
+      const ataRent =
+        await provider.connection.getMinimumBalanceForRentExemption(
+          splToken.AccountLayout.span
+        );
+
+      const escrowData = await provider.connection.getAccountInfo(
+        escrow.escrow
+      );
       const escrowRent =
         await provider.connection.getMinimumBalanceForRentExemption(
-          escrowDataLength
+          escrowData.data.length
         );
-      console.log("escrowRent", escrowRent);
+      console.log("rent", escrowRent + ataRent);
 
-      // const tokenAccountRent = await provider.connection.getMinimumBalanceForRentExemption(splToken.AccountLayout.span);
-      // console.log('tokenAccountRent', tokenAccountRent);
+      // fill instruction
+      const instFill = await program.methods
+        .fill(escrow.order_id, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+          })
+        )
+        .signers([state.bob.keypair])
+        .instruction();
+
+      const fillTxData = await getInstractionCost(
+        instFill,
+        provider.connection,
+        state.bob.keypair.publicKey
+      );
+      console.log("inst.data.length Fill", fillTxData.length);
+      console.log("computeUnits Fill", fillTxData.computeUnits);
+
+      // cancel instruction
+      const instCancel = await program.methods
+        .cancel(escrow.order_id)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: state.tokens[0],
+          escrow: escrow.escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .instruction();
+
+      const cancelTxData = await getInstractionCost(
+        instCancel,
+        provider.connection,
+        state.alice.keypair.publicKey
+      );
+      console.log("inst.data.length Cancel", cancelTxData.length);
+      console.log("computeUnits Cancel", cancelTxData.computeUnits);
     });
   });
 });
