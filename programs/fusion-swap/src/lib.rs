@@ -25,7 +25,7 @@ pub const BASE_1E5: u64 = 100_000;
 pub mod fusion_swap {
     use super::*;
 
-    pub fn create(ctx: Context<Create>, order: OrderConfig) -> Result<()> {
+    pub fn create(ctx: Context<Create>, order: ReducedOrderConfig) -> Result<()> {
         require!(
             order.src_amount != 0 && order.min_dst_amount != 0,
             EscrowError::InvalidAmount
@@ -287,7 +287,7 @@ pub mod fusion_swap {
 }
 
 #[derive(Accounts)]
-#[instruction(order: OrderConfig)]
+#[instruction(order: ReducedOrderConfig)]
 pub struct Create<'info> {
     /// `maker`, who is willing to sell src token for dst token
     #[account(mut, signer)]
@@ -307,12 +307,22 @@ pub struct Create<'info> {
     )]
     maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    /// CHECK: maker_receiver only has to be equal to escrow parameter
+    maker_receiver: AccountInfo<'info>,
+
     /// Account to store order conditions
     #[account(
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            &order_hash(&order)?,
+            &order_hash(&build_order_from_reduced(
+                &order,
+                src_mint.key(),
+                dst_mint.key(),
+                maker_receiver.key(),
+                protocol_dst_ata.clone().map(|ata| ata.key()),
+                integrator_dst_ata.clone().map(|ata| ata.key()),
+            ))?,
         ],
         bump,
     )]

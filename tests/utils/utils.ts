@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
+import * as borsh from "borsh";
 import {
   Transaction,
   sendAndConfirmTransaction,
@@ -22,15 +23,66 @@ import { BankrunProvider } from "anchor-bankrun";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
-const orderConfigType = FusionSwapIDL.types.find(
-  (t) => t.name === "OrderConfig"
-);
 const reducedOrderConfigType = FusionSwapIDL.types.find(
   (t) => t.name === "ReducedOrderConfig"
 );
-type OrderConfig = (typeof orderConfigType)["type"]["fields"];
+
 export type ReducedOrderConfig =
   (typeof reducedOrderConfigType)["type"]["fields"];
+
+type FeeConfig = {
+  protocolDstAta: anchor.web3.PublicKey | null;
+  integratorDstAta: anchor.web3.PublicKey | null;
+  protocolFee: number;
+  integratorFee: number;
+  surplusPercentage: number;
+}
+type OrderConfig = ReducedOrderConfig & {
+  src_mint: anchor.web3.PublicKey,
+  dst_mint: anchor.web3.PublicKey,
+  receiver: anchor.web3.PublicKey,
+  fee: FeeConfig;
+}
+
+const orderConfigSchema = {
+  struct: {
+      id: "u32",
+      srcAmount: "u64",
+      minDstAmount: "u64",
+      estimatedDstAmount: "u64",
+      expirationTime: "u32",
+      nativeDstAsset: "bool",
+      receiver: { array: { type: "u8", len: 32 } },
+      fee: {
+        struct: {
+          protocolDstAta: { option: { array: { type: "u8", len: 32 } }},
+          integratorDstAta: { option: { array: { type: "u8", len: 32 } }},
+          protocolFee: "u16",
+          integratorFee: "u16",
+          surplusPercentage: "u8",
+        }
+      },
+      dutchAuctionData: {
+        struct: {
+          startTime: "u32",
+          duration: "u32",
+          initialRateBump: "u16",
+          pointsAndTimeDeltas: {
+            array: {
+              type: {
+                struct: {
+                  rateBump: "u16",
+                  timeDelta: "u16",
+                }
+              },
+            }
+          }
+        }
+      },
+      srcMint: { array: { type: "u8", len: 32 } },
+      dstMint: { array: { type: "u8", len: 32 } },
+  }
+}
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -294,17 +346,8 @@ export class TestState {
   }): Promise<Escrow> {
     orderConfig = this.orderConfig(orderConfig);
 
-    const program = anchor.workspace.FusionSwap as anchor.Program<FusionSwap>;
-
     // Derive escrow address
-    const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        anchor.utils.bytes.utf8.encode("escrow"),
-        this.alice.keypair.publicKey.toBuffer(),
-        sha256(program.coder.types.encode("orderConfig", orderConfig)),
-      ],
-      escrowProgram.programId
-    );
+    const [escrow] = this.findProgramAddressSync(orderConfig, escrowProgram);
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
       orderConfig.srcMint,
@@ -334,9 +377,10 @@ export class TestState {
     }
 
     await escrowProgram.methods
-      .create(orderConfig as OrderConfig)
+      .create(orderConfig as ReducedOrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
+        makerReceiver: orderConfig.receiver,
         srcMint: orderConfig.srcMint,
         dstMint: orderConfig.dstMint,
         protocolDstAta: orderConfig.fee.protocolDstAta,
@@ -378,6 +422,49 @@ export class TestState {
       },
     };
   }
+
+  findProgramAddressSync(orderConfig: OrderConfig, escrowProgram: anchor.Program<FusionSwap>): [PublicKey, number] {
+    return anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        anchor.utils.bytes.utf8.encode("escrow"),
+        this.alice.keypair.publicKey.toBuffer(),
+        getOrderHash(orderConfig),
+      ],
+      escrowProgram.programId
+    );
+  }
+}
+
+export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
+  const values = {
+    id: orderConfig.id,
+    srcAmount: orderConfig.srcAmount.toNumber(),
+    minDstAmount: orderConfig.minDstAmount.toNumber(),
+    estimatedDstAmount: orderConfig.estimatedDstAmount.toNumber(),
+    expirationTime: orderConfig.expirationTime,
+    nativeDstAsset: orderConfig.nativeDstAsset,
+    receiver: orderConfig.receiver.toBuffer(),
+    fee: {
+      protocolDstAta: orderConfig.fee.protocolDstAta?.toBuffer(),
+      integratorDstAta: orderConfig.fee.integratorDstAta?.toBuffer(),
+      protocolFee: orderConfig.fee.protocolFee,
+      integratorFee: orderConfig.fee.integratorFee,
+      surplusPercentage: orderConfig.fee.surplusPercentage,
+    },
+    dutchAuctionData: {
+      startTime: orderConfig.dutchAuctionData.startTime,
+      duration: orderConfig.dutchAuctionData.duration,
+      initialRateBump: orderConfig.dutchAuctionData.initialRateBump,
+      pointsAndTimeDeltas: orderConfig.dutchAuctionData.pointsAndTimeDeltas.map((p) => ({
+        rateBump: p.rateBump,
+        timeDelta: p.timeDelta,
+      })),
+    },
+    srcMint: orderConfig.srcMint.toBuffer(),
+    dstMint: orderConfig.dstMint.toBuffer(),
+  };
+
+  return sha256(borsh.serialize(orderConfigSchema, values));
 }
 
 export async function createTokens(

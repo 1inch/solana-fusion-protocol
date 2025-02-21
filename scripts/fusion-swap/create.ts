@@ -101,14 +101,12 @@ async function create(
       estimatedDstAmount: new BN(estimatedDstAmount),
       expirationTime,
       nativeDstAsset,
-      receiver,
       fee: fees,
       dutchAuctionData,
-      srcMint: srcMint,
-      dstMint: dstMint,
     })
     .accountsPartial({
       maker: makerKeypair.publicKey,
+      makerReceiver: receiver,
       srcMint,
       dstMint,
       escrow,

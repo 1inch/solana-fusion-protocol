@@ -317,9 +317,7 @@ describe("Dutch Auction", () => {
   it("Execute the trade with all fees", async () => {
     const auction = {
       startTime: Math.floor(new Date().getTime() / 1000),
-      get auctionFinishTime() {
-        return this.startTime + 32000;
-      },
+      duration: 32000,
       initialRateBump: 50000,
       pointsAndTimeDeltas: [],
     };

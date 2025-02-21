@@ -13,9 +13,10 @@ import {
   mintTokens,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
+  ReducedOrderConfig,
+  getOrderHash,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
-import { sha256 } from "@noble/hashes/sha256";
 chai.use(chaiAsPromised);
 
 describe("Fusion Swap", () => {
@@ -563,9 +564,7 @@ describe("Fusion Swap", () => {
           srcTokenProgram: tokenProgram,
         });
 
-        const orderHash = sha256(
-          program.coder.types.encode("orderConfig", escrow.orderConfig)
-        );
+        const orderHash = getOrderHash(escrow.orderConfig);
 
         const transactionPromise = () =>
           program.methods
@@ -814,21 +813,15 @@ describe("Fusion Swap", () => {
         srcAmount: new anchor.BN(0),
       });
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       // srcAmount = 0
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -846,20 +839,14 @@ describe("Fusion Swap", () => {
         minDstAmount: new anchor.BN(0),
       });
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -875,19 +862,13 @@ describe("Fusion Swap", () => {
     it("Fails to create if escrow has been created already", async () => {
       const orderConfig = state.orderConfig();
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       await program.methods
-        .create(orderConfig)
+        .create(orderConfig as ReducedOrderConfig)
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
           protocolDstAta: null,
@@ -900,9 +881,10 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -974,20 +956,14 @@ describe("Fusion Swap", () => {
         fee: { surplusPercentage: 146 }, // 146%
       });
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -1005,20 +981,14 @@ describe("Fusion Swap", () => {
         fee: { protocolFee: 10000 }, // 10%
       });
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta:
@@ -1029,7 +999,7 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
@@ -1037,20 +1007,14 @@ describe("Fusion Swap", () => {
         fee: { integratorFee: 10000 }, // 10%
       });
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -1061,7 +1025,7 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
@@ -1349,9 +1313,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Cancel the trade", async () => {
-      const orderHash = sha256(
-        program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)
-      );
+      const orderHash = getOrderHash(state.escrows[0].orderConfig);
 
       const transactionPromise = () =>
         program.methods
@@ -1386,9 +1348,7 @@ describe("Fusion Swap", () => {
         },
       });
 
-      const orderHash = sha256(
-        program.coder.types.encode("orderConfig", escrow.orderConfig)
-      );
+      const orderHash = getOrderHash(escrow.orderConfig);
 
       const transactionPromise = () =>
         program.methods
@@ -1414,9 +1374,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong order_id", async () => {
-      const orderHash = sha256(
-        program.coder.types.encode("orderConfig", state.escrows[1].orderConfig)
-      );
+      const orderHash = getOrderHash(state.escrows[1].orderConfig);
 
       await expect(
         program.methods
@@ -1433,9 +1391,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong escrow ata", async () => {
-      const orderHash = sha256(
-        program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)
-      );
+      const orderHash = getOrderHash(state.escrows[0].orderConfig);
 
       await expect(
         program.methods
@@ -1453,9 +1409,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong maker", async () => {
-      const orderHash = sha256(
-        program.coder.types.encode("orderConfig", state.escrows[0].orderConfig)
-      );
+      const orderHash = getOrderHash(state.escrows[0].orderConfig);
 
       await expect(
         program.methods
@@ -1537,9 +1491,7 @@ describe("Fusion Swap", () => {
         -BigInt(state.defaultDstAmount.divn(2).toNumber()),
       ]);
 
-      const orderHash = sha256(
-        program.coder.types.encode("orderConfig", escrow.orderConfig)
-      );
+      const orderHash = getOrderHash(escrow.orderConfig);
 
       // Cancel the trade
       const transactionPromiseCancel = () =>
@@ -1642,20 +1594,14 @@ describe("Fusion Swap", () => {
         nativeDstAsset: true,
       });
 
-      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("escrow"),
-          state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
-        ],
-        program.programId
-      );
+      const [escrow] = state.findProgramAddressSync(orderConfig, program);
 
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
