@@ -146,9 +146,9 @@ pub mod fusion_swap {
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
-            ctx.accounts.escrow.fee.integrator_fee as u64,
-            ctx.accounts.escrow.fee.protocol_fee as u64,
-            ctx.accounts.escrow.fee.surplus_percentage as u64,
+            ctx.accounts.escrow.fee.integrator_fee,
+            ctx.accounts.escrow.fee.protocol_fee,
+            ctx.accounts.escrow.fee.surplus_percentage,
             dst_amount,
             get_dst_amount(
                 ctx.accounts.escrow.src_amount,
@@ -527,7 +527,7 @@ pub struct Escrow {
     /// Estimated amount of `dst_mint` tokens the maker expects to receive.
     estimated_dst_amount: u64,
 
-    /// Unix timestamp indicating when the escrow expires   
+    /// Unix timestamp indicating when the escrow expires
     expiration_time: u32,
 
     /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
@@ -599,18 +599,18 @@ fn get_dst_amount(
 }
 
 fn get_fee_amounts(
-    integrator_fee: u64,
-    protocol_fee: u64,
-    surplus_percentage: u64,
+    integrator_fee: u16,
+    protocol_fee: u16,
+    surplus_percentage: u8,
     dst_amount: u64,
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = dst_amount
-        .mul_div_floor(integrator_fee, BASE_1E5)
+        .mul_div_floor(integrator_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let mut protocol_fee_amount = dst_amount
-        .mul_div_floor(protocol_fee, BASE_1E5)
+        .mul_div_floor(protocol_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let actual_dst_amount = (dst_amount - protocol_fee_amount)
@@ -619,13 +619,13 @@ fn get_fee_amounts(
 
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
-            .mul_div_floor(surplus_percentage, BASE_1E2)
+            .mul_div_floor(surplus_percentage as u64, BASE_1E2)
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        dst_amount - protocol_fee_amount - integrator_fee_amount,
+        dst_amount - integrator_fee_amount - protocol_fee_amount,
     ))
 }
