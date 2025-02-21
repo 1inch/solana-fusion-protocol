@@ -326,7 +326,7 @@ pub struct Create<'info> {
         ],
         bump,
     )]
-    /// CHECK: skip
+    /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
@@ -396,7 +396,7 @@ pub struct Fill<'info> {
         ],
         bump,
     )]
-    /// CHECK: skip
+    /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
@@ -472,7 +472,7 @@ pub struct Cancel<'info> {
         ],
         bump,
     )]
-    /// CHECK: skip
+    /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
