@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/fusion_swap.json`.
  */
 export type FusionSwapNative = {
-  address: "AYvHdhcJWJbcNyLdvKYB2srfzyu71XgaDmP7BRwUx6US";
+  address: "8Qq1QF5vLfcHDLJuEGvLVCCh3PdM1nNiSQwkMGD2YuXe";
   metadata: {
     name: "fusionSwapNative";
     version: "0.1.0";

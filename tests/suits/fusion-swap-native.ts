@@ -37,6 +37,12 @@ describe.skip("Fusion Swap Native", () => {
   let state: TestState;
 
   before(async () => {
+    // Since 'fusion-swap-native' is not an Anchor program, we need to deploy it to localnet manually
+    const deployOutput = require("child_process").execSync(
+      "solana program deploy target/deploy/fusion_swap_native.so -u localhost"
+    );
+    console.log(deployOutput.toString());
+
     state = await TestState.anchorCreate(provider, payer, { tokensNums: 3 });
   });
 
