@@ -336,35 +336,35 @@ export class TestState {
       }
     }
 
-    let inst : anchor.web3.TransactionInstruction | undefined = undefined;
+    let inst: anchor.web3.TransactionInstruction | undefined = undefined;
     if (needInstraction) {
       inst = await escrowProgram.methods
-      .create(orderConfig as OrderConfig)
-      .accountsPartial({
-        maker: this.alice.keypair.publicKey,
-        srcMint,
-        dstMint,
-        protocolDstAta,
-        integratorDstAta,
-        escrow,
-        srcTokenProgram,
-      })
-      .signers([this.alice.keypair])
-      .instruction();
+        .create(orderConfig as OrderConfig)
+        .accountsPartial({
+          maker: this.alice.keypair.publicKey,
+          srcMint,
+          dstMint,
+          protocolDstAta,
+          integratorDstAta,
+          escrow,
+          srcTokenProgram,
+        })
+        .signers([this.alice.keypair])
+        .instruction();
     } else {
       await escrowProgram.methods
-      .create(orderConfig as OrderConfig)
-      .accountsPartial({
-        maker: this.alice.keypair.publicKey,
-        srcMint,
-        dstMint,
-        protocolDstAta,
-        integratorDstAta,
-        escrow,
-        srcTokenProgram,
-      })
-      .signers([this.alice.keypair])
-      .rpc();
+        .create(orderConfig as OrderConfig)
+        .accountsPartial({
+          maker: this.alice.keypair.publicKey,
+          srcMint,
+          dstMint,
+          protocolDstAta,
+          integratorDstAta,
+          escrow,
+          srcTokenProgram,
+        })
+        .signers([this.alice.keypair])
+        .rpc();
     }
 
     return { inst, escrow, order_id: this.increaseOrderID(), ata: escrowAta };
