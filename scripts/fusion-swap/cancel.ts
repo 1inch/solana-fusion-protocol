@@ -30,7 +30,7 @@ async function cancel(
     parseInt(h, 16)
   );
 
-  const cancelTx = await program.methods
+  const cancelIx = await program.methods
     .cancel(orderHashBytes)
     .accountsPartial({
       maker: makerKeypair.publicKey,
@@ -40,7 +40,7 @@ async function cancel(
     .signers([makerKeypair])
     .instruction();
 
-  const tx = new Transaction().add(cancelTx);
+  const tx = new Transaction().add(cancelIx);
 
   const signature = await sendAndConfirmTransaction(connection, tx, [
     makerKeypair,

@@ -60,7 +60,7 @@ async function fill(
     orderConfig.srcMint
   );
 
-  const fillTx = await program.methods
+  const fillIx = await program.methods
     .fill(
       orderConfig,
       new BN(orderConfig.srcAmount * Math.pow(10, srcMintDecimals))
@@ -83,7 +83,7 @@ async function fill(
     .signers([takerKeypair])
     .instruction();
 
-  const tx = new Transaction().add(fillTx);
+  const tx = new Transaction().add(fillIx);
 
   const signature = await sendAndConfirmTransaction(connection, tx, [
     takerKeypair,

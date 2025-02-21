@@ -93,7 +93,7 @@ async function create(
     tx.add(splToken.createSyncNativeInstruction(makerNativeAta));
   }
 
-  const createTx = await program.methods
+  const createIx = await program.methods
     .create({
       id: orderId,
       srcAmount: new BN(srcAmount),
@@ -119,7 +119,7 @@ async function create(
     .signers([makerKeypair])
     .instruction();
 
-  tx.add(createTx);
+  tx.add(createIx);
 
   const signature = await sendAndConfirmTransaction(connection, tx, [
     makerKeypair,
