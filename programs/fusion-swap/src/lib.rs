@@ -52,20 +52,18 @@ pub mod fusion_swap {
             EscrowError::InvalidEstimatedTakingAmount
         );
 
-        if ((order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-            && ctx.accounts.protocol_dst_ata.is_none())
-            || (order.fee.protocol_fee == 0
-                && order.fee.surplus_percentage == 0
-                && ctx.accounts.protocol_dst_ata.is_some())
-        {
-            return Err(EscrowError::InconsistentProtocolFeeConfig.into());
-        }
+        // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
+        require!(
+            (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
+                == ctx.accounts.protocol_dst_ata.is_some(),
+            EscrowError::InconsistentProtocolFeeConfig
+        );
 
-        if (order.fee.integrator_fee > 0 && ctx.accounts.integrator_dst_ata.is_none())
-            || (order.fee.integrator_fee == 0 && ctx.accounts.integrator_dst_ata.is_some())
-        {
-            return Err(EscrowError::InconsistentIntegratorFeeConfig.into());
-        }
+        // Iff integrator fee is positive, integrator_dst_ata must be set
+        require!(
+            (order.fee.integrator_fee > 0) == ctx.accounts.integrator_dst_ata.is_some(),
+            EscrowError::InconsistentIntegratorFeeConfig
+        );
 
         // Maker => Escrow
         transfer_checked(
@@ -125,9 +123,9 @@ pub mod fusion_swap {
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
-            order.fee.integrator_fee as u64,
-            order.fee.protocol_fee as u64,
-            order.fee.surplus_percentage as u64,
+            order.fee.integrator_fee,
+            order.fee.protocol_fee,
+            order.fee.surplus_percentage,
             dst_amount,
             get_dst_amount(order.src_amount, order.estimated_dst_amount, amount, None)?,
         )?;
@@ -408,11 +406,6 @@ pub struct Fill<'info> {
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    // TODO initialize this account as well as 'maker_dst_ata'
-    // this needs providing receiver address and adding
-    // associated_token::mint = dst_mint,
-    // associated_token::authority = receiver
-    // constraint
     /// Taker's ATA of src_mint
     #[account(
         mut,
@@ -537,18 +530,18 @@ fn get_dst_amount(
 }
 
 fn get_fee_amounts(
-    integrator_fee: u64,
-    protocol_fee: u64,
-    surplus_percentage: u64,
+    integrator_fee: u16,
+    protocol_fee: u16,
+    surplus_percentage: u8,
     dst_amount: u64,
     estimated_dst_amount: u64,
 ) -> Result<(u64, u64, u64)> {
     let integrator_fee_amount = dst_amount
-        .mul_div_floor(integrator_fee, BASE_1E5)
+        .mul_div_floor(integrator_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let mut protocol_fee_amount = dst_amount
-        .mul_div_floor(protocol_fee, BASE_1E5)
+        .mul_div_floor(protocol_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     let actual_dst_amount = (dst_amount - protocol_fee_amount)
@@ -557,13 +550,13 @@ fn get_fee_amounts(
 
     if actual_dst_amount > estimated_dst_amount {
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
-            .mul_div_floor(surplus_percentage, BASE_1E2)
+            .mul_div_floor(surplus_percentage as u64, BASE_1E2)
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
     Ok((
         protocol_fee_amount,
         integrator_fee_amount,
-        dst_amount - protocol_fee_amount - integrator_fee_amount,
+        dst_amount - integrator_fee_amount - protocol_fee_amount,
     ))
 }
