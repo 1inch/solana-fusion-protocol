@@ -18,8 +18,7 @@ export type ReducedOrderConfig =
 const reducedFeeConfigType = FusionSwapIDL.types.find(
   (t) => t.name === "ReducedFeeConfig"
 );
-export type ReducedFeeConfig =
-  (typeof reducedFeeConfigType)["type"]["fields"];
+export type ReducedFeeConfig = (typeof reducedFeeConfigType)["type"]["fields"];
 
 export type FeeConfig = {
   protocolDstAta: anchor.web3.PublicKey | null;

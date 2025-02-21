@@ -8,7 +8,7 @@ import {
 } from "@solana/web3.js";
 import { BN, Program } from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
-const fs = require('fs');
+const fs = require("fs");
 
 import FUSION_IDL from "../../target/idl/fusion_swap.json";
 import { FusionSwap } from "../../target/types/fusion_swap";
@@ -67,20 +67,20 @@ async function create(
     fee: {
       ...fee,
       protocolDstAta,
-      integratorDstAta
-    }
-  }
+      integratorDstAta,
+    },
+  };
 
   const orderHash = calculateOrderHash(orderConfig);
-  console.log(`Order hash hex: ${Buffer.from(orderHash).toString('hex')}`)
+  console.log(`Order hash hex: ${Buffer.from(orderHash).toString("hex")}`);
 
   const orderConfigs = {
     full: orderConfig,
-    reduced: reducedOrderConfig
+    reduced: reducedOrderConfig,
   };
 
-  fs.writeFileSync('order.json', JSON.stringify(orderConfigs));
-  console.log('Saved full and reduced order configs to order.json');
+  fs.writeFileSync("order.json", JSON.stringify(orderConfigs));
+  console.log("Saved full and reduced order configs to order.json");
 
   const escrow = findEscrowAddress(
     program.programId,

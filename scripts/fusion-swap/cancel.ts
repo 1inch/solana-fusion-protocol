@@ -23,7 +23,7 @@ async function cancel(
   program: Program<FusionSwap>,
   makerKeypair: Keypair,
   srcMint: PublicKey,
-  orderHash: string,
+  orderHash: string
 ): Promise<void> {
   const orderHashBytes = Array.from(orderHash.match(/../g) || [], (h) =>
     parseInt(h, 16)
@@ -48,7 +48,7 @@ async function cancel(
       srcMint,
       escrow,
       escrowSrcAta,
-      srcTokenProgram: splToken.TOKEN_PROGRAM_ID
+      srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
     })
     .signers([makerKeypair])
     .instruction();

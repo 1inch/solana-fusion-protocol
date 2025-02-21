@@ -7,7 +7,7 @@ import {
 } from "@solana/web3.js";
 import { BN, Program } from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
-const fs = require('fs');
+const fs = require("fs");
 
 import FUSION_IDL from "../../target/idl/fusion_swap.json";
 import WHITELIST_IDL from "../../target/idl/whitelist.json";
@@ -34,7 +34,7 @@ async function fill(
   maker: PublicKey,
   amount: number,
   orderConfig: OrderConfig,
-  reducedOrderConfig: ReducedOrderConfig,
+  reducedOrderConfig: ReducedOrderConfig
 ): Promise<void> {
   const orderHash = calculateOrderHash(orderConfig);
 
@@ -65,10 +65,7 @@ async function fill(
   );
 
   const fillIx = await program.methods
-    .fill(
-      reducedOrderConfig,
-      new BN(amount * Math.pow(10, srcMintDecimals))
-    )
+    .fill(reducedOrderConfig, new BN(amount * Math.pow(10, srcMintDecimals)))
     .accountsPartial({
       taker: takerKeypair.publicKey,
       resolverAccess,
@@ -97,8 +94,8 @@ async function fill(
 
 async function main() {
   const clusterUrl = getClusterUrlEnv();
-  const orderFilePath = prompt('Enter order config file path: ');
-  const maker = new PublicKey(prompt('Enter maker public key: '));
+  const orderFilePath = prompt("Enter order config file path: ");
+  const maker = new PublicKey(prompt("Enter maker public key: "));
 
   const orderConfigs = JSON.parse(fs.readFileSync(orderFilePath));
 
@@ -109,14 +106,14 @@ async function main() {
     estimatedDstAmount: new BN(orderConfigs.full.estimatedDstAmount, "hex"),
     srcMint: new PublicKey(orderConfigs.full.srcMint),
     dstMint: new PublicKey(orderConfigs.full.dstMint),
-    receiver: new PublicKey(orderConfigs.full.receiver)
-  }
+    receiver: new PublicKey(orderConfigs.full.receiver),
+  };
   const reducedOrderConfig = {
     ...orderConfigs.reduced,
     srcAmount: new BN(orderConfigs.reduced.srcAmount, "hex"),
     minDstAmount: new BN(orderConfigs.reduced.minDstAmount, "hex"),
     estimatedDstAmount: new BN(orderConfigs.reduced.estimatedDstAmount, "hex"),
-  }
+  };
 
   const takerKeypairPath = prompt("Enter taker keypair path: ");
   const takerKeypair = await loadKeypairFromFile(takerKeypairPath);
