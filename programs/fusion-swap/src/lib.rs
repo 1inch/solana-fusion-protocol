@@ -609,10 +609,6 @@ fn get_fee_amounts(
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     if actual_dst_amount > estimated_dst_amount {
-        // sub is unсhecked due to the `if` block we are in
-        // add is unchecked as initially we know `protocol_fee_amount < dst_amount - actual_dst_amount`
-        // which after addition becomes `protocol_fee_amount < dst_amount - estimated_dst_amount`
-        // as surplus_percentage is at most BASE_1E2
         protocol_fee_amount += (actual_dst_amount - estimated_dst_amount)
             .mul_div_floor(surplus_percentage as u64, BASE_1E2)
             .ok_or(ProgramError::ArithmeticOverflow)?;
