@@ -75,13 +75,17 @@ describe("Cancel by Resolver", () => {
 
       const transactionPromise = () =>
         program.methods
-          .cancelByResolver(escrow.order_id)
+          .cancelByResolver(escrow.reducedOrderConfig)
           .accountsPartial({
             resolver: state.bob.keypair.publicKey,
             maker: state.alice.keypair.publicKey,
-            srcMint: state.tokens[0],
+            makerReceiver: escrow.orderConfig.receiver,
+            srcMint: escrow.orderConfig.srcMint,
+            dstMint: escrow.orderConfig.dstMint,
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
+            protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+            integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.bob.keypair])
@@ -118,13 +122,17 @@ describe("Cancel by Resolver", () => {
 
     await expect(
       program.methods
-        .cancelByResolver(escrow.order_id)
+        .cancelByResolver(escrow.reducedOrderConfig)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
-          srcMint: state.tokens[0],
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
           escrow: escrow.escrow,
           escrowSrcAta: escrow.ata,
+          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.bob.keypair])
@@ -149,13 +157,17 @@ describe("Cancel by Resolver", () => {
 
     await expect(
       program.methods
-        .cancelByResolver(escrow.order_id)
+        .cancelByResolver(escrow.reducedOrderConfig)
         .accountsPartial({
           resolver: state.charlie.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
-          srcMint: state.tokens[0],
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
           escrow: escrow.escrow,
           escrowSrcAta: escrow.ata,
+          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.charlie.keypair])

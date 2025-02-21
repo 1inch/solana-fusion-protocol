@@ -12,8 +12,6 @@ pub enum EscrowError {
     NotEnoughTokensInEscrow,
     #[msg("Order expired")]
     OrderExpired,
-    #[msg("Seller receiver mismatch")]
-    SellerReceiverMismatch,
     #[msg("Invalid estimated taking amount")]
     InvalidEstimatedTakingAmount,
     #[msg("Protocol surplus fee too high")]

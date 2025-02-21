@@ -22,6 +22,7 @@ import {
   getTokenDecimals,
   loadKeypairFromFile,
 } from "../utils";
+import { sha256 } from "@noble/hashes/sha256";
 
 const prompt = require("prompt-sync")({ sigint: true });
 
@@ -44,10 +45,28 @@ async function create(
   dutchAuctionData: DutchAuctionData = defaultAuctionData,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
+  const orderConfig = {
+    orderId,
+    maker: makerKeypair.publicKey,
+    srcAmount,
+    minDstAmount,
+    expirationTime,
+    receiver,
+    nativeDstAsset,
+    fees,
+    dutchAuctionData,
+    srcMint,
+    dstMint,
+  };
+
+  const orderHash = sha256(
+    program.coder.types.encode("orderConfig", orderConfig)
+  );
+
   const escrow = findEscrowAddress(
     program.programId,
     makerKeypair.publicKey,
-    orderId
+    Buffer.from(orderHash)
   );
   const escrowAta = await splToken.getAssociatedTokenAddress(
     srcMint,
@@ -82,12 +101,12 @@ async function create(
       estimatedDstAmount: new BN(estimatedDstAmount),
       expirationTime,
       nativeDstAsset,
-      receiver,
       fee: fees,
       dutchAuctionData,
     })
     .accountsPartial({
       maker: makerKeypair.publicKey,
+      makerReceiver: receiver,
       srcMint,
       dstMint,
       escrow,
