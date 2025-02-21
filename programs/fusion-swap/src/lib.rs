@@ -111,8 +111,7 @@ pub mod fusion_swap {
         require!(amount != 0, EscrowError::InvalidAmount);
 
         // Update src_remaining
-        ctx.accounts.escrow.src_remaining -= amount; // safe since we check for amount <=
-                                                     // src_remaining above.
+        ctx.accounts.escrow.src_remaining -= amount;
 
         // Escrow => Taker
         transfer_checked(
@@ -605,8 +604,6 @@ fn get_fee_amounts(
         .mul_div_floor(protocol_fee as u64, BASE_1E5)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
-    // sub is unchecked as we know that `protocol_fee_amount < dst_amount`
-    // since the max value of u16 is less than BASE_1E5.
     let actual_dst_amount = (dst_amount - protocol_fee_amount)
         .checked_sub(integrator_fee_amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
