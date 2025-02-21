@@ -68,13 +68,20 @@ export async function loadKeypairFromFile(
 export function findEscrowAddress(
   programId: PublicKey,
   maker: PublicKey,
-  orderId: number
+  orderHash: Buffer | string
 ): PublicKey {
+  if (typeof orderHash === "string") {
+    const arr = Array.from(orderHash.match(/../g) || [], (h) =>
+      parseInt(h, 16)
+    );
+    orderHash = Buffer.from(arr);
+  }
+
   const [escrow] = PublicKey.findProgramAddressSync(
     [
       anchor.utils.bytes.utf8.encode("escrow"),
       maker.toBuffer(),
-      numberToBuffer(orderId, 4),
+      Buffer.from(orderHash),
     ],
     programId
   );
@@ -113,8 +120,4 @@ export function getClusterUrlEnv() {
     throw new Error("Missing CLUSTER_URL environment variable");
   }
   return clusterUrl;
-}
-
-function numberToBuffer(n: number, bufSize: number) {
-  return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
 }

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::hash::hash;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::spl_token::native_mint,
@@ -7,7 +8,6 @@ use anchor_spl::{
         TransferChecked,
     },
 };
-use common::constants::DISCRIMINATOR;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 use muldiv::MulDiv;
 
@@ -65,26 +65,6 @@ pub mod fusion_swap {
             EscrowError::InconsistentIntegratorFeeConfig
         );
 
-        let escrow = &mut ctx.accounts.escrow;
-        escrow.set_inner(Escrow {
-            src_amount: order.src_amount,
-            src_remaining: order.src_amount,
-            dst_mint: ctx.accounts.dst_mint.key(),
-            min_dst_amount: order.min_dst_amount,
-            expiration_time: order.expiration_time,
-            native_dst_asset: order.native_dst_asset,
-            receiver: order.receiver,
-            fee: order.fee,
-            protocol_dst_ata: ctx.accounts.protocol_dst_ata.as_ref().map(|acc| acc.key()),
-            integrator_dst_ata: ctx
-                .accounts
-                .integrator_dst_ata
-                .as_ref()
-                .map(|acc| acc.key()),
-            estimated_dst_amount: order.estimated_dst_amount,
-            dutch_auction_data: order.dutch_auction_data,
-        });
-
         // Maker => Escrow
         transfer_checked(
             CpiContext::new(
@@ -96,26 +76,23 @@ pub mod fusion_swap {
                     authority: ctx.accounts.maker.to_account_info(),
                 },
             ),
-            escrow.src_amount,
+            order.src_amount,
             ctx.accounts.src_mint.decimals,
         )
     }
 
-    pub fn fill(ctx: Context<Fill>, order_id: u32, amount: u64) -> Result<()> {
+    pub fn fill(ctx: Context<Fill>, order: OrderConfig, amount: u64) -> Result<()> {
         require!(
-            Clock::get()?.unix_timestamp <= ctx.accounts.escrow.expiration_time as i64,
+            Clock::get()?.unix_timestamp <= order.expiration_time as i64,
             EscrowError::OrderExpired
         );
 
         require!(
-            amount <= ctx.accounts.escrow.src_remaining,
+            amount <= ctx.accounts.escrow_src_ata.amount,
             EscrowError::NotEnoughTokensInEscrow
         );
 
         require!(amount != 0, EscrowError::InvalidAmount);
-
-        // Update src_remaining
-        ctx.accounts.escrow.src_remaining -= amount;
 
         // Escrow => Taker
         transfer_checked(
@@ -130,7 +107,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    order_id.to_be_bytes().as_ref(),
+                    &order_hash(&order)?,
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -139,23 +116,18 @@ pub mod fusion_swap {
         )?;
 
         let dst_amount = get_dst_amount(
-            ctx.accounts.escrow.src_amount,
-            ctx.accounts.escrow.min_dst_amount,
+            order.src_amount,
+            order.min_dst_amount,
             amount,
-            Some(&ctx.accounts.escrow.dutch_auction_data),
+            Some(&order.dutch_auction_data),
         )?;
 
         let (protocol_fee_amount, integrator_fee_amount, maker_dst_amount) = get_fee_amounts(
-            ctx.accounts.escrow.fee.integrator_fee,
-            ctx.accounts.escrow.fee.protocol_fee,
-            ctx.accounts.escrow.fee.surplus_percentage,
+            order.fee.integrator_fee,
+            order.fee.protocol_fee,
+            order.fee.surplus_percentage,
             dst_amount,
-            get_dst_amount(
-                ctx.accounts.escrow.src_amount,
-                ctx.accounts.escrow.estimated_dst_amount,
-                amount,
-                None,
-            )?,
+            get_dst_amount(order.src_amount, order.estimated_dst_amount, amount, None)?,
         )?;
 
         // Take protocol fee
@@ -205,7 +177,7 @@ pub mod fusion_swap {
         }
 
         // Taker => Maker
-        if ctx.accounts.escrow.native_dst_asset {
+        if order.native_dst_asset {
             // Transfer native SOL
             anchor_lang::system_program::transfer(
                 CpiContext::new(
@@ -241,21 +213,27 @@ pub mod fusion_swap {
         }
 
         // Close escrow if all tokens are filled
-        if ctx.accounts.escrow.src_remaining == 0 {
-            close_escrow(
+        if ctx.accounts.escrow_src_ata.amount == amount {
+            close_account(CpiContext::new_with_signer(
                 ctx.accounts.src_token_program.to_account_info(),
-                &ctx.accounts.escrow,
-                ctx.accounts.escrow_src_ata.to_account_info(),
-                ctx.accounts.maker.to_account_info(),
-                order_id,
-                ctx.bumps.escrow,
-            )?;
+                CloseAccount {
+                    account: ctx.accounts.escrow_src_ata.to_account_info(),
+                    destination: ctx.accounts.maker.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                &[&[
+                    "escrow".as_bytes(),
+                    ctx.accounts.maker.key().as_ref(),
+                    &order_hash(&order)?,
+                    &[ctx.bumps.escrow],
+                ]],
+            ))?;
         }
 
         Ok(())
     }
 
-    pub fn cancel(ctx: Context<Cancel>, order_id: u32) -> Result<()> {
+    pub fn cancel(ctx: Context<Cancel>, order_hash: [u8; 32]) -> Result<()> {
         // return remaining src tokens back to maker
         transfer_checked(
             CpiContext::new_with_signer(
@@ -269,7 +247,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    order_id.to_be_bytes().as_ref(),
+                    &order_hash,
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -277,14 +255,20 @@ pub mod fusion_swap {
             ctx.accounts.src_mint.decimals,
         )?;
 
-        close_escrow(
+        close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
-            &ctx.accounts.escrow,
-            ctx.accounts.escrow_src_ata.to_account_info(),
-            ctx.accounts.maker.to_account_info(),
-            order_id,
-            ctx.bumps.escrow,
-        )
+            CloseAccount {
+                account: ctx.accounts.escrow_src_ata.to_account_info(),
+                destination: ctx.accounts.maker.to_account_info(),
+                authority: ctx.accounts.escrow.to_account_info(),
+            },
+            &[&[
+                "escrow".as_bytes(),
+                ctx.accounts.maker.key().as_ref(),
+                &order_hash,
+                &[ctx.bumps.escrow],
+            ]],
+        ))
     }
 }
 
@@ -311,13 +295,15 @@ pub struct Create<'info> {
 
     /// Account to store order conditions
     #[account(
-        init,
-        payer = maker,
-        space = DISCRIMINATOR + Escrow::INIT_SPACE,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order.id.to_be_bytes().as_ref()],
+        seeds = [
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            &order_hash(&order)?,
+        ],
         bump,
     )]
-    escrow: Box<Account<'info, Escrow>>,
+    /// CHECK: check is not needed here as we never initialize the account
+    escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
@@ -345,7 +331,7 @@ pub struct Create<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32)]
+#[instruction(order: OrderConfig)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]
@@ -364,7 +350,7 @@ pub struct Fill<'info> {
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
     #[account(
-        constraint = escrow.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
+        constraint = order.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
     )]
     maker_receiver: AccountInfo<'info>,
 
@@ -373,17 +359,21 @@ pub struct Fill<'info> {
     src_mint: Box<InterfaceAccount<'info, Mint>>,
     /// Taker asset
     #[account(
-        constraint = escrow.dst_mint == dst_mint.key(),
+        constraint = order.dst_mint == dst_mint.key() @ EscrowError::InconsistentDstMint,
     )]
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// Account to store order conditions
     #[account(
-        mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = [
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            &order_hash(&order)?,
+        ],
         bump,
     )]
-    escrow: Box<Account<'info, Escrow>>,
+    /// CHECK: check is not needed here as we never initialize the account
+    escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
@@ -406,13 +396,13 @@ pub struct Fill<'info> {
 
     #[account(
         mut,
-        constraint = Some(protocol_dst_ata.key()) == escrow.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
+        constraint = Some(protocol_dst_ata.key()) == order.fee.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
     )]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(
         mut,
-        constraint = Some(integrator_dst_ata.key()) == escrow.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
+        constraint = Some(integrator_dst_ata.key()) == order.fee.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
@@ -439,7 +429,7 @@ pub struct Fill<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order_id: u32)]
+#[instruction(order_hash: [u8; 32])]
 pub struct Cancel<'info> {
     /// Account that created the escrow
     #[account(mut, signer)]
@@ -452,10 +442,15 @@ pub struct Cancel<'info> {
     /// Account to store order conditions
     #[account(
         mut,
-        seeds = ["escrow".as_bytes(), maker.key().as_ref(), order_id.to_be_bytes().as_ref()],
+        seeds = [
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            &order_hash,
+        ],
         bump,
     )]
-    escrow: Box<Account<'info, Escrow>>,
+    /// CHECK: check is not needed here as we never initialize the account
+    escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
@@ -481,6 +476,9 @@ pub struct Cancel<'info> {
 /// Configuration for fees applied to the escrow
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct FeeConfig {
+    protocol_dst_ata: Option<Pubkey>,
+    integrator_dst_ata: Option<Pubkey>,
+
     /// Protocol fee in basis points where `BASE_1E5` = 100%
     protocol_fee: u16,
 
@@ -503,79 +501,12 @@ pub struct OrderConfig {
     receiver: Pubkey,
     fee: FeeConfig,
     dutch_auction_data: DutchAuctionData,
-}
-
-/// Core data structure for an escrow
-#[account]
-#[derive(InitSpace)]
-pub struct Escrow {
-    /// Amount of `src_mint` tokens the maker is offering to sell
-    /// The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account.
-    src_amount: u64,
-
-    /// Remaining amount of `src_mint` tokens available for fill
-    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value.
-    src_remaining: u64,
-
-    /// The token that the maker wants to receive
-    /// This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value.
+    src_mint: Pubkey,
     dst_mint: Pubkey,
-
-    /// Minimum amount of `dst_mint` tokens the maker wants to receive
-    min_dst_amount: u64,
-
-    /// Estimated amount of `dst_mint` tokens the maker expects to receive.
-    estimated_dst_amount: u64,
-
-    /// Unix timestamp indicating when the escrow expires
-    expiration_time: u32,
-
-    /// Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)
-    native_dst_asset: bool,
-
-    /// The wallet which will receive the `dst_mint` tokens
-    receiver: Pubkey,
-
-    /// See {FeeConfig}
-    fee: FeeConfig,
-
-    /// Associated token account for collecting protocol fees
-    protocol_dst_ata: Option<Pubkey>,
-
-    /// Associated token account for collecting integrator fees
-    integrator_dst_ata: Option<Pubkey>,
-
-    /// Dutch auction parameters defining price adjustments over time
-    dutch_auction_data: DutchAuctionData,
 }
 
-// Function to close the escrow account
-fn close_escrow<'info>(
-    token_program: AccountInfo<'info>,
-    escrow: &Account<'info, Escrow>,
-    escrow_src_ata: AccountInfo<'info>,
-    maker: AccountInfo<'info>,
-    order_id: u32,
-    escrow_bump: u8,
-) -> Result<()> {
-    // Close escrow_src_ata account
-    close_account(CpiContext::new_with_signer(
-        token_program,
-        CloseAccount {
-            account: escrow_src_ata,
-            destination: maker.to_account_info(),
-            authority: escrow.to_account_info(),
-        },
-        &[&[
-            "escrow".as_bytes(),
-            maker.key().as_ref(),
-            order_id.to_be_bytes().as_ref(),
-            &[escrow_bump],
-        ]],
-    ))?;
-
-    // Close escrow account
-    escrow.close(maker)
+fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
+    Ok(hash(order.try_to_vec()?.as_ref()).to_bytes())
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
