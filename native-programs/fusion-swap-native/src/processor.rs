@@ -2,11 +2,8 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, 
 
 use spl_discriminator::{ArrayDiscriminator, SplDiscriminate};
 
-#[allow(dead_code)]
 pub struct Create;
-#[allow(dead_code)]
 pub struct Fill;
-#[allow(dead_code)]
 pub struct Cancel;
 
 impl SplDiscriminate for Create {
