@@ -84,9 +84,6 @@ pub mod fusion_swap {
     }
 
     pub fn fill(ctx: Context<Fill>, order: OrderConfig, amount: u64) -> Result<()> {
-        msg!("xxx");
-        msg!(ctx.accounts.dst_mint.key().to_string().as_str());
-        msg!(order.dst_mint.key().to_string().as_str());
         require!(
             Clock::get()?.unix_timestamp <= order.expiration_time as i64,
             EscrowError::OrderExpired
@@ -307,7 +304,7 @@ pub struct Create<'info> {
         ],
         bump,
     )]
-    /// CHECK: skip
+    /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
@@ -377,7 +374,7 @@ pub struct Fill<'info> {
         ],
         bump,
     )]
-    /// CHECK: skip
+    /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
@@ -459,7 +456,7 @@ pub struct Cancel<'info> {
         ],
         bump,
     )]
-    /// CHECK: skip
+    /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
     /// ATA of src_mint to store escrowed tokens
