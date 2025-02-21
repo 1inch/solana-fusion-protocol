@@ -25,7 +25,7 @@ pub const BASE_1E5: u64 = 100_000;
 pub mod fusion_swap {
     use super::*;
 
-    pub fn create(ctx: Context<Create>, order: OrderConfig) -> Result<()> {
+    pub fn create(ctx: Context<Create>, order: ReducedOrderConfig) -> Result<()> {
         require!(
             order.src_amount != 0 && order.min_dst_amount != 0,
             EscrowError::InvalidAmount
@@ -81,9 +81,9 @@ pub mod fusion_swap {
         )
     }
 
-    pub fn fill(ctx: Context<Fill>, order: OrderConfig, amount: u64) -> Result<()> {
+    pub fn fill(ctx: Context<Fill>, reduced_order: ReducedOrderConfig, amount: u64) -> Result<()> {
         require!(
-            Clock::get()?.unix_timestamp <= order.expiration_time as i64,
+            Clock::get()?.unix_timestamp <= reduced_order.expiration_time as i64,
             EscrowError::OrderExpired
         );
 
@@ -93,6 +93,18 @@ pub mod fusion_swap {
         );
 
         require!(amount != 0, EscrowError::InvalidAmount);
+
+        let order = build_order_from_reduced(
+            &reduced_order,
+            ctx.accounts.src_mint.key(),
+            ctx.accounts.dst_mint.key(),
+            ctx.accounts.maker_receiver.key(),
+            ctx.accounts.protocol_dst_ata.as_ref().map(|ata| ata.key()),
+            ctx.accounts
+                .integrator_dst_ata
+                .as_ref()
+                .map(|ata| ata.key()),
+        );
 
         // Escrow => Taker
         transfer_checked(
@@ -273,7 +285,7 @@ pub mod fusion_swap {
 }
 
 #[derive(Accounts)]
-#[instruction(order: OrderConfig)]
+#[instruction(order: ReducedOrderConfig)]
 pub struct Create<'info> {
     /// `maker`, who is willing to sell src token for dst token
     #[account(mut, signer)]
@@ -293,12 +305,22 @@ pub struct Create<'info> {
     )]
     maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    /// CHECK: maker_receiver only has to be equal to escrow parameter
+    maker_receiver: AccountInfo<'info>,
+
     /// Account to store order conditions
     #[account(
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            &order_hash(&order)?,
+            &order_hash(&build_order_from_reduced(
+                &order,
+                src_mint.key(),
+                dst_mint.key(),
+                maker_receiver.key(),
+                protocol_dst_ata.clone().map(|ata| ata.key()),
+                integrator_dst_ata.clone().map(|ata| ata.key()),
+            ))?,
         ],
         bump,
     )]
@@ -331,7 +353,7 @@ pub struct Create<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order: OrderConfig)]
+#[instruction(order: ReducedOrderConfig)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]
@@ -349,18 +371,11 @@ pub struct Fill<'info> {
     maker: AccountInfo<'info>,
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
-    #[account(
-        constraint = order.receiver == maker_receiver.key() @ EscrowError::SellerReceiverMismatch,
-    )]
     maker_receiver: AccountInfo<'info>,
 
     /// Maker asset
-    // TODO: Add src_mint to escrow or seeds
     src_mint: Box<InterfaceAccount<'info, Mint>>,
     /// Taker asset
-    #[account(
-        constraint = order.dst_mint == dst_mint.key() @ EscrowError::InconsistentDstMint,
-    )]
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// Account to store order conditions
@@ -368,7 +383,14 @@ pub struct Fill<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            &order_hash(&order)?,
+            &order_hash(&build_order_from_reduced(
+                &order,
+                src_mint.key(),
+                dst_mint.key(),
+                maker_receiver.key(),
+                protocol_dst_ata.clone().map(|ata| ata.key()),
+                integrator_dst_ata.clone().map(|ata| ata.key()),
+            ))?,
         ],
         bump,
     )]
@@ -394,16 +416,10 @@ pub struct Fill<'info> {
     )]
     maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    #[account(
-        mut,
-        constraint = Some(protocol_dst_ata.key()) == order.fee.protocol_dst_ata @ EscrowError::InconsistentProtocolFeeConfig
-    )]
+    #[account(mut)]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    #[account(
-        mut,
-        constraint = Some(integrator_dst_ata.key()) == order.fee.integrator_dst_ata @ EscrowError::InconsistentIntegratorFeeConfig
-    )]
+    #[account(mut)]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     /// Taker's ATA of src_mint
@@ -490,6 +506,20 @@ pub struct FeeConfig {
     surplus_percentage: u8,
 }
 
+/// Configuration for fees applied to the escrow
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct ReducedFeeConfig {
+    /// Protocol fee in basis points where `BASE_1E5` = 100%
+    protocol_fee: u16,
+
+    /// Integrator fee in basis points where `BASE_1E5` = 100%
+    integrator_fee: u16,
+
+    /// Percentage of positive slippage taken by the protocol as an additional fee.
+    /// Value in basis points where `BASE_1E2` = 100%
+    surplus_percentage: u8,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct OrderConfig {
     id: u32,
@@ -503,6 +533,18 @@ pub struct OrderConfig {
     dutch_auction_data: DutchAuctionData,
     src_mint: Pubkey,
     dst_mint: Pubkey,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct ReducedOrderConfig {
+    id: u32,
+    src_amount: u64,
+    min_dst_amount: u64,
+    estimated_dst_amount: u64,
+    expiration_time: u32,
+    native_dst_asset: bool,
+    fee: ReducedFeeConfig,
+    dutch_auction_data: DutchAuctionData,
 }
 
 fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
@@ -559,4 +601,33 @@ fn get_fee_amounts(
         integrator_fee_amount,
         dst_amount - integrator_fee_amount - protocol_fee_amount,
     ))
+}
+
+fn build_order_from_reduced(
+    order: &ReducedOrderConfig,
+    src_mint: Pubkey,
+    dst_mint: Pubkey,
+    receiver: Pubkey,
+    protocol_dst_ata: Option<Pubkey>,
+    integrator_dst_ata: Option<Pubkey>,
+) -> OrderConfig {
+    OrderConfig {
+        id: order.id,
+        src_amount: order.src_amount,
+        min_dst_amount: order.min_dst_amount,
+        estimated_dst_amount: order.estimated_dst_amount,
+        expiration_time: order.expiration_time,
+        native_dst_asset: order.native_dst_asset,
+        receiver,
+        fee: FeeConfig {
+            protocol_dst_ata,
+            integrator_dst_ata,
+            protocol_fee: order.fee.protocol_fee,
+            integrator_fee: order.fee.integrator_fee,
+            surplus_percentage: order.fee.surplus_percentage,
+        },
+        dutch_auction_data: order.dutch_auction_data.clone(),
+        src_mint,
+        dst_mint,
+    }
 }

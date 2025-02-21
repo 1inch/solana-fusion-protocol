@@ -7,13 +7,25 @@ import * as splToken from "@solana/spl-token";
 
 const FusionSwapIDL = require("../target/idl/fusion_swap.json");
 
-const orderConfigType = FusionSwapIDL.types.find(
-  (t) => t.name === "OrderConfig"
+const reducedOrderConfigType = FusionSwapIDL.types.find(
+  (t) => t.name === "ReducedOrderConfig"
 );
-export type OrderConfig = (typeof orderConfigType)["type"]["fields"];
+export type ReducedOrderConfig =
+  (typeof reducedOrderConfigType)["type"]["fields"];
 
-const feeConfigType = FusionSwapIDL.types.find((t) => t.name === "FeeConfig");
-export type FeeConfig = (typeof feeConfigType)["type"]["fields"];
+export type FeeConfig = {
+  protocolDstAta: anchor.web3.PublicKey | null;
+  integratorDstAta: anchor.web3.PublicKey | null;
+  protocolFee: number;
+  integratorFee: number;
+  surplusPercentage: number;
+};
+export type OrderConfig = ReducedOrderConfig & {
+  src_mint: anchor.web3.PublicKey;
+  dst_mint: anchor.web3.PublicKey;
+  receiver: anchor.web3.PublicKey;
+  fee: FeeConfig;
+};
 
 const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
 export type Escrow = (typeof escrowType)["type"]["fields"];
@@ -27,6 +39,8 @@ export const defaultFeeConfig: FeeConfig = {
   protocolFee: 0,
   integratorFee: 0,
   surplusPercentage: 0,
+  protocolDstAta: null,
+  integratorDstAta: null,
 };
 
 export const defaultAuctionData: DutchAuctionData = {

@@ -12,8 +12,6 @@ pub enum EscrowError {
     NotEnoughTokensInEscrow,
     #[msg("Order expired")]
     OrderExpired,
-    #[msg("Seller receiver mismatch")]
-    SellerReceiverMismatch,
     #[msg("Invalid estimated taking amount")]
     InvalidEstimatedTakingAmount,
     #[msg("Protocol surplus fee too high")]
@@ -22,6 +20,4 @@ pub enum EscrowError {
     InconsistentProtocolFeeConfig,
     #[msg("Inconsistent integrator fee config")]
     InconsistentIntegratorFeeConfig,
-    #[msg("Inconsistent dst mint")]
-    InconsistentDstMint,
 }
