@@ -24,10 +24,21 @@ async function cancel(
   makerKeypair: Keypair,
   srcMint: PublicKey,
   orderHash: string,
-  srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<void> {
   const orderHashBytes = Array.from(orderHash.match(/../g) || [], (h) =>
     parseInt(h, 16)
+  );
+
+  const escrow = findEscrowAddress(
+    program.programId,
+    makerKeypair.publicKey,
+    orderHash
+  );
+
+  const escrowSrcAta = await splToken.getAssociatedTokenAddress(
+    srcMint,
+    escrow,
+    true
   );
 
   const cancelIx = await program.methods
@@ -35,7 +46,9 @@ async function cancel(
     .accountsPartial({
       maker: makerKeypair.publicKey,
       srcMint,
-      srcTokenProgram,
+      escrow,
+      escrowSrcAta,
+      srcTokenProgram: splToken.TOKEN_PROGRAM_ID
     })
     .signers([makerKeypair])
     .instruction();
@@ -52,6 +65,7 @@ async function main() {
   const clusterUrl = getClusterUrlEnv();
   const makerKeypairPath = prompt("Enter maker keypair path: ");
   const orderHash = prompt("Enter order hash: ");
+  const srcMint = new PublicKey(prompt("Enter src mint public key: "));
 
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
@@ -64,15 +78,21 @@ async function main() {
       makerKeypair.publicKey,
       orderHash
     );
-    console.log(JSON.stringify(escrowAddr));
+
+    const escrowSrcAtaAddr = await splToken.getAssociatedTokenAddress(
+      srcMint,
+      escrowAddr,
+      true
+    );
+
+    await splToken.getAccount(connection, escrowSrcAtaAddr);
+    console.log(`Order exists`);
   } catch (e) {
     console.error(
       `Escrow with order hash = ${orderHash} and maker = ${makerKeypair.publicKey.toString()} does not exist`
     );
     return;
   }
-
-  const srcMint = new PublicKey(prompt("Enter src mint public key: "));
 
   await cancel(connection, fusionSwap, makerKeypair, srcMint, orderHash);
 }

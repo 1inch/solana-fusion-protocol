@@ -1,13 +1,11 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
-import * as borsh from "borsh";
 import {
   Transaction,
   sendAndConfirmTransaction,
   PublicKey,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import { sha256 } from "@noble/hashes/sha256";
 import * as splBankrunToken from "spl-token-bankrun";
 import {
   AccountInfoBytes,
@@ -20,6 +18,7 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
+import { calculateOrderHash } from "../../scripts/utils";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -38,50 +37,10 @@ type FeeConfig = {
   surplusPercentage: number;
 };
 type OrderConfig = ReducedOrderConfig & {
-  src_mint: anchor.web3.PublicKey;
-  dst_mint: anchor.web3.PublicKey;
+  srcMint: anchor.web3.PublicKey;
+  dstMint: anchor.web3.PublicKey;
   receiver: anchor.web3.PublicKey;
   fee: FeeConfig;
-};
-
-const orderConfigSchema = {
-  struct: {
-    id: "u32",
-    srcAmount: "u64",
-    minDstAmount: "u64",
-    estimatedDstAmount: "u64",
-    expirationTime: "u32",
-    nativeDstAsset: "bool",
-    receiver: { array: { type: "u8", len: 32 } },
-    fee: {
-      struct: {
-        protocolDstAta: { option: { array: { type: "u8", len: 32 } } },
-        integratorDstAta: { option: { array: { type: "u8", len: 32 } } },
-        protocolFee: "u16",
-        integratorFee: "u16",
-        surplusPercentage: "u8",
-      },
-    },
-    dutchAuctionData: {
-      struct: {
-        startTime: "u32",
-        duration: "u32",
-        initialRateBump: "u16",
-        pointsAndTimeDeltas: {
-          array: {
-            type: {
-              struct: {
-                rateBump: "u16",
-                timeDelta: "u16",
-              },
-            },
-          },
-        },
-      },
-    },
-    srcMint: { array: { type: "u8", len: 32 } },
-    dstMint: { array: { type: "u8", len: 32 } },
-  },
 };
 
 export type User = {
@@ -351,7 +310,7 @@ export class TestState {
       [
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
-        getOrderHash(orderConfig),
+        calculateOrderHash(orderConfig),
       ],
       escrowProgram.programId
     );
@@ -429,40 +388,6 @@ export class TestState {
       },
     };
   }
-}
-
-export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
-  const values = {
-    id: orderConfig.id,
-    srcAmount: orderConfig.srcAmount.toNumber(),
-    minDstAmount: orderConfig.minDstAmount.toNumber(),
-    estimatedDstAmount: orderConfig.estimatedDstAmount.toNumber(),
-    expirationTime: orderConfig.expirationTime,
-    nativeDstAsset: orderConfig.nativeDstAsset,
-    receiver: orderConfig.receiver.toBuffer(),
-    fee: {
-      protocolDstAta: orderConfig.fee.protocolDstAta?.toBuffer(),
-      integratorDstAta: orderConfig.fee.integratorDstAta?.toBuffer(),
-      protocolFee: orderConfig.fee.protocolFee,
-      integratorFee: orderConfig.fee.integratorFee,
-      surplusPercentage: orderConfig.fee.surplusPercentage,
-    },
-    dutchAuctionData: {
-      startTime: orderConfig.dutchAuctionData.startTime,
-      duration: orderConfig.dutchAuctionData.duration,
-      initialRateBump: orderConfig.dutchAuctionData.initialRateBump,
-      pointsAndTimeDeltas: orderConfig.dutchAuctionData.pointsAndTimeDeltas.map(
-        (p) => ({
-          rateBump: p.rateBump,
-          timeDelta: p.timeDelta,
-        })
-      ),
-    },
-    srcMint: orderConfig.srcMint.toBuffer(),
-    dstMint: orderConfig.dstMint.toBuffer(),
-  };
-
-  return sha256(borsh.serialize(orderConfigSchema, values));
 }
 
 export async function createTokens(
