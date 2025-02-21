@@ -25,7 +25,12 @@ const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
 const orderConfigType = FusionSwapIDL.types.find(
   (t) => t.name === "OrderConfig"
 );
+const reducedOrderConfigType = FusionSwapIDL.types.find(
+  (t) => t.name === "ReducedOrderConfig"
+);
 type OrderConfig = (typeof orderConfigType)["type"]["fields"];
+export type ReducedOrderConfig =
+  (typeof reducedOrderConfigType)["type"]["fields"];
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -37,6 +42,7 @@ export type User = {
 export type Escrow = {
   escrow: anchor.web3.PublicKey;
   orderConfig: OrderConfig;
+  reducedOrderConfig: ReducedOrderConfig;
   ata: anchor.web3.PublicKey;
 };
 
@@ -344,6 +350,7 @@ export class TestState {
     return {
       escrow,
       orderConfig,
+      reducedOrderConfig: orderConfig as ReducedOrderConfig,
       ata: escrowAta,
     };
   }
