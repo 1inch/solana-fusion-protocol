@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/fusion_swap.json`.
  */
 export type FusionSwapNative = {
-  address: "8Qq1QF5vLfcHDLJuEGvLVCCh3PdM1nNiSQwkMGD2YuXe";
+  address: "9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh";
   metadata: {
     name: "fusionSwapNative";
     version: "0.1.0";
@@ -43,7 +43,7 @@ export type FusionSwapNative = {
               },
               {
                 kind: "arg";
-                path: "orderId";
+                path: "orderHash";
               }
             ];
           };
@@ -170,8 +170,10 @@ export type FusionSwapNative = {
       ];
       args: [
         {
-          name: "orderId";
-          type: "u32";
+          name: "orderHash";
+          type: {
+            array: ["u8", 32];
+          };
         }
       ];
     },
@@ -252,25 +254,11 @@ export type FusionSwapNative = {
           };
         },
         {
+          name: "makerReceiver";
+        },
+        {
           name: "escrow";
           docs: ["Account to store order conditions"];
-          writable: true;
-          pda: {
-            seeds: [
-              {
-                kind: "const";
-                value: [101, 115, 99, 114, 111, 119];
-              },
-              {
-                kind: "account";
-                path: "maker";
-              },
-              {
-                kind: "arg";
-                path: "order.id";
-              }
-            ];
-          };
         },
         {
           name: "escrowSrcAta";
@@ -355,7 +343,7 @@ export type FusionSwapNative = {
           name: "order";
           type: {
             defined: {
-              name: "orderConfig";
+              name: "reducedOrderConfig";
             };
           };
         }
@@ -458,23 +446,6 @@ export type FusionSwapNative = {
         {
           name: "escrow";
           docs: ["Account to store order conditions"];
-          writable: true;
-          pda: {
-            seeds: [
-              {
-                kind: "const";
-                value: [101, 115, 99, 114, 111, 119];
-              },
-              {
-                kind: "account";
-                path: "maker";
-              },
-              {
-                kind: "arg";
-                path: "orderId";
-              }
-            ];
-          };
         },
         {
           name: "escrowSrcAta";
@@ -683,8 +654,12 @@ export type FusionSwapNative = {
       ];
       args: [
         {
-          name: "orderId";
-          type: "u32";
+          name: "reducedOrder";
+          type: {
+            defined: {
+              name: "reducedOrderConfig";
+            };
+          };
         },
         {
           name: "amount";
@@ -694,10 +669,6 @@ export type FusionSwapNative = {
     }
   ];
   accounts: [
-    {
-      name: "escrow";
-      discriminator: [31, 213, 123, 187, 186, 22, 218, 155];
-    },
     {
       name: "resolverAccess";
       discriminator: [32, 2, 74, 248, 174, 108, 70, 156];
@@ -731,26 +702,21 @@ export type FusionSwapNative = {
     },
     {
       code: 6005;
-      name: "sellerReceiverMismatch";
-      msg: "Seller receiver mismatch";
-    },
-    {
-      code: 6006;
       name: "invalidEstimatedTakingAmount";
       msg: "Invalid estimated taking amount";
     },
     {
-      code: 6007;
+      code: 6006;
       name: "invalidProtocolSurplusFee";
       msg: "Protocol surplus fee too high";
     },
     {
-      code: 6008;
+      code: 6007;
       name: "inconsistentProtocolFeeConfig";
       msg: "Inconsistent protocol fee config";
     },
     {
-      code: 6009;
+      code: 6008;
       name: "inconsistentIntegratorFeeConfig";
       msg: "Inconsistent integrator fee config";
     }
@@ -787,105 +753,23 @@ export type FusionSwapNative = {
       };
     },
     {
-      name: "escrow";
-      docs: ["Core data structure for an escrow"];
+      name: "pointAndTimeDelta";
       type: {
         kind: "struct";
         fields: [
           {
-            name: "srcAmount";
-            docs: [
-              "Amount of `src_mint` tokens the maker is offering to sell",
-              "The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account."
-            ];
-            type: "u64";
+            name: "rateBump";
+            type: "u16";
           },
           {
-            name: "srcRemaining";
-            docs: [
-              "Remaining amount of `src_mint` tokens available for fill",
-              "This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value."
-            ];
-            type: "u64";
-          },
-          {
-            name: "dstMint";
-            docs: [
-              "The token that the maker wants to receive",
-              "This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value."
-            ];
-            type: "pubkey";
-          },
-          {
-            name: "minDstAmount";
-            docs: [
-              "Minimum amount of `dst_mint` tokens the maker wants to receive"
-            ];
-            type: "u64";
-          },
-          {
-            name: "estimatedDstAmount";
-            docs: [
-              "Estimated amount of `dst_mint` tokens the maker expects to receive."
-            ];
-            type: "u64";
-          },
-          {
-            name: "expirationTime";
-            docs: ["Unix timestamp indicating when the escrow expires"];
-            type: "u32";
-          },
-          {
-            name: "nativeDstAsset";
-            docs: [
-              "Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)"
-            ];
-            type: "bool";
-          },
-          {
-            name: "receiver";
-            docs: ["The wallet which will receive the `dst_mint` tokens"];
-            type: "pubkey";
-          },
-          {
-            name: "fee";
-            docs: ["See {FeeConfig}"];
-            type: {
-              defined: {
-                name: "feeConfig";
-              };
-            };
-          },
-          {
-            name: "protocolDstAta";
-            docs: ["Associated token account for collecting protocol fees"];
-            type: {
-              option: "pubkey";
-            };
-          },
-          {
-            name: "integratorDstAta";
-            docs: ["Associated token account for collecting integrator fees"];
-            type: {
-              option: "pubkey";
-            };
-          },
-          {
-            name: "dutchAuctionData";
-            docs: [
-              "Dutch auction parameters defining price adjustments over time"
-            ];
-            type: {
-              defined: {
-                name: "dutchAuctionData";
-              };
-            };
+            name: "timeDelta";
+            type: "u16";
           }
         ];
       };
     },
     {
-      name: "feeConfig";
+      name: "reducedFeeConfig";
       docs: ["Configuration for fees applied to the escrow"];
       type: {
         kind: "struct";
@@ -912,7 +796,7 @@ export type FusionSwapNative = {
       };
     },
     {
-      name: "orderConfig";
+      name: "reducedOrderConfig";
       type: {
         kind: "struct";
         fields: [
@@ -941,14 +825,10 @@ export type FusionSwapNative = {
             type: "bool";
           },
           {
-            name: "receiver";
-            type: "pubkey";
-          },
-          {
             name: "fee";
             type: {
               defined: {
-                name: "feeConfig";
+                name: "reducedFeeConfig";
               };
             };
           },
@@ -959,22 +839,6 @@ export type FusionSwapNative = {
                 name: "dutchAuctionData";
               };
             };
-          }
-        ];
-      };
-    },
-    {
-      name: "pointAndTimeDelta";
-      type: {
-        kind: "struct";
-        fields: [
-          {
-            name: "rateBump";
-            type: "u16";
-          },
-          {
-            name: "timeDelta";
-            type: "u16";
           }
         ];
       };

@@ -1,5 +1,5 @@
 {
-  "address": "8Qq1QF5vLfcHDLJuEGvLVCCh3PdM1nNiSQwkMGD2YuXe",
+  "address": "9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh",
   "metadata": {
     "name": "fusion_swap_native",
     "version": "0.1.0",
@@ -59,7 +59,7 @@
               },
               {
                 "kind": "arg",
-                "path": "order_id"
+                "path": "order_hash"
               }
             ]
           }
@@ -190,8 +190,13 @@
       ],
       "args": [
         {
-          "name": "order_id",
-          "type": "u32"
+          "name": "order_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -289,34 +294,13 @@
           }
         },
         {
+          "name": "maker_receiver"
+        },
+        {
           "name": "escrow",
           "docs": [
             "Account to store order conditions"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "maker"
-              },
-              {
-                "kind": "arg",
-                "path": "order.id"
-              }
-            ]
-          }
+          ]
         },
         {
           "name": "escrow_src_ata",
@@ -403,7 +387,7 @@
           "name": "order",
           "type": {
             "defined": {
-              "name": "OrderConfig"
+              "name": "ReducedOrderConfig"
             }
           }
         }
@@ -524,31 +508,7 @@
           "name": "escrow",
           "docs": [
             "Account to store order conditions"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "maker"
-              },
-              {
-                "kind": "arg",
-                "path": "order_id"
-              }
-            ]
-          }
+          ]
         },
         {
           "name": "escrow_src_ata",
@@ -765,8 +725,12 @@
       ],
       "args": [
         {
-          "name": "order_id",
-          "type": "u32"
+          "name": "reduced_order",
+          "type": {
+            "defined": {
+              "name": "ReducedOrderConfig"
+            }
+          }
         },
         {
           "name": "amount",
@@ -776,19 +740,6 @@
     }
   ],
   "accounts": [
-    {
-      "name": "Escrow",
-      "discriminator": [
-        31,
-        213,
-        123,
-        187,
-        186,
-        22,
-        218,
-        155
-      ]
-    },
     {
       "name": "ResolverAccess",
       "discriminator": [
@@ -831,26 +782,21 @@
     },
     {
       "code": 6005,
-      "name": "SellerReceiverMismatch",
-      "msg": "Seller receiver mismatch"
-    },
-    {
-      "code": 6006,
       "name": "InvalidEstimatedTakingAmount",
       "msg": "Invalid estimated taking amount"
     },
     {
-      "code": 6007,
+      "code": 6006,
       "name": "InvalidProtocolSurplusFee",
       "msg": "Protocol surplus fee too high"
     },
     {
-      "code": 6008,
+      "code": 6007,
       "name": "InconsistentProtocolFeeConfig",
       "msg": "Inconsistent protocol fee config"
     },
     {
-      "code": 6009,
+      "code": 6008,
       "name": "InconsistentIntegratorFeeConfig",
       "msg": "Inconsistent integrator fee config"
     }
@@ -887,117 +833,23 @@
       }
     },
     {
-      "name": "Escrow",
-      "docs": [
-        "Core data structure for an escrow"
-      ],
+      "name": "PointAndTimeDelta",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "src_amount",
-            "docs": [
-              "Amount of `src_mint` tokens the maker is offering to sell",
-              "The `src_mint` token is not stored in Escrow; it is referenced from `Create` via `src_mint` account."
-            ],
-            "type": "u64"
+            "name": "rate_bump",
+            "type": "u16"
           },
           {
-            "name": "src_remaining",
-            "docs": [
-              "Remaining amount of `src_mint` tokens available for fill",
-              "This field does not affect the created escrow in the `create` method, as it is always overwritten with the `src_amount` value."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "dst_mint",
-            "docs": [
-              "The token that the maker wants to receive",
-              "This field does not affect the created escrow in the `create` method, as it is always overwritten with the `dst_mint` account value."
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "min_dst_amount",
-            "docs": [
-              "Minimum amount of `dst_mint` tokens the maker wants to receive"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "estimated_dst_amount",
-            "docs": [
-              "Estimated amount of `dst_mint` tokens the maker expects to receive."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "expiration_time",
-            "docs": [
-              "Unix timestamp indicating when the escrow expires"
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "native_dst_asset",
-            "docs": [
-              "Flag indicates whether `dst_mint` is native SOL (`true`) or an SPL token (`false`)"
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "receiver",
-            "docs": [
-              "The wallet which will receive the `dst_mint` tokens"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "fee",
-            "docs": [
-              "See {FeeConfig}"
-            ],
-            "type": {
-              "defined": {
-                "name": "FeeConfig"
-              }
-            }
-          },
-          {
-            "name": "protocol_dst_ata",
-            "docs": [
-              "Associated token account for collecting protocol fees"
-            ],
-            "type": {
-              "option": "pubkey"
-            }
-          },
-          {
-            "name": "integrator_dst_ata",
-            "docs": [
-              "Associated token account for collecting integrator fees"
-            ],
-            "type": {
-              "option": "pubkey"
-            }
-          },
-          {
-            "name": "dutch_auction_data",
-            "docs": [
-              "Dutch auction parameters defining price adjustments over time"
-            ],
-            "type": {
-              "defined": {
-                "name": "DutchAuctionData"
-              }
-            }
+            "name": "time_delta",
+            "type": "u16"
           }
         ]
       }
     },
     {
-      "name": "FeeConfig",
+      "name": "ReducedFeeConfig",
       "docs": [
         "Configuration for fees applied to the escrow"
       ],
@@ -1030,7 +882,7 @@
       }
     },
     {
-      "name": "OrderConfig",
+      "name": "ReducedOrderConfig",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1059,14 +911,10 @@
             "type": "bool"
           },
           {
-            "name": "receiver",
-            "type": "pubkey"
-          },
-          {
             "name": "fee",
             "type": {
               "defined": {
-                "name": "FeeConfig"
+                "name": "ReducedFeeConfig"
               }
             }
           },
@@ -1077,22 +925,6 @@
                 "name": "DutchAuctionData"
               }
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "PointAndTimeDelta",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rate_bump",
-            "type": "u16"
-          },
-          {
-            "name": "time_delta",
-            "type": "u16"
           }
         ]
       }
