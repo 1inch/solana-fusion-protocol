@@ -1,41 +1,39 @@
-use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
-use solana_program::program::invoke;
-use solana_program::program_error::ProgramError;
-use solana_program::program_pack::Pack;
-use solana_program::pubkey::Pubkey;
-use spl_associated_token_account::get_associated_token_address_with_program_id;
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
+    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey,
+};
 use spl_associated_token_account::instruction::create_associated_token_account;
 use spl_token::state::Account;
 
 use crate::error::EscrowError;
+use Result::*;
 
 pub fn assert_ownership(account_info: &AccountInfo) -> ProgramResult {
     if *account_info.owner != crate::ID {
-        return Result::Err(EscrowError::ConstraintOwner.into());
+        return Err(EscrowError::ConstraintOwner.into());
     }
     Ok(())
 }
 
 pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
     if !account_info.is_signer {
-        return Result::Err(EscrowError::ConstraintSigner.into());
+        return Err(EscrowError::ConstraintSigner.into());
     }
     Ok(())
 }
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     if *account_info.owner != spl_token::ID && *account_info.owner != spl_token_2022::ID {
-        // @TODO sras, this is really insufficient to properly validate that an account is
+        // TODO this is really insufficient to properly validate that an account is
         // a mint. Add further checks.
-        return Result::Err(EscrowError::ConstraintTokenMint.into());
+        return Err(EscrowError::ConstraintTokenMint.into());
     }
     Ok(())
 }
 
-pub fn assert_mut(account_info: &AccountInfo) -> ProgramResult {
+pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
     if !account_info.is_writable {
-        return Result::Err(EscrowError::AccountNotMutable.into());
+        return Err(EscrowError::AccountNotMutable.into());
     }
     Ok(())
 }
@@ -44,31 +42,31 @@ pub fn assert_token_account(
     account_info: &AccountInfo,
     opt_mint: Option<&Pubkey>,
     opt_authority: Option<&Pubkey>,
-    opt_token_program: Option<&Pubkey>,
+    token_program: &Pubkey,
 ) -> ProgramResult {
     // decode account data
     let data: &[u8] = &mut account_info.data.borrow();
-    let acc_data = Account::unpack(data).unwrap();
+    let acc_data = Account::unpack(data)?;
+    // TODO: Support spl-token-2022
 
     // check mint
     if let Some(mint) = opt_mint {
         if acc_data.mint != *mint {
-            return Result::Err(EscrowError::ConstraintTokenMint.into());
+            return Err(EscrowError::ConstraintTokenMint.into());
         }
     };
     // check token account owner
     if let Some(exp_authority) = opt_authority {
+        // TODO consider using associated token account check if needed
         if acc_data.owner != *exp_authority {
-            return Result::Err(EscrowError::ConstraintTokenOwner.into());
+            return Err(EscrowError::ConstraintTokenOwner.into());
         }
     };
     // check token program of the account by checking
     // the solana account owner
-    if let Some(token_program) = opt_token_program {
-        if *account_info.owner != *token_program {
-            return Result::Err(EscrowError::ConstraintMintTokenProgram.into());
-        }
-    };
+    if *account_info.owner != *token_program {
+        return Err(EscrowError::ConstraintMintTokenProgram.into());
+    }
     Ok(())
 }
 
@@ -76,37 +74,38 @@ pub fn assert_pda(
     account_info: &AccountInfo,
     seeds: &[&[u8]],
     program: &Pubkey,
-    ret_bump: Option<&mut u8>,
-) -> ProgramResult {
-    if let Some((pda, bump)) = Pubkey::try_find_program_address(seeds, program) {
-        if *account_info.key != pda {
-            return Result::Err(EscrowError::ConstraintSeeds.into());
-        }
-
-        // After successful validation, save the bump to the optionally provided reference.
-        if let Some(bump_ref) = ret_bump {
-            *bump_ref = bump;
-        }
-    } else {
-        return Result::Err(EscrowError::ConstraintSeeds.into());
+) -> Result<u8, ProgramError> {
+    let (pda, bump) = Pubkey::try_find_program_address(seeds, program)
+        .ok_or::<EscrowError>(EscrowError::ConstraintSeeds)?;
+    if *account_info.key != pda {
+        return Err(EscrowError::ConstraintSeeds.into());
     }
-    Ok(())
+    Ok(bump)
 }
 
 pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramResult {
     if *account_info.key != *exp_pubkey {
-        return Result::Err(EscrowError::ConstraintAddress.into());
+        return Err(EscrowError::ConstraintAddress.into());
     }
     Ok(())
 }
 
-pub fn init_with_check_ata(
+pub fn assert_token_interface(account_info: &AccountInfo) -> ProgramResult {
+    if *account_info.key != spl_token::ID && *account_info.key != spl_token_2022::ID {
+        return Err(EscrowError::ConstraintAddress.into());
+    }
+    Ok(())
+}
+
+pub fn init_ata_with_address_check(
     account_info: &AccountInfo,
     payer: &Pubkey,
-    accounts: &[AccountInfo],
     mint: &Pubkey,
     authority: &Pubkey,
     token_program: &Pubkey,
+    accounts: &[AccountInfo], // Should contain all the accounts for account creation and better if it
+                              // contain nothing else, because it is passed directly to the
+                              // cpi call to create the account.
 ) -> ProgramResult {
     // ensure the account does not exist already.
     if account_info.data_is_empty()
@@ -114,38 +113,39 @@ pub fn init_with_check_ata(
         && *account_info.owner == solana_program::system_program::ID
     {
         // Validate the account address
-        let ata = get_associated_token_address_with_program_id(authority, mint, token_program);
+        let ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+            authority,
+            mint,
+            token_program,
+        );
+
+        // validate ata
         if ata != *account_info.key {
-            return Result::Err(EscrowError::AccountNotAssociatedTokenAccount.into());
+            return Err(EscrowError::AccountNotAssociatedTokenAccount.into());
         }
         // create the associated token account
-        let create_ix = create_associated_token_account(payer, authority, mint, &spl_token::ID);
-        invoke(&create_ix, accounts)?;
+        let create_ix = create_associated_token_account(payer, authority, mint, token_program);
+        invoke(&create_ix, accounts)
+    } else {
+        Err(ProgramError::AccountAlreadyInitialized)
     }
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solana_program::account_info::AccountInfo;
-    use solana_program::entrypoint::ProgramResult;
-    use solana_program::instruction::AccountMeta;
-    use solana_program::instruction::Instruction;
-    use solana_program::program_error::ProgramError;
-    use solana_program::program_pack::Pack;
-    use solana_program::pubkey::Pubkey;
-    use solana_program_test::tokio;
+    use solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, instruction::AccountMeta,
+        instruction::Instruction, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey,
+    };
     use solana_program_test::{
-        processor, BanksClientError, BanksTransactionResultWithMetadata, ProgramTest,
+        processor, tokio, BanksClientError, BanksTransactionResultWithMetadata, ProgramTest,
         ProgramTestContext,
     };
-    use solana_sdk::account::AccountSharedData;
-    use solana_sdk::signature::Signer;
-    use solana_sdk::signer::keypair::Keypair;
-    use solana_sdk::system_instruction;
-    use solana_sdk::transaction::Transaction;
-    use solana_sdk::transaction::TransactionError;
+    use solana_sdk::{
+        account::AccountSharedData, signature::Signer, signer::keypair::Keypair,
+        system_instruction, transaction::Transaction, transaction::TransactionError,
+    };
     use spl_token::instruction as spl_instruction;
     use spl_token::state::{Account, Mint};
 
@@ -161,7 +161,7 @@ mod tests {
             self.unwrap();
         }
         fn expect_error(self, expectation: &'static str) {
-            if let Result::Ok(result_with_metadata) = self {
+            if let Ok(result_with_metadata) = self {
                 let logs = result_with_metadata.metadata.unwrap().log_messages;
 
                 assert!(logs.iter().any(|x| x.contains(expectation)));
@@ -220,9 +220,37 @@ mod tests {
         client.process_transaction(tx).await
     }
 
+    pub async fn initialize_spl_associated_account(
+        ctx: &mut ProgramTestContext,
+        mint_pubkey: &Pubkey,
+        account: &Pubkey,
+    ) -> Pubkey {
+        let ata = spl_associated_token_account::get_associated_token_address(account, mint_pubkey);
+        let create_spl_acc_ix = create_associated_token_account(
+            &ctx.payer.pubkey(),
+            account,
+            mint_pubkey,
+            &spl_token::ID,
+        );
+
+        let signers: Vec<&Keypair> = vec![&ctx.payer];
+
+        let client = &mut ctx.banks_client;
+        client
+            .process_transaction(Transaction::new_signed_with_payer(
+                &[create_spl_acc_ix],
+                Some(&ctx.payer.pubkey()),
+                &signers,
+                ctx.last_blockhash,
+            ))
+            .await
+            .unwrap();
+        ata
+    }
+
     pub async fn deploy_spl_token(ctx: &mut ProgramTestContext, decimals: u8) -> Keypair {
-        // create mint account
         let mint_keypair = Keypair::new();
+        // create mint account
         let create_mint_acc_ix = system_instruction::create_account(
             &ctx.payer.pubkey(),
             &mint_keypair.pubkey(),
@@ -299,8 +327,49 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mutability_validation() {
-        let mut ctx = context_with_validation!(|x| assert_mut(x));
+    async fn test_key_validation() {
+        let mut ctx = context_with_validation!(|x| assert_key(x, &crate::ID));
+        call_contract(&mut ctx, &[AccountMeta::new(crate::ID, false)])
+            .await
+            .expect_success();
+    }
+
+    #[tokio::test]
+    async fn test_key_validation_fail() {
+        let mut ctx = context_with_validation!(|x| assert_key(x, &crate::ID));
+        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
+            .await
+            .expect_error((0, EscrowError::ConstraintAddress.into()));
+    }
+
+    #[tokio::test]
+    async fn test_token_interface_validation() {
+        let mut ctx = context_with_validation!(|x| assert_token_interface(x));
+        call_contract(&mut ctx, &[AccountMeta::new(spl_token::ID, false)])
+            .await
+            .expect_success();
+    }
+
+    #[tokio::test]
+    async fn test_token_interface_validation_2() {
+        let mut ctx = context_with_validation!(|x| assert_token_interface(x));
+        call_contract(&mut ctx, &[AccountMeta::new(spl_token_2022::ID, false)])
+            .await
+            .expect_success();
+    }
+
+    #[tokio::test]
+    async fn test_token_interface_validation_fail() {
+        let mut ctx = context_with_validation!(|x| assert_token_interface(x));
+        let asd = AccountSharedData::new(1_000_000, 10, &crate::ID);
+        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
+            .await
+            .expect_error((0, EscrowError::ConstraintAddress.into()));
+    }
+
+    #[tokio::test]
+    async fn test_writeability_validation() {
+        let mut ctx = context_with_validation!(|x| assert_writable(x));
         let key = Pubkey::new_unique();
         let asd = AccountSharedData::new(1_000_000, 10, &crate::ID);
         ctx.set_account(&key, &asd);
@@ -310,8 +379,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mutability_validation_fail() {
-        let mut ctx = context_with_validation!(|x| assert_mut(x));
+    async fn test_writability_validation_fail() {
+        let mut ctx = context_with_validation!(|x| assert_writable(x));
         let key = Pubkey::new_unique();
         let random_address = Pubkey::new_unique();
         let asd = AccountSharedData::new(1_000_000, 10, &random_address);
@@ -328,6 +397,76 @@ mod tests {
         call_contract(&mut ctx, &[AccountMeta::new(mint_kp.pubkey(), false)])
             .await
             .expect_success();
+    }
+
+    #[tokio::test]
+    async fn test_token_account_validation() {
+        fn validation_test_contract(
+            _: &Pubkey,
+            accounts: &[AccountInfo],
+            _: &[u8],
+        ) -> ProgramResult {
+            assert_token_account(
+                &accounts[0],
+                Some(accounts[1].key),
+                Some(accounts[2].key),
+                &spl_token::ID,
+            )?;
+            Ok(())
+        }
+        let program_test =
+            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let mut ctx = program_test.start_with_context().await;
+
+        let user_pk = Pubkey::new_unique();
+        let mint_kp = deploy_spl_token(&mut ctx, 9).await;
+        let ata = initialize_spl_associated_account(&mut ctx, &mint_kp.pubkey(), &user_pk).await;
+        call_contract(
+            &mut ctx,
+            &[
+                AccountMeta::new(ata, false),
+                AccountMeta::new(mint_kp.pubkey(), false),
+                AccountMeta::new(user_pk, false),
+            ],
+        )
+        .await
+        .expect_success();
+    }
+
+    #[tokio::test]
+    async fn test_token_account_validation_fail() {
+        fn validation_test_contract(
+            _: &Pubkey,
+            accounts: &[AccountInfo],
+            _: &[u8],
+        ) -> ProgramResult {
+            assert_token_account(
+                &accounts[0],
+                Some(accounts[1].key),
+                Some(accounts[2].key),
+                &spl_token::ID,
+            )?;
+            Ok(())
+        }
+        let program_test =
+            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let mut ctx = program_test.start_with_context().await;
+
+        let user_pk = Pubkey::new_unique();
+        let bad_user_pk = Pubkey::new_unique();
+        let mint_kp = deploy_spl_token(&mut ctx, 9).await;
+        let ata =
+            initialize_spl_associated_account(&mut ctx, &mint_kp.pubkey(), &bad_user_pk).await;
+        call_contract(
+            &mut ctx,
+            &[
+                AccountMeta::new(ata, false),
+                AccountMeta::new(mint_kp.pubkey(), false),
+                AccountMeta::new(user_pk, false),
+            ],
+        )
+        .await
+        .expect_error((0, EscrowError::ConstraintTokenOwner.into()));
     }
 
     #[tokio::test]
@@ -350,8 +489,7 @@ mod tests {
         ) -> ProgramResult {
             // We pass expected bump as instruction data.
             let expected_bump: u8 = instruction_data[0];
-            let mut bump: u8 = 0;
-            assert_pda(&accounts[0], &[b"escrow"], &crate::ID, Some(&mut bump))?;
+            let bump = assert_pda(&accounts[0], &[b"escrow"], &crate::ID)?;
             // If bump was not updated as expected, we throw an error as well.
             if bump != expected_bump {
                 return Err(ProgramError::Custom(0));
@@ -374,7 +512,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_pda_validation_fail() {
-        let mut ctx = context_with_validation!(|x| assert_pda(x, &[b"escrow"], &crate::ID, None,));
+        let mut ctx = context_with_validation!(|x| assert_pda(x, &[b"escrow"], &crate::ID));
 
         let (pda, _) = Pubkey::find_program_address(&[b"bad"], &crate::ID);
         call_contract(&mut ctx, &[AccountMeta::new(pda, false)])
@@ -384,19 +522,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_ata() {
-        use spl_associated_token_account::get_associated_token_address_with_program_id;
         fn validation_test_contract(
             _: &Pubkey,
             accounts: &[AccountInfo],
             _: &[u8],
         ) -> ProgramResult {
-            init_with_check_ata(
+            init_ata_with_address_check(
                 &accounts[0],
                 accounts[1].key,
-                accounts,
                 accounts[3].key,
                 accounts[2].key,
                 &spl_token::ID,
+                accounts,
             )?;
             Ok(())
         }
@@ -406,8 +543,11 @@ mod tests {
         let mut client = ctx.banks_client.clone();
         let mint_kp = deploy_spl_token(&mut ctx, 9).await;
         let alice = Pubkey::new_unique();
-        let alice_ata =
-            get_associated_token_address_with_program_id(&alice, &mint_kp.pubkey(), &spl_token::ID);
+        let alice_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+            &alice,
+            &mint_kp.pubkey(),
+            &spl_token::ID,
+        );
         let payer = ctx.payer.pubkey();
 
         call_contract(
@@ -438,13 +578,13 @@ mod tests {
             accounts: &[AccountInfo],
             _: &[u8],
         ) -> ProgramResult {
-            init_with_check_ata(
+            init_ata_with_address_check(
                 &accounts[0],
                 accounts[1].key,
-                accounts,
                 accounts[3].key,
                 accounts[2].key,
                 &spl_token::ID,
+                accounts,
             )?;
             Ok(())
         }
