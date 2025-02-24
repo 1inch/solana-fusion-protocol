@@ -20,6 +20,7 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
+import { FusionSwapNative } from "../../idl/fusion_swap_native";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -338,7 +339,9 @@ export class TestState {
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
   }: {
-    escrowProgram: anchor.Program<FusionSwap>;
+    escrowProgram:
+      | anchor.Program<FusionSwap>
+      | anchor.Program<FusionSwapNative>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     orderConfig?: Partial<OrderConfig>;
@@ -383,7 +386,7 @@ export class TestState {
       }
     }
 
-    await escrowProgram.methods
+    const txBuilder = escrowProgram.methods
       .create(orderConfig as ReducedOrderConfig)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
@@ -395,8 +398,18 @@ export class TestState {
         escrow,
         srcTokenProgram,
       })
-      .signers([this.alice.keypair])
-      .rpc();
+      .signers([this.alice.keypair]);
+
+    if (provider instanceof anchor.AnchorProvider) {
+      const tx = await txBuilder.transaction();
+
+      await sendAndConfirmTransaction(provider.connection, tx, [
+        payer,
+        this.alice.keypair,
+      ]);
+    } else {
+      await txBuilder.rpc();
+    }
 
     return {
       escrow,
