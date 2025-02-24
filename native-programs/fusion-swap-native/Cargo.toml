@@ -1,0 +1,13 @@
+[package]
+name = "fusion-swap-native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name="fusion_swap_native"
+crate-type = ["cdylib", "lib"]
+
+
+[dependencies]
+solana-program = "2.2.1"
+spl-discriminator = "0.4.1"
