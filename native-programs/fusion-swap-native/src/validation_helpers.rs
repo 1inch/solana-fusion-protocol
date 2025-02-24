@@ -8,30 +8,34 @@ use spl_associated_token_account::get_associated_token_address_with_program_id;
 use spl_associated_token_account::instruction::create_associated_token_account;
 use spl_token::state::Account;
 
+use crate::error::EscrowError;
+
 pub fn assert_ownership(account_info: &AccountInfo) -> ProgramResult {
     if *account_info.owner != crate::ID {
-        return Result::Err(ProgramError::Custom(0));
+        return Result::Err(EscrowError::ConstraintOwner.into());
     }
     Ok(())
 }
 
 pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
     if !account_info.is_signer {
-        return Result::Err(ProgramError::Custom(0));
+        return Result::Err(EscrowError::ConstraintSigner.into());
     }
     Ok(())
 }
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     if *account_info.owner != spl_token::ID && *account_info.owner != spl_token_2022::ID {
-        return Result::Err(ProgramError::Custom(0));
+        // @TODO sras, this is really insufficient to properly validate that an account is
+        // a mint. Add further checks.
+        return Result::Err(EscrowError::ConstraintTokenMint.into());
     }
     Ok(())
 }
 
 pub fn assert_mut(account_info: &AccountInfo) -> ProgramResult {
     if !account_info.is_writable {
-        return Result::Err(ProgramError::Custom(0));
+        return Result::Err(EscrowError::AccountNotMutable.into());
     }
     Ok(())
 }
@@ -49,20 +53,20 @@ pub fn assert_token_account(
     // check mint
     if let Some(mint) = opt_mint {
         if acc_data.mint != *mint {
-            return Result::Err(ProgramError::Custom(0));
+            return Result::Err(EscrowError::ConstraintTokenMint.into());
         }
     };
     // check token account owner
     if let Some(exp_authority) = opt_authority {
         if acc_data.owner != *exp_authority {
-            return Result::Err(ProgramError::Custom(0));
+            return Result::Err(EscrowError::ConstraintTokenOwner.into());
         }
     };
     // check token program of the account by checking
     // the solana account owner
     if let Some(token_program) = opt_token_program {
         if *account_info.owner != *token_program {
-            return Result::Err(ProgramError::Custom(0));
+            return Result::Err(EscrowError::ConstraintMintTokenProgram.into());
         }
     };
     Ok(())
@@ -76,7 +80,7 @@ pub fn assert_pda(
 ) -> ProgramResult {
     if let Some((pda, bump)) = Pubkey::try_find_program_address(seeds, program) {
         if *account_info.key != pda {
-            return Result::Err(ProgramError::Custom(0));
+            return Result::Err(EscrowError::ConstraintSeeds.into());
         }
 
         // After successful validation, save the bump to the optionally provided reference.
@@ -84,14 +88,14 @@ pub fn assert_pda(
             *bump_ref = bump;
         }
     } else {
-        return Result::Err(ProgramError::Custom(0));
+        return Result::Err(EscrowError::ConstraintSeeds.into());
     }
     Ok(())
 }
 
 pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramResult {
     if *account_info.key != *exp_pubkey {
-        return Result::Err(ProgramError::Custom(0));
+        return Result::Err(EscrowError::ConstraintAddress.into());
     }
     Ok(())
 }
@@ -112,7 +116,7 @@ pub fn init_with_check_ata(
         // Validate the account address
         let ata = get_associated_token_address_with_program_id(authority, mint, token_program);
         if ata != *account_info.key {
-            return Result::Err(ProgramError::Custom(0));
+            return Result::Err(EscrowError::AccountNotAssociatedTokenAccount.into());
         }
         // create the associated token account
         let create_ix = create_associated_token_account(payer, authority, mint, &spl_token::ID);
@@ -291,7 +295,7 @@ mod tests {
         ctx.set_account(&key, &asd);
         call_contract(&mut ctx, &[AccountMeta::new(key, false)])
             .await
-            .expect_error((0, ProgramError::Custom(0)));
+            .expect_error((0, EscrowError::ConstraintOwner.into()));
     }
 
     #[tokio::test]
@@ -314,7 +318,7 @@ mod tests {
         ctx.set_account(&key, &asd);
         call_contract(&mut ctx, &[AccountMeta::new_readonly(key, false)])
             .await
-            .expect_error((0, ProgramError::Custom(0)));
+            .expect_error((0, EscrowError::AccountNotMutable.into()));
     }
 
     #[tokio::test]
@@ -334,7 +338,7 @@ mod tests {
         ctx.set_account(&random_address, &asd);
         call_contract(&mut ctx, &[AccountMeta::new(random_address, false)])
             .await
-            .expect_error((0, ProgramError::Custom(0)));
+            .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
 
     #[tokio::test]
@@ -375,7 +379,7 @@ mod tests {
         let (pda, _) = Pubkey::find_program_address(&[b"bad"], &crate::ID);
         call_contract(&mut ctx, &[AccountMeta::new(pda, false)])
             .await
-            .expect_error((0, ProgramError::Custom(0)));
+            .expect_error((0, EscrowError::ConstraintSeeds.into()));
     }
 
     #[tokio::test]
@@ -465,6 +469,6 @@ mod tests {
             ],
         )
         .await
-        .expect_error((0, ProgramError::Custom(0)));
+        .expect_error((0, EscrowError::AccountNotAssociatedTokenAccount.into()));
     }
 }
