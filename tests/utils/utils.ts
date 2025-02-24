@@ -1,11 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
+import * as borsh from "borsh";
 import {
   Transaction,
   sendAndConfirmTransaction,
   PublicKey,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import { sha256 } from "@noble/hashes/sha256";
 import * as splBankrunToken from "spl-token-bankrun";
 import {
   AccountInfoBytes,
@@ -22,10 +24,66 @@ import { getSimulationComputeUnits } from "@solana-developers/helpers";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
-const orderConfigType = FusionSwapIDL.types.find(
-  (t) => t.name === "OrderConfig"
+const reducedOrderConfigType = FusionSwapIDL.types.find(
+  (t) => t.name === "ReducedOrderConfig"
 );
-type OrderConfig = (typeof orderConfigType)["type"]["fields"];
+
+export type ReducedOrderConfig =
+  (typeof reducedOrderConfigType)["type"]["fields"];
+
+type FeeConfig = {
+  protocolDstAta: anchor.web3.PublicKey | null;
+  integratorDstAta: anchor.web3.PublicKey | null;
+  protocolFee: number;
+  integratorFee: number;
+  surplusPercentage: number;
+};
+type OrderConfig = ReducedOrderConfig & {
+  src_mint: anchor.web3.PublicKey;
+  dst_mint: anchor.web3.PublicKey;
+  receiver: anchor.web3.PublicKey;
+  fee: FeeConfig;
+};
+
+const orderConfigSchema = {
+  struct: {
+    id: "u32",
+    srcAmount: "u64",
+    minDstAmount: "u64",
+    estimatedDstAmount: "u64",
+    expirationTime: "u32",
+    nativeDstAsset: "bool",
+    receiver: { array: { type: "u8", len: 32 } },
+    fee: {
+      struct: {
+        protocolDstAta: { option: { array: { type: "u8", len: 32 } } },
+        integratorDstAta: { option: { array: { type: "u8", len: 32 } } },
+        protocolFee: "u16",
+        integratorFee: "u16",
+        surplusPercentage: "u8",
+      },
+    },
+    dutchAuctionData: {
+      struct: {
+        startTime: "u32",
+        duration: "u32",
+        initialRateBump: "u16",
+        pointsAndTimeDeltas: {
+          array: {
+            type: {
+              struct: {
+                rateBump: "u16",
+                timeDelta: "u16",
+              },
+            },
+          },
+        },
+      },
+    },
+    srcMint: { array: { type: "u8", len: 32 } },
+    dstMint: { array: { type: "u8", len: 32 } },
+  },
+};
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -37,7 +95,8 @@ export type User = {
 export type Escrow = {
   inst: anchor.web3.TransactionInstruction | undefined;
   escrow: anchor.web3.PublicKey;
-  order_id: number;
+  orderConfig: OrderConfig;
+  reducedOrderConfig: ReducedOrderConfig;
   ata: anchor.web3.PublicKey;
 };
 
@@ -278,10 +337,6 @@ export class TestState {
     escrowProgram,
     provider,
     payer,
-    srcMint = this.tokens[0],
-    dstMint = this.tokens[1],
-    protocolDstAta = null,
-    integratorDstAta = null,
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
     needInstraction = false,
@@ -289,28 +344,24 @@ export class TestState {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
-    srcMint?: anchor.web3.PublicKey;
-    dstMint?: anchor.web3.PublicKey;
-    protocolDstAta?: anchor.web3.PublicKey;
-    integratorDstAta?: anchor.web3.PublicKey;
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
     needInstraction?: boolean;
   }): Promise<Escrow> {
-    orderConfig = { ...this.orderConfig(), ...orderConfig };
+    orderConfig = this.orderConfig(orderConfig);
 
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
-        numberToBuffer(this.order_id, 4),
+        getOrderHash(orderConfig),
       ],
       escrowProgram.programId
     );
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
-      srcMint,
+      orderConfig.srcMint,
       escrow,
       true,
       srcTokenProgram
@@ -318,7 +369,7 @@ export class TestState {
 
     if (provider instanceof anchor.AnchorProvider) {
       // TODO: research Bankrun native token support if needed
-      if (srcMint == splToken.NATIVE_MINT) {
+      if (orderConfig.srcMint == splToken.NATIVE_MINT) {
         await prepareNativeTokens({
           amount: orderConfig.srcAmount,
           user: this.alice,
@@ -342,10 +393,11 @@ export class TestState {
         .create(orderConfig as OrderConfig)
         .accountsPartial({
           maker: this.alice.keypair.publicKey,
-          srcMint,
-          dstMint,
-          protocolDstAta,
-          integratorDstAta,
+          makerReceiver: orderConfig.receiver,
+          srcMint: orderConfig.srcMint,
+          dstMint: orderConfig.dstMint,
+          protocolDstAta: orderConfig.fee.protocolDstAta,
+          integratorDstAta: orderConfig.fee.integratorDstAta,
           escrow,
           srcTokenProgram,
         })
@@ -353,13 +405,14 @@ export class TestState {
         .instruction();
     } else {
       await escrowProgram.methods
-        .create(orderConfig as OrderConfig)
+        .create(orderConfig as ReducedOrderConfig)
         .accountsPartial({
           maker: this.alice.keypair.publicKey,
-          srcMint,
-          dstMint,
-          protocolDstAta,
-          integratorDstAta,
+          makerReceiver: orderConfig.receiver,
+          srcMint: orderConfig.srcMint,
+          dstMint: orderConfig.dstMint,
+          protocolDstAta: orderConfig.fee.protocolDstAta,
+          integratorDstAta: orderConfig.fee.integratorDstAta,
           escrow,
           srcTokenProgram,
         })
@@ -367,18 +420,18 @@ export class TestState {
         .rpc();
     }
 
-    return { inst, escrow, order_id: this.increaseOrderID(), ata: escrowAta };
-  }
-
-  increaseOrderID(): number {
-    const order_id = this.order_id;
-    this.order_id = this.order_id + 1;
-    return order_id;
+    return {
+      inst,
+      escrow,
+      orderConfig,
+      reducedOrderConfig: orderConfig as ReducedOrderConfig,
+      ata: escrowAta,
+    };
   }
 
   orderConfig(params: Partial<OrderConfig> = {}): OrderConfig {
     return {
-      id: this.order_id,
+      id: this.order_id++,
       srcAmount: this.defaultSrcAmount,
       minDstAmount: this.defaultDstAmount,
       estimatedDstAmount: this.defaultDstAmount,
@@ -386,8 +439,12 @@ export class TestState {
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
+      srcMint: this.tokens[0],
+      dstMint: this.tokens[1],
       ...params,
       fee: {
+        protocolDstAta: null,
+        integratorDstAta: null,
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
@@ -395,6 +452,40 @@ export class TestState {
       },
     };
   }
+}
+
+export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
+  const values = {
+    id: orderConfig.id,
+    srcAmount: orderConfig.srcAmount.toNumber(),
+    minDstAmount: orderConfig.minDstAmount.toNumber(),
+    estimatedDstAmount: orderConfig.estimatedDstAmount.toNumber(),
+    expirationTime: orderConfig.expirationTime,
+    nativeDstAsset: orderConfig.nativeDstAsset,
+    receiver: orderConfig.receiver.toBuffer(),
+    fee: {
+      protocolDstAta: orderConfig.fee.protocolDstAta?.toBuffer(),
+      integratorDstAta: orderConfig.fee.integratorDstAta?.toBuffer(),
+      protocolFee: orderConfig.fee.protocolFee,
+      integratorFee: orderConfig.fee.integratorFee,
+      surplusPercentage: orderConfig.fee.surplusPercentage,
+    },
+    dutchAuctionData: {
+      startTime: orderConfig.dutchAuctionData.startTime,
+      duration: orderConfig.dutchAuctionData.duration,
+      initialRateBump: orderConfig.dutchAuctionData.initialRateBump,
+      pointsAndTimeDeltas: orderConfig.dutchAuctionData.pointsAndTimeDeltas.map(
+        (p) => ({
+          rateBump: p.rateBump,
+          timeDelta: p.timeDelta,
+        })
+      ),
+    },
+    srcMint: orderConfig.srcMint.toBuffer(),
+    dstMint: orderConfig.dstMint.toBuffer(),
+  };
+
+  return sha256(borsh.serialize(orderConfigSchema, values));
 }
 
 let tokensCounter = 0;
@@ -627,10 +718,6 @@ export async function setCurrentTime(
       BigInt(time)
     )
   );
-}
-
-export function numberToBuffer(n: number, bufSize: number) {
-  return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
 }
 
 export async function getInstractionCost(

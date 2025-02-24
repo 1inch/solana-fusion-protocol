@@ -18,7 +18,9 @@ import {
   getClusterUrlEnv,
   getTokenDecimals,
   loadKeypairFromFile,
+  OrderConfig,
 } from "../utils";
+import { sha256 } from "@noble/hashes/sha256";
 
 const prompt = require("prompt-sync")({ sigint: true });
 
@@ -27,20 +29,18 @@ async function fill(
   program: Program<FusionSwap>,
   whitelistProgramId: PublicKey,
   takerKeypair: Keypair,
-  srcMint: PublicKey,
-  dstMint: PublicKey,
-  maker: PublicKey,
-  orderId: number,
-  amount: number,
-  makerReceiver: PublicKey = maker,
-  protocolDstAta: PublicKey = null,
-  integratorDstAta: PublicKey = null,
-  srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID,
-  dstTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
+  orderConfig: OrderConfig
 ): Promise<void> {
-  const escrow = findEscrowAddress(program.programId, maker, orderId);
+  const orderHash = sha256(
+    program.coder.types.encode("orderConfig", orderConfig)
+  );
+  const escrow = findEscrowAddress(
+    program.programId,
+    orderConfig.maker,
+    Buffer.from(orderHash)
+  );
   const escrowSrcAta = await splToken.getAssociatedTokenAddress(
-    srcMint,
+    orderConfig.srcMint,
     escrow,
     true
   );
@@ -51,28 +51,34 @@ async function fill(
   );
 
   const takerSrcAta = await splToken.getAssociatedTokenAddress(
-    srcMint,
+    orderConfig.srcMint,
     takerKeypair.publicKey
   );
 
-  const srcMintDecimals = await getTokenDecimals(connection, srcMint);
+  const srcMintDecimals = await getTokenDecimals(
+    connection,
+    orderConfig.srcMint
+  );
 
   const fillIx = await program.methods
-    .fill(orderId, new BN(amount * Math.pow(10, srcMintDecimals)))
+    .fill(
+      orderConfig,
+      new BN(orderConfig.srcAmount * Math.pow(10, srcMintDecimals))
+    )
     .accountsPartial({
       taker: takerKeypair.publicKey,
       resolverAccess,
-      maker,
-      makerReceiver,
-      srcMint,
-      dstMint,
+      maker: orderConfig.maker,
+      makerReceiver: orderConfig.receiver,
+      srcMint: orderConfig.srcMint,
+      dstMint: orderConfig.dstMint,
       escrow,
       escrowSrcAta,
       takerSrcAta,
-      protocolDstAta,
-      integratorDstAta,
-      srcTokenProgram,
-      dstTokenProgram,
+      protocolDstAta: orderConfig.fees.protocolDstAta,
+      integratorDstAta: orderConfig.fees.integratorDstAta,
+      srcTokenProgram: orderConfig.srcTokenProgram,
+      dstTokenProgram: orderConfig.dstTokenProgram,
     })
     .signers([takerKeypair])
     .instruction();
@@ -88,19 +94,21 @@ async function fill(
 async function main() {
   const clusterUrl = getClusterUrlEnv();
   const maker = new PublicKey(prompt("Enter maker public key: "));
-  const orderId = Number(prompt("Enter order id: "));
-
+  const orderHash = prompt("Enter order hash: ");
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
   const whitelist = new Program(WHITELIST_IDL as Whitelist, { connection });
 
   try {
-    const escrowAddr = findEscrowAddress(fusionSwap.programId, maker, orderId);
-    const escrowAccount = await fusionSwap.account.escrow.fetch(escrowAddr);
-    console.log(JSON.stringify(escrowAccount));
+    const escrowAddr = findEscrowAddress(
+      fusionSwap.programId,
+      maker,
+      orderHash
+    );
+    console.log(JSON.stringify(escrowAddr));
   } catch (e) {
     console.error(
-      `Escrow with order id = ${orderId} and maker = ${maker.toString()} does not exist`
+      `Escrow with order hash = ${orderHash} and maker = ${maker.toString()} does not exist`
     );
     return;
   }
@@ -112,16 +120,21 @@ async function main() {
 
   const takerKeypair = await loadKeypairFromFile(takerKeypairPath);
 
+  const orderConfig: OrderConfig = {
+    srcMint,
+    dstMint,
+    makerReceiver: maker,
+    srcAmount: amount,
+    srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+    dstTokenProgram: splToken.TOKEN_PROGRAM_ID,
+  };
+
   await fill(
     connection,
     fusionSwap,
     whitelist.programId,
     takerKeypair,
-    srcMint,
-    dstMint,
-    maker,
-    orderId,
-    amount
+    orderConfig
   );
 }
 

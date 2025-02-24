@@ -12,9 +12,10 @@ import {
   createWhitelistedAccount,
   debugLog,
   mintTokens,
-  numberToBuffer,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
+  ReducedOrderConfig,
+  getOrderHash,
   getInstractionCost,
   waitForNewBlock,
 } from "../utils/utils";
@@ -47,8 +48,8 @@ describe("Fusion Swap", () => {
         provider,
       });
       state.escrows.push(escrow);
-      debugLog(`Escrow_${escrow.order_id} ::`, escrow.escrow.toString());
-      debugLog(`escrowAta_${escrow.order_id} ::`, escrow.ata.toString());
+      debugLog(`Escrow_${escrow.orderConfig.id} ::`, escrow.escrow.toString());
+      debugLog(`escrowAta_${escrow.orderConfig.id} ::`, escrow.ata.toString());
     }
   });
 
@@ -56,7 +57,7 @@ describe("Fusion Swap", () => {
     it("Execute the trade", async () => {
       const transactionPromise = () =>
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -86,16 +87,16 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           receiver: state.charlie.keypair.publicKey,
-        }),
+        },
       });
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
-              makerReceiver: state.charlie.keypair.publicKey,
+              makerReceiver: escrow.orderConfig.receiver,
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               makerDstAta:
@@ -149,16 +150,16 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           srcAmount: amount,
           minDstAmount: amount,
           estimatedDstAmount: amount,
-        }),
+        },
       });
 
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, amount)
+          .fill(escrow.reducedOrderConfig, amount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -210,7 +211,7 @@ describe("Fusion Swap", () => {
     it("Execute the trade with different taker's receiver wallet", async () => {
       const transactionPromise = () =>
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               takerSrcAta:
@@ -247,7 +248,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade when maker's token account belongs to wrong mint", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               makerDstAta: state.alice.atas[state.tokens[2].toString()].address,
@@ -263,12 +264,14 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        srcMint: splToken.NATIVE_MINT,
+        orderConfig: {
+          srcMint: splToken.NATIVE_MINT,
+        },
       });
 
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               srcMint: splToken.NATIVE_MINT,
@@ -306,12 +309,14 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
+        orderConfig: {
+          dstMint: splToken.NATIVE_MINT,
+        },
       });
 
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               dstMint: splToken.NATIVE_MINT,
@@ -399,12 +404,14 @@ describe("Fusion Swap", () => {
           escrowProgram: program,
           payer,
           provider,
-          dstMint,
+          orderConfig: {
+            dstMint,
+          },
         });
 
         const transactionPromise = () =>
           program.methods
-            .fill(escrow.order_id, state.defaultSrcAmount)
+            .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
             .accountsPartial({
               ...state.buildAccountsDataForFill({
                 escrow: escrow.escrow,
@@ -447,13 +454,15 @@ describe("Fusion Swap", () => {
           escrowProgram: program,
           payer,
           provider,
-          srcMint,
+          orderConfig: {
+            srcMint,
+          },
           srcTokenProgram,
         });
 
         const transactionPromise = () =>
           program.methods
-            .fill(escrow.order_id, state.defaultSrcAmount)
+            .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
             .accountsPartial({
               ...state.buildAccountsDataForFill({
                 escrow: escrow.escrow,
@@ -501,14 +510,16 @@ describe("Fusion Swap", () => {
           escrowProgram: program,
           payer,
           provider,
-          srcMint,
-          dstMint,
+          orderConfig: {
+            srcMint,
+            dstMint,
+          },
           srcTokenProgram: tokenProgram,
         });
 
         const transactionPromise = () =>
           program.methods
-            .fill(escrow.order_id, state.defaultSrcAmount)
+            .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
             .accountsPartial({
               ...state.buildAccountsDataForFill({
                 escrow: escrow.escrow,
@@ -550,13 +561,17 @@ describe("Fusion Swap", () => {
           escrowProgram: program,
           payer,
           provider,
-          srcMint,
+          orderConfig: {
+            srcMint,
+          },
           srcTokenProgram: tokenProgram,
         });
 
+        const orderHash = getOrderHash(escrow.orderConfig);
+
         const transactionPromise = () =>
           program.methods
-            .cancel(escrow.order_id)
+            .cancel(Array.from(orderHash))
             .accountsPartial({
               maker: state.alice.keypair.publicKey,
               srcMint,
@@ -588,18 +603,18 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-        integratorDstAta: null,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           fee: {
+            protocolDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
-        }),
+        },
       });
 
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -638,19 +653,18 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        protocolDstAta: null,
-        integratorDstAta:
-          state.charlie.atas[state.tokens[1].toString()].address,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           fee: {
+            integratorDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 15000, // 15%
           },
-        }),
+        },
       });
 
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -687,7 +701,10 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with exchange amount more than escow has (x_token)", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount.muln(10))
+          .fill(
+            state.escrows[0].reducedOrderConfig,
+            state.defaultSrcAmount.muln(10)
+          )
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
@@ -732,7 +749,7 @@ describe("Fusion Swap", () => {
       }
 
       await program.methods
-        .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
             makerDstAta: aliceAtaYToken,
@@ -769,7 +786,7 @@ describe("Fusion Swap", () => {
     //     expect(e.toString().includes("TokenAccountNotFoundError"));
     //   }
 
-    //   await program.methods.fill(state.escrows[0].order_id, state.defaultSrcAmount)
+    //   await program.methods.fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
     //   .accounts({
     //     taker: state.bob.keypair.publicKey,
     //     maker: state.alice.keypair.publicKey,
@@ -794,13 +811,16 @@ describe("Fusion Swap", () => {
 
     // TODO: Add a test for the case of accepting an expired order
 
-    it("Fails to create with zero amounts", async () => {
-      const order_id = state.increaseOrderID();
+    it("Fails to create with zero src amount", async () => {
+      const orderConfig = state.orderConfig({
+        srcAmount: new anchor.BN(0),
+      });
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id, 4),
+          getOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -808,15 +828,10 @@ describe("Fusion Swap", () => {
       // srcAmount = 0
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: order_id,
-              srcAmount: new anchor.BN(0),
-              srcRemaining: new anchor.BN(0),
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -827,18 +842,28 @@ describe("Fusion Swap", () => {
           .signers([state.alice.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: InvalidAmount");
+    });
 
-      // minDstAmount = 0
+    it("Fails to create with zero min dst amount", async () => {
+      const orderConfig = state.orderConfig({
+        minDstAmount: new anchor.BN(0),
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: order_id,
-              minDstAmount: new anchor.BN(0),
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -852,20 +877,22 @@ describe("Fusion Swap", () => {
     });
 
     it("Fails to create if escrow has been created already", async () => {
-      const order_id = state.increaseOrderID();
+      const orderConfig = state.orderConfig();
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id, 4),
+          getOrderHash(orderConfig),
         ],
         program.programId
       );
 
       await program.methods
-        .create(state.orderConfig({ id: order_id }))
+        .create(orderConfig as ReducedOrderConfig)
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
           protocolDstAta: null,
@@ -878,9 +905,10 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .create(state.orderConfig({ id: order_id }))
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -890,13 +918,13 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("already in use");
+      ).to.be.rejectedWith("Provided owner is not allowed"); // https://github.com/solana-program/associated-token-account/blob/c3f117d3bc0dd6904b8bd12c61053afb28a6a02d/program/src/processor.rs#L109C34-L109C46
     });
 
     it("Doesn't execute the trade with the wrong order_id", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[1].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[1].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
@@ -906,7 +934,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with the wrong escrow ata", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrowSrcAta: state.escrows[1].ata,
@@ -920,7 +948,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with the wrong dstMint", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               dstMint: state.tokens[0],
@@ -934,7 +962,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with the wrong maker receiver", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               makerReceiver: state.charlie.keypair.publicKey,
@@ -944,30 +972,29 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: SellerReceiverMismatch");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't create escrow with the wrong surplus param", async () => {
-      const order_id = state.increaseOrderID();
+      const orderConfig = state.orderConfig({
+        fee: { surplusPercentage: 146 }, // 146%
+      });
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id, 4),
+          getOrderHash(orderConfig),
         ],
         program.programId
       );
 
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: order_id,
-              fee: { surplusPercentage: 146 }, // 146%
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -981,26 +1008,25 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't create escrow with protocol_dst_ata from different mint", async () => {
-      const order_id = state.increaseOrderID();
+      const orderConfig = state.orderConfig({
+        fee: { protocolFee: 10000 }, // 10%
+      });
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id, 4),
+          getOrderHash(orderConfig),
         ],
         program.programId
       );
 
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: order_id,
-              fee: { protocolFee: 10000 }, // 10%
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta:
@@ -1011,30 +1037,29 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
-      const order_id = state.increaseOrderID();
+      const orderConfig = state.orderConfig({
+        fee: { integratorFee: 10000 }, // 10%
+      });
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id, 4),
+          getOrderHash(orderConfig),
         ],
         program.programId
       );
 
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: order_id,
-              fee: { integratorFee: 10000 }, // 10%
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -1045,7 +1070,7 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
@@ -1053,17 +1078,18 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           fee: {
+            protocolDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
-        }),
+        },
       });
 
       await expect(
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1074,7 +1100,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't execute the trade without protocol_dst_ata", async () => {
@@ -1082,17 +1108,18 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        protocolDstAta: state.charlie.atas[state.tokens[1].toString()].address,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           fee: {
+            protocolDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
-        }),
+        },
       });
 
       await expect(
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1101,7 +1128,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
@@ -1109,18 +1136,18 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        integratorDstAta:
-          state.charlie.atas[state.tokens[1].toString()].address,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           fee: {
+            integratorDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
           },
-        }),
+        },
       });
 
       await expect(
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1131,7 +1158,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Doesn't execute the trade without integrator_dst_ata", async () => {
@@ -1139,18 +1166,18 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        integratorDstAta:
-          state.charlie.atas[state.tokens[1].toString()].address,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           fee: {
+            integratorDstAta:
+              state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
           },
-        }),
+        },
       });
 
       await expect(
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1159,13 +1186,16 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
     it("Execute the multiple trades", async () => {
       let transactionPromise = () =>
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
+          .fill(
+            state.escrows[0].reducedOrderConfig,
+            state.defaultSrcAmount.divn(2)
+          )
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -1191,7 +1221,10 @@ describe("Fusion Swap", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount.divn(2))
+          .fill(
+            state.escrows[0].reducedOrderConfig,
+            state.defaultSrcAmount.divn(2)
+          )
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -1223,17 +1256,17 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        orderConfig: state.orderConfig({
+        orderConfig: {
           srcAmount: _srcAmount,
           srcRemaining: _srcAmount,
           minDstAmount: _dstAmount,
           estimatedDstAmount: _dstAmount,
-        }),
+        },
       });
 
       let transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, _srcAmount.divn(2))
+          .fill(escrow.reducedOrderConfig, _srcAmount.divn(2))
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1264,7 +1297,7 @@ describe("Fusion Swap", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, _srcAmount.divn(2))
+          .fill(escrow.reducedOrderConfig, _srcAmount.divn(2))
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1295,7 +1328,7 @@ describe("Fusion Swap", () => {
       // Third trade
       transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, new anchor.BN(1))
+          .fill(escrow.reducedOrderConfig, new anchor.BN(1))
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1325,9 +1358,11 @@ describe("Fusion Swap", () => {
     });
 
     it("Cancel the trade", async () => {
+      const orderHash = getOrderHash(state.escrows[0].orderConfig);
+
       const transactionPromise = () =>
         program.methods
-          .cancel(state.escrows[0].order_id)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1353,12 +1388,16 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        srcMint: splToken.NATIVE_MINT,
+        orderConfig: {
+          srcMint: splToken.NATIVE_MINT,
+        },
       });
+
+      const orderHash = getOrderHash(escrow.orderConfig);
 
       const transactionPromise = () =>
         program.methods
-          .cancel(escrow.order_id)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: splToken.NATIVE_MINT,
@@ -1380,9 +1419,11 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong order_id", async () => {
+      const orderHash = getOrderHash(state.escrows[1].orderConfig);
+
       await expect(
         program.methods
-          .cancel(state.escrows[1].order_id)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1395,9 +1436,11 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong escrow ata", async () => {
+      const orderHash = getOrderHash(state.escrows[0].orderConfig);
+
       await expect(
         program.methods
-          .cancel(state.escrows[0].order_id)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1411,9 +1454,11 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong maker", async () => {
+      const orderHash = getOrderHash(state.escrows[0].orderConfig);
+
       await expect(
         program.methods
-          .cancel(state.escrows[0].order_id)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.charlie.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1434,7 +1479,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount.divn(2))
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1463,7 +1508,7 @@ describe("Fusion Swap", () => {
       // Fill the trade partially
       const transactionPromiseFill = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount.divn(2))
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount.divn(2))
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1491,10 +1536,12 @@ describe("Fusion Swap", () => {
         -BigInt(state.defaultDstAmount.divn(2).toNumber()),
       ]);
 
+      const orderHash = getOrderHash(escrow.orderConfig);
+
       // Cancel the trade
       const transactionPromiseCancel = () =>
         program.methods
-          .cancel(escrow.order_id)
+          .cancel(Array.from(orderHash))
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1523,12 +1570,14 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
-        orderConfig: state.orderConfig({ nativeDstAsset: true }),
+        orderConfig: {
+          nativeDstAsset: true,
+          dstMint: splToken.NATIVE_MINT,
+        },
       });
 
       await program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount)
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
@@ -1562,12 +1611,14 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
+        orderConfig: {
+          dstMint: splToken.NATIVE_MINT,
+        },
       });
 
       await expect(
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accounts(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1584,26 +1635,25 @@ describe("Fusion Swap", () => {
     });
 
     it("Fails to create if native_dst_asset = true but mint is different from native mint", async () => {
-      const order_id = state.increaseOrderID();
+      const orderConfig = state.orderConfig({
+        nativeDstAsset: true,
+      });
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(order_id, 4),
+          getOrderHash(orderConfig),
         ],
         program.programId
       );
 
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: order_id,
-              nativeDstAsset: true,
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -1621,15 +1671,15 @@ describe("Fusion Swap", () => {
         escrowProgram: program,
         payer,
         provider,
-        dstMint: splToken.NATIVE_MINT,
-        orderConfig: state.orderConfig({
+        orderConfig: {
+          dstMint: splToken.NATIVE_MINT,
           useNativeDstAsset: false,
-        }),
+        },
       });
 
       const transactionPromise = () =>
         program.methods
-          .fill(escrow.order_id, state.defaultSrcAmount)
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
@@ -1669,7 +1719,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with the wrong maker's ata", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               makerDstAta:
@@ -1684,7 +1734,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with the wrong token", async () => {
       await expect(
         program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               srcMint: state.tokens[1],
@@ -1692,7 +1742,7 @@ describe("Fusion Swap", () => {
           )
           .signers([state.bob.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: ConstraintAssociated");
+      ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
   });
 
@@ -1700,7 +1750,7 @@ describe("Fusion Swap", () => {
     it("Double fill", async () => {
       const transactionPromise = async () => {
         await program.methods
-          .fill(state.escrows[0].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -1712,7 +1762,7 @@ describe("Fusion Swap", () => {
           payer
         );
         await program.methods
-          .fill(state.escrows[1].order_id, state.defaultSrcAmount)
+          .fill(state.escrows[1].reducedOrderConfig, state.defaultSrcAmount)
           .accountsPartial(
             state.buildAccountsDataForFill({
               taker: state.charlie.keypair.publicKey,
@@ -1774,7 +1824,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          numberToBuffer(escrow.order_id, 4),
+          getOrderHash(escrow.orderConfig),
         ],
         program.programId
       );
@@ -1801,18 +1851,18 @@ describe("Fusion Swap", () => {
           splToken.AccountLayout.span
         );
 
-      const escrowData = await provider.connection.getAccountInfo(
-        escrow.escrow
-      );
-      const escrowRent =
-        await provider.connection.getMinimumBalanceForRentExemption(
-          escrowData.data.length
-        );
-      console.log("rent", escrowRent + ataRent);
+      // const escrowData = await provider.connection.getAccountInfo(
+      //   escrow.escrow
+      // );
+      // const escrowRent =
+      //   await provider.connection.getMinimumBalanceForRentExemption(
+      //     escrowData.data.length
+      //   );
+      console.log("rent", /* escrowRent + */ ataRent);
 
       // fill instruction
       const instFill = await program.methods
-        .fill(escrow.order_id, state.defaultSrcAmount)
+        .fill(escrow.orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: escrow.escrow,
@@ -1832,7 +1882,7 @@ describe("Fusion Swap", () => {
 
       // cancel instruction
       const instCancel = await program.methods
-        .cancel(escrow.order_id)
+        .cancel(Array.from(getOrderHash(escrow.orderConfig)))
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],
