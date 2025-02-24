@@ -7,7 +7,7 @@
     "lint:ts": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "yarn lint:ts:fix && yarn lint:rust:fix",
     "lint": "yarn lint:ts && yarn lint:rust",
-    "test": "RUST_LOG=error anchor test",
+    "test": "ts-mocha -p ./tsconfig.json -t 1000000 tests/suits/**/*.ts",
     "clean": "anchor clean",
     "build": "anchor build",
     "new": "anchor new",
@@ -29,6 +29,7 @@
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
+    "@project-serum/borsh": "^0.2.5",
     "@types/bn.js": "^5.1.0",
     "@types/chai": "^4.3.0",
     "@types/chai-as-promised": "^7.1.5",

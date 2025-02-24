@@ -1,0 +1,1 @@
+pkill -f solana-test-validator && rm -rf test-ledger && cargo build-bpf && solana-test-validator --reset --quiet --bpf-program 3cx4U4YnUNeDaQfqMkzw8AsVGtBXrcAbbjd1wPGMpMZc target/deploy/whitelist.so & sleep 10 && yarn test

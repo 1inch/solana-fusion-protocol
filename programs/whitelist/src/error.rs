@@ -1,7 +1,14 @@
-use anchor_lang::error_code;
+use solana_program::program_error::ProgramError;
+use thiserror::Error;
 
-#[error_code]
+#[derive(Error, Debug, Copy, Clone)]
 pub enum WhitelistError {
-    #[msg("Unauthorized owner")]
+    #[error("Unauthorized owner")]
     UnauthorizedOwner,
+}
+
+impl From<WhitelistError> for ProgramError {
+    fn from(e: WhitelistError) -> Self {
+        ProgramError::Custom(e as u32)
+    }
 }
