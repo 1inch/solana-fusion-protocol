@@ -336,7 +336,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_token_interface_validation() {
+    async fn test_token_program_validation() {
         let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(spl_token::ID, false)])
             .await
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_token_interface_validation_2022() {
+    async fn test_token_program_validation_2022() {
         let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(spl_token_2022::ID, false)])
             .await
@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_token_interface_validation_fail() {
+    async fn test_token_program_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
