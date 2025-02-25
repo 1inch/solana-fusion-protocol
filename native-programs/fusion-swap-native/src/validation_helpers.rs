@@ -361,7 +361,6 @@ mod tests {
     #[tokio::test]
     async fn test_token_interface_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_token_interface(x));
-        let asd = AccountSharedData::new(1_000_000, 10, &crate::ID);
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
             .expect_error((0, EscrowError::ConstraintAddress.into()));

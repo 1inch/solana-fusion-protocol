@@ -12,11 +12,9 @@ no-entrypoint = []
 
 [dependencies]
 solana-program = "1.18.26"
-solana-pubkey = {version = "2.2.1", features = ["borsh"]}
 spl-associated-token-account = {version="3.0.4", features = ["no-entrypoint"]}
 spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
 spl-token-2022 = { version = "3.0.5", features = ["no-entrypoint"] }
-borsh = { version = "=1.5.5", features = ["derive"] }
 spl-discriminator = "0.4.1"
 spl-program-error = "0.6.0"
 thiserror = "2.0.11"
