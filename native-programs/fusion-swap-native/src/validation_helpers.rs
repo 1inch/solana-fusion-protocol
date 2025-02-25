@@ -264,7 +264,7 @@ mod tests {
             &spl_token::ID,
             &mint_keypair.pubkey(),
             &ctx.payer.pubkey(),
-            Option::None,
+            None, // Freeze authority pubkey
             decimals,
         )
         .unwrap();
