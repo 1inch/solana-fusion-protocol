@@ -395,23 +395,28 @@ mod tests {
             .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
 
+    // A test contract that is used in couple of following tests.
+    fn validation_test_contract_for_token_account_validation_test(
+        _: &Pubkey,
+        accounts: &[AccountInfo],
+        _: &[u8],
+    ) -> ProgramResult {
+        assert_token_account(
+            &accounts[0],
+            Some(accounts[1].key),
+            Some(accounts[2].key),
+            &spl_token::ID,
+        )?;
+        Ok(())
+    }
+
     #[tokio::test]
     async fn test_token_account_validation() {
-        fn validation_test_contract(
-            _: &Pubkey,
-            accounts: &[AccountInfo],
-            _: &[u8],
-        ) -> ProgramResult {
-            assert_token_account(
-                &accounts[0],
-                Some(accounts[1].key),
-                Some(accounts[2].key),
-                &spl_token::ID,
-            )?;
-            Ok(())
-        }
-        let program_test =
-            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let program_test = ProgramTest::new(
+            "dummy",
+            crate::ID,
+            processor!(validation_test_contract_for_token_account_validation_test),
+        );
         let mut ctx = program_test.start_with_context().await;
 
         let user_pk = Pubkey::new_unique();
@@ -431,21 +436,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_token_account_validation_fail() {
-        fn validation_test_contract(
-            _: &Pubkey,
-            accounts: &[AccountInfo],
-            _: &[u8],
-        ) -> ProgramResult {
-            assert_token_account(
-                &accounts[0],
-                Some(accounts[1].key),
-                Some(accounts[2].key),
-                &spl_token::ID,
-            )?;
-            Ok(())
-        }
-        let program_test =
-            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let program_test = ProgramTest::new(
+            "dummy",
+            crate::ID,
+            processor!(validation_test_contract_for_token_account_validation_test),
+        );
         let mut ctx = program_test.start_with_context().await;
 
         let user_pk = Pubkey::new_unique();
@@ -505,25 +500,29 @@ mod tests {
             .expect_error((0, EscrowError::ConstraintSeeds.into()));
     }
 
+    fn validation_test_contract_for_init_ata(
+        _: &Pubkey,
+        accounts: &[AccountInfo],
+        _: &[u8],
+    ) -> ProgramResult {
+        init_ata_with_address_check(
+            &accounts[0],
+            accounts[1].key,
+            accounts[3].key,
+            accounts[2].key,
+            &spl_token::ID,
+            accounts,
+        )?;
+        Ok(())
+    }
+
     #[tokio::test]
     async fn test_init_ata() {
-        fn validation_test_contract(
-            _: &Pubkey,
-            accounts: &[AccountInfo],
-            _: &[u8],
-        ) -> ProgramResult {
-            init_ata_with_address_check(
-                &accounts[0],
-                accounts[1].key,
-                accounts[3].key,
-                accounts[2].key,
-                &spl_token::ID,
-                accounts,
-            )?;
-            Ok(())
-        }
-        let program_test =
-            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let program_test = ProgramTest::new(
+            "dummy",
+            crate::ID,
+            processor!(validation_test_contract_for_init_ata),
+        );
         let mut ctx = program_test.start_with_context().await;
         let mut client = ctx.banks_client.clone();
         let mint_kp = deploy_spl_token(&mut ctx, 9).await;
@@ -558,23 +557,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_ata_fail() {
-        fn validation_test_contract(
-            _: &Pubkey,
-            accounts: &[AccountInfo],
-            _: &[u8],
-        ) -> ProgramResult {
-            init_ata_with_address_check(
-                &accounts[0],
-                accounts[1].key,
-                accounts[3].key,
-                accounts[2].key,
-                &spl_token::ID,
-                accounts,
-            )?;
-            Ok(())
-        }
-        let program_test =
-            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let program_test = ProgramTest::new(
+            "dummy",
+            crate::ID,
+            processor!(validation_test_contract_for_init_ata),
+        );
         let mut ctx = program_test.start_with_context().await;
         let mint_kp = deploy_spl_token(&mut ctx, 9).await;
         let alice = Pubkey::new_unique();
