@@ -284,6 +284,13 @@ mod tests {
         mint_keypair
     }
 
+    fn create_account_with_owner(ctx: &mut ProgramTestContext, owner: &Pubkey) -> Pubkey {
+        let key = Pubkey::new_unique();
+        let asd = AccountSharedData::new(1_000_000, 10, owner);
+        ctx.set_account(&key, &asd);
+        key
+    }
+
     // Start a test context with a deployed test contract that embedds the provided
     // validation call on the first account.
     macro_rules! context_with_validation {
@@ -306,9 +313,7 @@ mod tests {
     #[tokio::test]
     async fn test_ownership_validation() {
         let mut ctx = context_with_validation!(|x| assert_ownership(x));
-        let key = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, &crate::ID);
-        ctx.set_account(&key, &asd);
+        let key = create_account_with_owner(&mut ctx, &crate::ID);
         call_contract(&mut ctx, &[AccountMeta::new(key, false)])
             .await
             .expect_success();
@@ -317,10 +322,8 @@ mod tests {
     #[tokio::test]
     async fn test_ownership_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_ownership(x));
-        let key = Pubkey::new_unique();
         let random_address = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, &random_address);
-        ctx.set_account(&key, &asd);
+        let key = create_account_with_owner(&mut ctx, &random_address);
         call_contract(&mut ctx, &[AccountMeta::new(key, false)])
             .await
             .expect_error((0, EscrowError::ConstraintOwner.into()));
@@ -369,10 +372,7 @@ mod tests {
     #[tokio::test]
     async fn test_writeability_validation() {
         let mut ctx = context_with_validation!(|x| assert_writable(x));
-        let key = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, &crate::ID);
-        ctx.set_account(&key, &asd);
-        call_contract(&mut ctx, &[AccountMeta::new(key, false)])
+        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
             .expect_success();
     }
@@ -380,13 +380,12 @@ mod tests {
     #[tokio::test]
     async fn test_writability_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_writable(x));
-        let key = Pubkey::new_unique();
-        let random_address = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, &random_address);
-        ctx.set_account(&key, &asd);
-        call_contract(&mut ctx, &[AccountMeta::new_readonly(key, false)])
-            .await
-            .expect_error((0, EscrowError::AccountNotMutable.into()));
+        call_contract(
+            &mut ctx,
+            &[AccountMeta::new_readonly(Pubkey::new_unique(), false)],
+        )
+        .await
+        .expect_error((0, EscrowError::AccountNotMutable.into()));
     }
 
     #[tokio::test]
@@ -471,10 +470,7 @@ mod tests {
     #[tokio::test]
     async fn test_mint_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_mint(x));
-        let random_address = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, &random_address);
-        ctx.set_account(&random_address, &asd);
-        call_contract(&mut ctx, &[AccountMeta::new(random_address, false)])
+        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
             .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
