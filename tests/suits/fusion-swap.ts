@@ -18,7 +18,10 @@ import {
   waitForNewBlock,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
-import { initializeLookupTable, sendV0Transaction } from "../utils/lookupTables";
+import {
+  initializeLookupTable,
+  sendV0Transaction,
+} from "../utils/lookupTables";
 chai.use(chaiAsPromised);
 
 describe("Fusion Swap", () => {
@@ -1882,20 +1885,23 @@ describe("Fusion Swap", () => {
         .signers([state.bob.keypair])
         .instruction();
 
-        const addressesList = fillInst.keys.map((acc) => acc.pubkey);
-        const addresses = Array.from(new Set(addressesList));
-        const lookupTableAddress = await initializeLookupTable(
-          state.bob.keypair,
-          provider.connection,
-          addresses
-        );
-        await waitForNewBlock(provider.connection, 1);
-        const lookupTableAccount = (
-          await provider.connection.getAddressLookupTable(lookupTableAddress)
-        ).value;
-        const txFillSignature = await sendV0Transaction(provider.connection, state.bob.keypair, [fillInst], [
-          lookupTableAccount,
-        ]);
+      const addressesList = fillInst.keys.map((acc) => acc.pubkey);
+      const addresses = Array.from(new Set(addressesList));
+      const lookupTableAddress = await initializeLookupTable(
+        state.bob.keypair,
+        provider.connection,
+        addresses
+      );
+      await waitForNewBlock(provider.connection, 1);
+      const lookupTableAccount = (
+        await provider.connection.getAddressLookupTable(lookupTableAddress)
+      ).value;
+      const txFillSignature = await sendV0Transaction(
+        provider.connection,
+        state.bob.keypair,
+        [fillInst],
+        [lookupTableAccount]
+      );
 
       await waitForNewBlock(provider.connection, 1);
       const receptFill = await provider.connection.getTransaction(
