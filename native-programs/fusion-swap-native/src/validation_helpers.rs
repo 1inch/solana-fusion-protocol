@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_token_interface_validation_2() {
+    async fn test_token_interface_validation_2022() {
         let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(spl_token_2022::ID, false)])
             .await
