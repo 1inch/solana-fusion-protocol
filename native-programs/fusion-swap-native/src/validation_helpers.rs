@@ -370,7 +370,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_writeability_validation() {
+    async fn test_writability_validation() {
         let mut ctx = context_with_validation!(|x| assert_writable(x));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
