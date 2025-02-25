@@ -24,7 +24,7 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     if *account_info.owner != spl_token::ID && *account_info.owner != spl_token_2022::ID {
-        // TODO this is really insufficient to properly validate that an account is
+        // TODO This is really insufficient to properly validate that an account is
         // a mint. Add further checks.
         return Err(EscrowError::ConstraintTokenMint.into());
     }
@@ -44,25 +44,25 @@ pub fn assert_token_account(
     opt_authority: Option<&Pubkey>,
     token_program: &Pubkey,
 ) -> ProgramResult {
-    // decode account data
+    // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
     let acc_data = Account::unpack(data)?;
     // TODO: Support spl-token-2022
 
-    // check mint
+    // Check mint
     if let Some(mint) = opt_mint {
         if acc_data.mint != *mint {
             return Err(EscrowError::ConstraintTokenMint.into());
         }
     };
-    // check token account owner
+    // Check token account owner
     if let Some(exp_authority) = opt_authority {
-        // TODO consider using associated token account check if needed (address was derived following ATA rules)
+        // TODO Consider using associated token account check if needed (address was derived following ATA rules)
         if acc_data.owner != *exp_authority {
             return Err(EscrowError::ConstraintTokenOwner.into());
         }
     };
-    // check token program of the account by checking
+    // Check token program of the account by checking
     // the solana account owner
     if *account_info.owner != *token_program {
         return Err(EscrowError::ConstraintMintTokenProgram.into());
@@ -107,7 +107,7 @@ pub fn init_ata_with_address_check(
                               // contains nothing else, because it is passed directly to the
                               // cpi call to create the account.
 ) -> ProgramResult {
-    // ensure the account does not exist already.
+    // Ensure the account does not exist already.
     if account_info.data_is_empty()
         && account_info.lamports() == 0
         && *account_info.owner == solana_program::system_program::ID
@@ -119,11 +119,11 @@ pub fn init_ata_with_address_check(
             token_program,
         );
 
-        // validate ata
+        // Validate ata
         if ata != *account_info.key {
             return Err(EscrowError::AccountNotAssociatedTokenAccount.into());
         }
-        // create the associated token account
+        // Create the associated token account
         let create_ix = create_associated_token_account(payer, authority, mint, token_program);
         invoke(&create_ix, accounts)
     } else {
@@ -236,7 +236,7 @@ mod tests {
 
     pub async fn deploy_spl_token(ctx: &mut ProgramTestContext, decimals: u8) -> Keypair {
         let mint_keypair = Keypair::new();
-        // create mint account
+        // Create mint account
         let create_mint_acc_ix = system_instruction::create_account(
             &ctx.payer.pubkey(),
             &mint_keypair.pubkey(),
@@ -245,7 +245,7 @@ mod tests {
             &spl_token::ID,
         );
 
-        // initialize mint account
+        // Initialize mint account
         let initialize_mint_ix: Instruction = spl_instruction::initialize_mint(
             &spl_token::ID,
             &mint_keypair.pubkey(),
