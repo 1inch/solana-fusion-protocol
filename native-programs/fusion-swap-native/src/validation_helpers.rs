@@ -398,6 +398,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_mint_validation_fail() {
+        let mut ctx = context_with_validation!(|x| assert_mint(x));
+        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
+            .await
+            .expect_error((0, EscrowError::ConstraintTokenMint.into()));
+    }
+
+    #[tokio::test]
     async fn test_token_account_validation() {
         fn validation_test_contract(
             _: &Pubkey,
@@ -465,14 +473,6 @@ mod tests {
         )
         .await
         .expect_error((0, EscrowError::ConstraintTokenOwner.into()));
-    }
-
-    #[tokio::test]
-    async fn test_mint_validation_fail() {
-        let mut ctx = context_with_validation!(|x| assert_mint(x));
-        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
-            .await
-            .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
 
     #[tokio::test]
