@@ -90,7 +90,7 @@ pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramRes
     Ok(())
 }
 
-pub fn assert_token_interface(account_info: &AccountInfo) -> ProgramResult {
+pub fn assert_token_program(account_info: &AccountInfo) -> ProgramResult {
     if *account_info.key != spl_token::ID && *account_info.key != spl_token_2022::ID {
         return Err(EscrowError::ConstraintAddress.into());
     }
@@ -344,7 +344,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_token_interface_validation() {
-        let mut ctx = context_with_validation!(|x| assert_token_interface(x));
+        let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(spl_token::ID, false)])
             .await
             .expect_success();
@@ -352,7 +352,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_token_interface_validation_2() {
-        let mut ctx = context_with_validation!(|x| assert_token_interface(x));
+        let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(spl_token_2022::ID, false)])
             .await
             .expect_success();
@@ -360,7 +360,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_token_interface_validation_fail() {
-        let mut ctx = context_with_validation!(|x| assert_token_interface(x));
+        let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
             .expect_error((0, EscrowError::ConstraintAddress.into()));
