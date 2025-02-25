@@ -1808,7 +1808,7 @@ describe("Fusion Swap", () => {
   });
 
   describe("Tests tx cost", () => {
-    it.only("Calculate and print tx cost", async () => {
+    it("Calculate and print tx cost", async () => {
       // create new escrow
       const escrow = await state.createEscrow({
         escrowProgram: program,
@@ -1816,7 +1816,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           expirationTime: 0xffffffff,
-        }
+        },
       });
 
       // get bumps
@@ -1831,9 +1831,12 @@ describe("Fusion Swap", () => {
       console.log("bump", bump);
 
       const [, whitelistBump] = anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("resolver_access"), state.bob.keypair.publicKey.toBuffer()],
-          whitelistProgram.programId
-        );
+        [
+          Buffer.from("resolver_access"),
+          state.bob.keypair.publicKey.toBuffer(),
+        ],
+        whitelistProgram.programId
+      );
       console.log("whitelistBump", whitelistBump);
 
       // create tx
@@ -1898,7 +1901,7 @@ describe("Fusion Swap", () => {
         orderConfig: {
           id: escrow.orderConfig.id,
           expirationTime: 0xffffffff,
-        }
+        },
       });
 
       const txCancelSignature = await program.methods
