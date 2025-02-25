@@ -2,7 +2,7 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
     program_error::ProgramError, program_pack::Pack, pubkey::Pubkey,
 };
-use spl_associated_token_account::instruction::create_associated_token_account;
+use spl_associated_token_account::instruction as spl_ata_instruction;
 use spl_token::state::Account;
 
 use crate::error::EscrowError;
@@ -124,7 +124,12 @@ pub fn init_ata_with_address_check(
             return Err(EscrowError::AccountNotAssociatedTokenAccount.into());
         }
         // Create the associated token account
-        let create_ix = create_associated_token_account(payer, authority, mint, token_program);
+        let create_ix = spl_ata_instruction::create_associated_token_account(
+            payer,
+            authority,
+            mint,
+            token_program,
+        );
         invoke(&create_ix, accounts)
     } else {
         Err(ProgramError::AccountAlreadyInitialized)
@@ -139,8 +144,7 @@ mod tests {
         instruction::Instruction, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey,
     };
     use solana_program_test::{
-        processor, tokio, BanksClientError, BanksTransactionResultWithMetadata, ProgramTest,
-        ProgramTestContext,
+        processor, tokio, BanksClientError, ProgramTest, ProgramTestContext,
     };
     use solana_sdk::{
         account::AccountSharedData, signature::Signer, signer::keypair::Keypair,
@@ -212,7 +216,7 @@ mod tests {
         account: &Pubkey,
     ) -> Pubkey {
         let ata = spl_associated_token_account::get_associated_token_address(account, mint_pubkey);
-        let create_spl_acc_ix = create_associated_token_account(
+        let create_spl_acc_ix = spl_ata_instruction::create_associated_token_account(
             &ctx.payer.pubkey(),
             account,
             mint_pubkey,
