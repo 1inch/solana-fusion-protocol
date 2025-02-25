@@ -104,7 +104,7 @@ pub fn init_ata_with_address_check(
     authority: &Pubkey,
     token_program: &Pubkey,
     accounts: &[AccountInfo], // Should contain all the accounts for account creation and better if it
-                              // contain nothing else, because it is passed directly to the
+                              // contains nothing else, because it is passed directly to the
                               // cpi call to create the account.
 ) -> ProgramResult {
     // ensure the account does not exist already.
