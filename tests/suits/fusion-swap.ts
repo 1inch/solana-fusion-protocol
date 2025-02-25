@@ -4,7 +4,6 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import {
   TestState,
   createTokens,
@@ -16,7 +15,6 @@ import {
   trackReceivedTokenAndTx,
   ReducedOrderConfig,
   getOrderHash,
-  getInstractionCost,
   waitForNewBlock,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
@@ -1810,16 +1808,18 @@ describe("Fusion Swap", () => {
   });
 
   describe("Tests tx cost", () => {
-    it("Calculate and print tx cost", async () => {
+    it.only("Calculate and print tx cost", async () => {
       // create new escrow
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
-        needInstraction: true,
+        orderConfig: {
+          expirationTime: 0xffffffff,
+        }
       });
 
-      // get bump
+      // get bumps
       const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
@@ -1830,20 +1830,26 @@ describe("Fusion Swap", () => {
       );
       console.log("bump", bump);
 
-      // create instruction
-      const createTxData = await getInstractionCost(
-        escrow.inst,
-        provider.connection,
-        state.alice.keypair.publicKey
-      );
-      console.log("inst.data.length Create", createTxData.length);
-      console.log("computeUnits Create", createTxData.computeUnits);
+      const [, whitelistBump] = anchor.web3.PublicKey.findProgramAddressSync(
+          [Buffer.from("resolver_access"), state.bob.keypair.publicKey.toBuffer()],
+          whitelistProgram.programId
+        );
+      console.log("whitelistBump", whitelistBump);
 
-      const txCreate = new Transaction().add(escrow.inst);
-      await sendAndConfirmTransaction(provider.connection, txCreate, [
-        state.alice.keypair,
-      ]);
+      // create tx
       await waitForNewBlock(provider.connection, 1);
+      const receptCreate = await provider.connection.getTransaction(
+        escrow.txSignature,
+        { commitment: "confirmed" }
+      );
+      console.log(
+        "inst.data.length Create",
+        receptCreate.transaction.message.serialize().length
+      );
+      console.log(
+        "computeUnits Create",
+        receptCreate.meta.computeUnitsConsumed
+      );
 
       // calculate rent
       const ataRent =
@@ -1860,8 +1866,8 @@ describe("Fusion Swap", () => {
       //   );
       console.log("rent", /* escrowRent + */ ataRent);
 
-      // fill instruction
-      const instFill = await program.methods
+      // fill tx
+      const txFillSignature = await program.methods
         .fill(escrow.orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
@@ -1870,18 +1876,32 @@ describe("Fusion Swap", () => {
           })
         )
         .signers([state.bob.keypair])
-        .instruction();
+        .rpc();
 
-      const fillTxData = await getInstractionCost(
-        instFill,
-        provider.connection,
-        state.bob.keypair.publicKey
+      await waitForNewBlock(provider.connection, 1);
+      const receptFill = await provider.connection.getTransaction(
+        txFillSignature,
+        { commitment: "confirmed" }
       );
-      console.log("inst.data.length Fill", fillTxData.length);
-      console.log("computeUnits Fill", fillTxData.computeUnits);
+      console.log(
+        "inst.data.length Fill",
+        receptFill.transaction.message.serialize().length
+      );
+      console.log("computeUnits Fill", receptFill.meta.computeUnitsConsumed);
 
-      // cancel instruction
-      const instCancel = await program.methods
+      // cancel tx
+      // re-create escrow with same id
+      await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          id: escrow.orderConfig.id,
+          expirationTime: 0xffffffff,
+        }
+      });
+
+      const txCancelSignature = await program.methods
         .cancel(Array.from(getOrderHash(escrow.orderConfig)))
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
@@ -1890,15 +1910,21 @@ describe("Fusion Swap", () => {
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.alice.keypair])
-        .instruction();
+        .rpc();
 
-      const cancelTxData = await getInstractionCost(
-        instCancel,
-        provider.connection,
-        state.alice.keypair.publicKey
+      await waitForNewBlock(provider.connection, 1);
+      const receptCancel = await provider.connection.getTransaction(
+        txCancelSignature,
+        { commitment: "confirmed" }
       );
-      console.log("inst.data.length Cancel", cancelTxData.length);
-      console.log("computeUnits Cancel", cancelTxData.computeUnits);
+      console.log(
+        "inst.data.length Cancel",
+        receptCancel.transaction.message.serialize().length
+      );
+      console.log(
+        "computeUnits Cancel",
+        receptCancel.meta.computeUnitsConsumed
+      );
     });
   });
 });

@@ -6,6 +6,7 @@ import {
   sendAndConfirmTransaction,
   PublicKey,
   LAMPORTS_PER_SOL,
+  TransactionSignature,
 } from "@solana/web3.js";
 import { sha256 } from "@noble/hashes/sha256";
 import * as splBankrunToken from "spl-token-bankrun";
@@ -20,7 +21,6 @@ import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
-import { getSimulationComputeUnits } from "@solana-developers/helpers";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -93,7 +93,7 @@ export type User = {
 };
 
 export type Escrow = {
-  inst: anchor.web3.TransactionInstruction | undefined;
+  txSignature: TransactionSignature;
   escrow: anchor.web3.PublicKey;
   orderConfig: OrderConfig;
   reducedOrderConfig: ReducedOrderConfig;
@@ -339,7 +339,6 @@ export class TestState {
     payer,
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
-    needInstraction = false,
   }: {
     escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
@@ -387,41 +386,23 @@ export class TestState {
       }
     }
 
-    let inst: anchor.web3.TransactionInstruction | undefined = undefined;
-    if (needInstraction) {
-      inst = await escrowProgram.methods
-        .create(orderConfig as OrderConfig)
-        .accountsPartial({
-          maker: this.alice.keypair.publicKey,
-          makerReceiver: orderConfig.receiver,
-          srcMint: orderConfig.srcMint,
-          dstMint: orderConfig.dstMint,
-          protocolDstAta: orderConfig.fee.protocolDstAta,
-          integratorDstAta: orderConfig.fee.integratorDstAta,
-          escrow,
-          srcTokenProgram,
-        })
-        .signers([this.alice.keypair])
-        .instruction();
-    } else {
-      await escrowProgram.methods
-        .create(orderConfig as ReducedOrderConfig)
-        .accountsPartial({
-          maker: this.alice.keypair.publicKey,
-          makerReceiver: orderConfig.receiver,
-          srcMint: orderConfig.srcMint,
-          dstMint: orderConfig.dstMint,
-          protocolDstAta: orderConfig.fee.protocolDstAta,
-          integratorDstAta: orderConfig.fee.integratorDstAta,
-          escrow,
-          srcTokenProgram,
-        })
-        .signers([this.alice.keypair])
-        .rpc();
-    }
+    const txSignature = await escrowProgram.methods
+      .create(orderConfig as ReducedOrderConfig)
+      .accountsPartial({
+        maker: this.alice.keypair.publicKey,
+        makerReceiver: orderConfig.receiver,
+        srcMint: orderConfig.srcMint,
+        dstMint: orderConfig.dstMint,
+        protocolDstAta: orderConfig.fee.protocolDstAta,
+        integratorDstAta: orderConfig.fee.integratorDstAta,
+        escrow,
+        srcTokenProgram,
+      })
+      .signers([this.alice.keypair])
+      .rpc();
 
     return {
-      inst,
+      txSignature,
       escrow,
       orderConfig,
       reducedOrderConfig: orderConfig as ReducedOrderConfig,
@@ -718,22 +699,6 @@ export async function setCurrentTime(
       BigInt(time)
     )
   );
-}
-
-export async function getInstractionCost(
-  inst: anchor.web3.TransactionInstruction,
-  connection: anchor.web3.Connection,
-  signer: anchor.web3.PublicKey
-) {
-  return {
-    length: 32 + inst.data.length + inst.keys.length * 34, // 32 bytes for the program id, 34 bytes for each account key (+ is_signer flag - 1 byte, is_writable flag - 1 byte)
-    computeUnits: await getSimulationComputeUnits(
-      connection,
-      [inst],
-      signer,
-      []
-    ),
-  };
 }
 
 export async function waitForNewBlock(
