@@ -155,20 +155,6 @@ mod tests {
         fn expect_error(self, expectation: Self::ExpectationType);
     }
 
-    impl Expectation for Result<BanksTransactionResultWithMetadata, BanksClientError> {
-        type ExpectationType = &'static str;
-        fn expect_success(self) {
-            self.unwrap();
-        }
-        fn expect_error(self, expectation: &'static str) {
-            if let Ok(result_with_metadata) = self {
-                let logs = result_with_metadata.metadata.unwrap().log_messages;
-
-                assert!(logs.iter().any(|x| x.contains(expectation)));
-            }
-        }
-    }
-
     impl Expectation for Result<(), BanksClientError> {
         type ExpectationType = (u8, ProgramError);
         fn expect_success(self) {
