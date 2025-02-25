@@ -1,9 +1,10 @@
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
-    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey,
+    program_error::ProgramError, pubkey::Pubkey,
 };
 use spl_associated_token_account::instruction as spl_ata_instruction;
-use spl_token::state::Account;
+use spl_token_2022::instruction as spl2022_instruction;
+use spl_token_2022::{extension::StateWithExtensions, state::Account as Account2022};
 
 use crate::error::EscrowError;
 use Result::*;
@@ -46,17 +47,17 @@ pub fn assert_token_account(
 ) -> ProgramResult {
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
-    let acc_data = Account::unpack(data)?;
+    let acc_data = StateWithExtensions::<Account2022>::unpack(data)?;
     // TODO: Support spl-token-2022
 
     // Check mint
-    if acc_data.mint != *mint {
+    if acc_data.base.mint != *mint {
         return Err(EscrowError::ConstraintTokenMint.into());
     }
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
         // TODO Consider using associated token account check if needed (address was derived following ATA rules)
-        if acc_data.owner != *exp_authority {
+        if acc_data.base.owner != *exp_authority {
             return Err(EscrowError::ConstraintTokenOwner.into());
         }
     };
@@ -238,6 +239,45 @@ mod tests {
         ata
     }
 
+    pub async fn initialize_spl2022_account(
+        ctx: &mut ProgramTestContext,
+        mint_pubkey: &Pubkey,
+        owner: &Pubkey,
+    ) -> Keypair {
+        // create mint account
+        let account_keypair = Keypair::new();
+
+        let create_spl_acc_ix = system_instruction::create_account(
+            &ctx.payer.pubkey(),
+            &account_keypair.pubkey(),
+            1_000_000_000, // Some lamports to pay rent
+            Account::LEN as u64,
+            &spl_token_2022::ID,
+        );
+
+        let initialize_acc_ix: Instruction = spl2022_instruction::initialize_account(
+            &spl_token_2022::ID,
+            &account_keypair.pubkey(),
+            mint_pubkey,
+            owner,
+        )
+        .unwrap();
+
+        let signers: Vec<&Keypair> = vec![&ctx.payer, &account_keypair];
+
+        let client = &mut ctx.banks_client;
+        client
+            .process_transaction(Transaction::new_signed_with_payer(
+                &[create_spl_acc_ix, initialize_acc_ix],
+                Some(&ctx.payer.pubkey()),
+                &signers,
+                ctx.last_blockhash,
+            ))
+            .await
+            .unwrap();
+        account_keypair
+    }
+
     pub async fn deploy_spl_token(ctx: &mut ProgramTestContext, decimals: u8) -> Keypair {
         let mint_keypair = Keypair::new();
         // Create mint account
@@ -279,6 +319,48 @@ mod tests {
         let asd = AccountSharedData::new(1_000_000, 10, owner);
         ctx.set_account(&key, &asd);
         key
+    }
+
+    pub async fn deploy_spl2022_token(ctx: &mut ProgramTestContext, decimals: u8) -> Keypair {
+        use spl_token_2022::extension::ExtensionType;
+        use spl_token_2022::{
+            instruction as spl2022_instruction, state::Mint as SPL2022_Mint,
+            ID as spl2022_program_id,
+        };
+        // create mint account
+        let mint_keypair = Keypair::new();
+        let account_size = ExtensionType::try_calculate_account_len::<SPL2022_Mint>(&[]).unwrap();
+        let create_mint_acc_ix = system_instruction::create_account(
+            &ctx.payer.pubkey(),
+            &mint_keypair.pubkey(),
+            1_000_000_000, // Some lamports to pay rent
+            account_size as u64,
+            &spl2022_program_id,
+        );
+
+        // initialize mint account
+        let initialize_mint_ix: Instruction = spl2022_instruction::initialize_mint(
+            &spl2022_program_id,
+            &mint_keypair.pubkey(),
+            &ctx.payer.pubkey(),
+            Option::None,
+            decimals,
+        )
+        .unwrap();
+
+        let signers: Vec<&Keypair> = vec![&ctx.payer, &mint_keypair];
+
+        let client = &mut ctx.banks_client;
+        client
+            .process_transaction(Transaction::new_signed_with_payer(
+                &[create_mint_acc_ix, initialize_mint_ix],
+                Some(&ctx.payer.pubkey()),
+                &signers,
+                ctx.last_blockhash,
+            ))
+            .await
+            .unwrap();
+        mint_keypair
     }
 
     // Start a test context with a deployed test contract that embedds the provided
@@ -395,6 +477,15 @@ mod tests {
             .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
 
+    #[tokio::test]
+    async fn test_mint_2022_validation() {
+        let mut ctx = context_with_validation!(|x| assert_mint(x));
+        let mint_kp = deploy_spl2022_token(&mut ctx, 9).await;
+        call_contract(&mut ctx, &[AccountMeta::new(mint_kp.pubkey(), false)])
+            .await
+            .expect_success();
+    }
+
     // A test contract that is used in couple of following tests.
     fn validation_test_contract_for_token_account_validation_test(
         _: &Pubkey,
@@ -458,6 +549,40 @@ mod tests {
         )
         .await
         .expect_error((0, EscrowError::ConstraintTokenOwner.into()));
+    }
+
+    #[tokio::test]
+    async fn test_token2022_account_validation() {
+        fn validation_test_contract(
+            _: &Pubkey,
+            accounts: &[AccountInfo],
+            _: &[u8],
+        ) -> ProgramResult {
+            assert_token_account(
+                &accounts[0],
+                accounts[1].key,
+                Some(accounts[2].key),
+                Some(&spl_token_2022::ID),
+            )?;
+            Ok(())
+        }
+        let program_test =
+            ProgramTest::new("dummy", crate::ID, processor!(validation_test_contract));
+        let mut ctx = program_test.start_with_context().await;
+
+        let user_pk = Pubkey::new_unique();
+        let mint_kp = deploy_spl2022_token(&mut ctx, 9).await;
+        let ata = initialize_spl2022_account(&mut ctx, &mint_kp.pubkey(), &user_pk).await;
+        call_contract(
+            &mut ctx,
+            &[
+                AccountMeta::new(ata.pubkey(), false),
+                AccountMeta::new(mint_kp.pubkey(), false),
+                AccountMeta::new(user_pk, false),
+            ],
+        )
+        .await
+        .expect_success();
     }
 
     #[tokio::test]
