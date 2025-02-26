@@ -15,7 +15,7 @@ import {
   defaultAuctionData,
   defaultExpirationTime,
   defaultFeeConfig,
-  DutchAuctionData,
+  AuctionData,
   FeeConfig,
   findEscrowAddress,
   getClusterUrlEnv,
@@ -42,7 +42,8 @@ async function create(
   protocolDstAta: PublicKey = null,
   integratorDstAta: PublicKey = null,
   estimatedDstAmount: number = minDstAmount,
-  dutchAuctionData: DutchAuctionData = defaultAuctionData,
+  dutchAuctionData: AuctionData = defaultAuctionData,
+  cancellationAuctionData: AuctionData = defaultAuctionData,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
   const orderConfig = {
@@ -55,6 +56,7 @@ async function create(
     nativeDstAsset,
     fees,
     dutchAuctionData,
+    cancellationAuctionData,
     srcMint,
     dstMint,
   };
@@ -103,6 +105,7 @@ async function create(
       nativeDstAsset,
       fee: fees,
       dutchAuctionData,
+      cancellationAuctionData,
     })
     .accountsPartial({
       maker: makerKeypair.publicKey,

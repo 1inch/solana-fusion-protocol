@@ -8,10 +8,10 @@ use anchor_spl::{
         TransferChecked,
     },
 };
-use dutch_auction::{calculate_rate_bump, DutchAuctionData};
+use auction::{calculate_cancellation_bump, calculate_rate_bump, AuctionData};
 use muldiv::MulDiv;
 
-pub mod dutch_auction;
+pub mod auction;
 pub mod error;
 
 use error::EscrowError;
@@ -287,14 +287,25 @@ pub mod fusion_swap {
         ctx: Context<CancelByResolver>,
         reduced_order: ReducedOrderConfig,
     ) -> Result<()> {
+        let current_timestamp = Clock::get()?.unix_timestamp;
         require!(
-            Clock::get()?.unix_timestamp >= reduced_order.expiration_time as i64,
+            current_timestamp >= reduced_order.expiration_time as i64,
             EscrowError::OrderNotExpired
         );
 
-        let cancellation_premium = reduced_order.fee.cancellation_premium;
+        // Calculate the total cancellation premium (base + auction premium)
+        let rate_bump = calculate_cancellation_bump(
+            current_timestamp as u64,
+            &reduced_order.cancellation_auction_data,
+        );
+        // TODO: Use BASE_1E7?
+        let total_cancellation_premium = reduced_order
+            .fee
+            .cancellation_premium
+            .mul_div_ceil(BASE_1E5 + rate_bump, BASE_1E5)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
         require!(
-            cancellation_premium <= ctx.accounts.escrow_src_ata.amount,
+            total_cancellation_premium <= ctx.accounts.escrow_src_ata.amount,
             EscrowError::InvalidCancellationFee
         );
 
@@ -329,7 +340,7 @@ pub mod fusion_swap {
                     &[ctx.bumps.escrow],
                 ]],
             ),
-            cancellation_premium,
+            total_cancellation_premium,
             ctx.accounts.src_mint.decimals,
         )?;
 
@@ -350,7 +361,7 @@ pub mod fusion_swap {
                     &[ctx.bumps.escrow],
                 ]],
             ),
-            ctx.accounts.escrow_src_ata.amount - cancellation_premium,
+            ctx.accounts.escrow_src_ata.amount - total_cancellation_premium,
             ctx.accounts.src_mint.decimals,
         )?;
 
@@ -708,7 +719,8 @@ pub struct OrderConfig {
     native_dst_asset: bool,
     receiver: Pubkey,
     fee: FeeConfig,
-    dutch_auction_data: DutchAuctionData,
+    dutch_auction_data: AuctionData,
+    cancellation_auction_data: AuctionData,
     src_mint: Pubkey,
     dst_mint: Pubkey,
 }
@@ -722,7 +734,8 @@ pub struct ReducedOrderConfig {
     expiration_time: u32,
     native_dst_asset: bool,
     fee: ReducedFeeConfig,
-    dutch_auction_data: DutchAuctionData,
+    dutch_auction_data: AuctionData,
+    cancellation_auction_data: AuctionData,
 }
 
 fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
@@ -734,7 +747,7 @@ fn get_dst_amount(
     initial_src_amount: u64,
     initial_dst_amount: u64,
     src_amount: u64,
-    opt_data: Option<&DutchAuctionData>,
+    opt_data: Option<&AuctionData>,
 ) -> Result<u64> {
     let mut result = initial_dst_amount
         .mul_div_ceil(src_amount, initial_src_amount)
@@ -806,6 +819,7 @@ fn build_order_from_reduced(
             cancellation_premium: order.fee.cancellation_premium,
         },
         dutch_auction_data: order.dutch_auction_data.clone(),
+        cancellation_auction_data: order.cancellation_auction_data.clone(),
         src_mint,
         dst_mint,
     }

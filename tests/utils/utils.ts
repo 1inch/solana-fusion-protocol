@@ -46,6 +46,24 @@ type OrderConfig = ReducedOrderConfig & {
   fee: FeeConfig;
 };
 
+const auctionSchema = {
+  struct: {
+    startTime: "u32",
+    duration: "u32",
+    initialRateBump: "u16",
+    pointsAndTimeDeltas: {
+      array: {
+        type: {
+          struct: {
+            rateBump: "u16",
+            timeDelta: "u16",
+          },
+        },
+      },
+    },
+  },
+};
+
 const orderConfigSchema = {
   struct: {
     id: "u32",
@@ -65,23 +83,8 @@ const orderConfigSchema = {
         cancellationPremium: "u64",
       },
     },
-    dutchAuctionData: {
-      struct: {
-        startTime: "u32",
-        duration: "u32",
-        initialRateBump: "u16",
-        pointsAndTimeDeltas: {
-          array: {
-            type: {
-              struct: {
-                rateBump: "u16",
-                timeDelta: "u16",
-              },
-            },
-          },
-        },
-      },
-    },
+    dutchAuctionData: auctionSchema,
+    cancellationAuctionData: auctionSchema,
     srcMint: { array: { type: "u8", len: 32 } },
     dstMint: { array: { type: "u8", len: 32 } },
   },
@@ -431,6 +434,7 @@ export class TestState {
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
+      cancellationAuctionData: this.auction,
       srcMint: this.tokens[0],
       dstMint: this.tokens[1],
       ...params,
@@ -474,6 +478,16 @@ export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
           timeDelta: p.timeDelta,
         })
       ),
+    },
+    cancellationAuctionData: {
+      startTime: orderConfig.cancellationAuctionData.startTime,
+      duration: orderConfig.cancellationAuctionData.duration,
+      initialRateBump: orderConfig.cancellationAuctionData.initialRateBump,
+      pointsAndTimeDeltas:
+        orderConfig.cancellationAuctionData.pointsAndTimeDeltas.map((p) => ({
+          rateBump: p.rateBump,
+          timeDelta: p.timeDelta,
+        })),
     },
     srcMint: orderConfig.srcMint.toBuffer(),
     dstMint: orderConfig.dstMint.toBuffer(),

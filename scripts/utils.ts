@@ -19,6 +19,7 @@ export type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
+  cancellationPremium: anchor.BN;
 };
 export type OrderConfig = ReducedOrderConfig & {
   src_mint: anchor.web3.PublicKey;
@@ -30,10 +31,10 @@ export type OrderConfig = ReducedOrderConfig & {
 const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
 export type Escrow = (typeof escrowType)["type"]["fields"];
 
-const dutchAuctionDataType = FusionSwapIDL.types.find(
-  (t) => t.name === "DutchAuctionData"
+const auctionDataType = FusionSwapIDL.types.find(
+  (t) => t.name === "AuctionData"
 );
-export type DutchAuctionData = (typeof dutchAuctionDataType)["type"]["fields"];
+export type AuctionData = (typeof auctionDataType)["type"]["fields"];
 
 export const defaultFeeConfig: FeeConfig = {
   protocolFee: 0,
@@ -41,9 +42,10 @@ export const defaultFeeConfig: FeeConfig = {
   surplusPercentage: 0,
   protocolDstAta: null,
   integratorDstAta: null,
+  cancellationPremium: new anchor.BN(0),
 };
 
-export const defaultAuctionData: DutchAuctionData = {
+export const defaultAuctionData: AuctionData = {
   startTime: 0xffffffff - 32000, // default auction start in the far far future and order use default formula
   duration: 32000,
   initialRateBump: 0,

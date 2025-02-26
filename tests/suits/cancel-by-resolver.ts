@@ -25,7 +25,16 @@ describe("Cancel by Resolver", () => {
   let state: TestState;
   let program: anchor.Program<FusionSwap>;
   let payer: anchor.web3.Keypair;
-  let expirationTime;
+
+  const auction = {
+    startTime: 0, // We update it before each test
+    duration: 32000,
+    initialRateBump: 50000,
+    pointsAndTimeDeltas: [
+      { rateBump: 20000, timeDelta: 10000 },
+      { rateBump: 10000, timeDelta: 20000 },
+    ],
+  };
 
   before(async () => {
     const usersKeypairs = [];
@@ -46,9 +55,9 @@ describe("Cancel by Resolver", () => {
   });
 
   beforeEach(async () => {
-    const currentTime = Math.floor(Date.now() / 1000);
-    expirationTime = currentTime + 60; // 1 minute expiration
-    await setCurrentTime(context, currentTime);
+    auction.startTime = Math.floor(new Date().getTime() / 1000);
+    // Rollback clock to the current time after tests that move time forward when order already expired
+    await setCurrentTime(context, auction.startTime);
   });
 
   it("Resolver can cancel the order and receive a portion of the remaining tokens", async () => {
@@ -66,12 +75,12 @@ describe("Cancel by Resolver", () => {
           fee: {
             cancellationPremium,
           },
-          expirationTime,
+          cancellationAuction: auction,
         }),
       });
 
       // Rewind time to expire the order
-      await setCurrentTime(context, expirationTime + 1);
+      await setCurrentTime(context, state.defaultExpirationTime + 1);
 
       const transactionPromise = () =>
         program.methods
@@ -116,7 +125,7 @@ describe("Cancel by Resolver", () => {
         fee: {
           cancellationPremium: defaultCancellationPremium,
         },
-        expirationTime,
+        cancellationAuction: auction,
       }),
     });
 
@@ -149,12 +158,11 @@ describe("Cancel by Resolver", () => {
         fee: {
           cancellationPremium: defaultCancellationPremium,
         },
-        expirationTime,
+        cancellationAuction: auction,
       }),
     });
 
-    await setCurrentTime(context, expirationTime + 1);
-
+    await setCurrentTime(context, state.defaultExpirationTime + 1);
     await expect(
       program.methods
         .cancelByResolver(escrow.reducedOrderConfig)
