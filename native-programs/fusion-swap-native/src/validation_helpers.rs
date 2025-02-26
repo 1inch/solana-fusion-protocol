@@ -98,11 +98,10 @@ pub fn assert_pda(
 }
 
 pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramResult {
-    require!(
+    Ok(require!(
         *account_info.key == *exp_pubkey,
         EscrowError::ConstraintAddress.into()
-    );
-    Ok(())
+    ))
 }
 
 #[inline(always)]
@@ -111,11 +110,10 @@ fn is_token_program(key: &Pubkey) -> bool {
 }
 
 pub fn assert_token_program(account_info: &AccountInfo) -> ProgramResult {
-    require!(
+    Ok(require!(
         is_token_program(account_info.key),
         EscrowError::ConstraintAddress.into()
-    );
-    Ok(())
+    ))
 }
 
 pub fn init_ata_with_address_check(
