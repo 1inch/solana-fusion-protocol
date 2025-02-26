@@ -26,15 +26,13 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 }
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
-    if is_token_program(account_info.owner) {
-        // Finish the check by trying to decoding the mint data
-        StateWithExtensions::<Mint2022>::unpack(&mut account_info.data.borrow()).map_err(|_| {
-            std::convert::Into::<ProgramError>::into(EscrowError::ConstraintTokenMint)
-        })?;
+    if is_token_program(account_info.owner)
+        && StateWithExtensions::<Mint2022>::unpack(&mut account_info.data.borrow()).is_ok()
+    {
+        Ok(())
     } else {
-        return Err(EscrowError::ConstraintTokenMint.into());
+        Err(EscrowError::ConstraintTokenMint.into())
     }
-    Ok(())
 }
 
 pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
