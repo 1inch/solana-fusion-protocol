@@ -27,7 +27,7 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     if is_token_program(account_info.owner)
-        && StateWithExtensions::<Mint2022>::unpack(&mut account_info.data.borrow()).is_ok()
+        && StateWithExtensions::<Mint2022>::unpack(&account_info.data.borrow()).is_ok()
     {
         Ok(())
     } else {
