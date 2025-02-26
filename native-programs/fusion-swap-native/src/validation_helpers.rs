@@ -8,13 +8,6 @@ use spl_token::state::Account;
 use crate::error::EscrowError;
 use Result::*;
 
-pub fn assert_ownership(account_info: &AccountInfo) -> ProgramResult {
-    if *account_info.owner != crate::ID {
-        return Err(EscrowError::ConstraintOwner.into());
-    }
-    Ok(())
-}
-
 pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
     if !account_info.is_signer {
         return Err(EscrowError::ConstraintSigner.into());
@@ -147,8 +140,8 @@ mod tests {
         processor, tokio, BanksClientError, ProgramTest, ProgramTestContext,
     };
     use solana_sdk::{
-        account::AccountSharedData, signature::Signer, signer::keypair::Keypair,
-        system_instruction, transaction::Transaction, transaction::TransactionError,
+        signature::Signer, signer::keypair::Keypair, system_instruction, transaction::Transaction,
+        transaction::TransactionError,
     };
     use spl_token::instruction as spl_instruction;
     use spl_token::state::{Account, Mint};
@@ -274,13 +267,6 @@ mod tests {
         mint_keypair
     }
 
-    fn create_account_with_owner(ctx: &mut ProgramTestContext, owner: &Pubkey) -> Pubkey {
-        let key = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, owner);
-        ctx.set_account(&key, &asd);
-        key
-    }
-
     // Start a test context with a deployed test contract that embedds the provided
     // validation call on the first account.
     macro_rules! context_with_validation {
@@ -298,25 +284,6 @@ mod tests {
             let ctx = program_test.start_with_context().await;
             ctx
         }};
-    }
-
-    #[tokio::test]
-    async fn test_ownership_validation() {
-        let mut ctx = context_with_validation!(|x| assert_ownership(x));
-        let key = create_account_with_owner(&mut ctx, &crate::ID);
-        call_contract(&mut ctx, &[AccountMeta::new(key, false)])
-            .await
-            .expect_success();
-    }
-
-    #[tokio::test]
-    async fn test_ownership_validation_fail() {
-        let mut ctx = context_with_validation!(|x| assert_ownership(x));
-        let random_address = Pubkey::new_unique();
-        let key = create_account_with_owner(&mut ctx, &random_address);
-        call_contract(&mut ctx, &[AccountMeta::new(key, false)])
-            .await
-            .expect_error((0, EscrowError::ConstraintOwner.into()));
     }
 
     #[tokio::test]
