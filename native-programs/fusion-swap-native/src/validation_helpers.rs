@@ -40,9 +40,9 @@ pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
 
 pub fn assert_token_account(
     account_info: &AccountInfo,
-    opt_mint: Option<&Pubkey>,
+    mint: &Pubkey,
     opt_authority: Option<&Pubkey>,
-    token_program: &Pubkey,
+    opt_token_program: &Option<Pubkey>,
 ) -> ProgramResult {
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
@@ -50,11 +50,9 @@ pub fn assert_token_account(
     // TODO: Support spl-token-2022
 
     // Check mint
-    if let Some(mint) = opt_mint {
-        if acc_data.mint != *mint {
-            return Err(EscrowError::ConstraintTokenMint.into());
-        }
-    };
+    if acc_data.mint != *mint {
+        return Err(EscrowError::ConstraintTokenMint.into());
+    }
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
         // TODO Consider using associated token account check if needed (address was derived following ATA rules)
@@ -62,10 +60,12 @@ pub fn assert_token_account(
             return Err(EscrowError::ConstraintTokenOwner.into());
         }
     };
-    // Check token program of the account by checking
-    // the solana account owner
-    if *account_info.owner != *token_program {
-        return Err(EscrowError::ConstraintMintTokenProgram.into());
+    if let Some(token_program) = opt_token_program {
+        // Check token program of the account by checking
+        // the solana account owner
+        if *account_info.owner != *token_program {
+            return Err(EscrowError::ConstraintMintTokenProgram.into());
+        }
     }
     Ok(())
 }
@@ -403,9 +403,9 @@ mod tests {
     ) -> ProgramResult {
         assert_token_account(
             &accounts[0],
-            Some(accounts[1].key),
+            accounts[1].key,
             Some(accounts[2].key),
-            &spl_token::ID,
+            &Some(spl_token::ID),
         )?;
         Ok(())
     }
