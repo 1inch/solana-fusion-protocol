@@ -11,35 +11,41 @@ use spl_token_2022::{
 use crate::error::EscrowError;
 use Result::*;
 
+macro_rules! require {
+    ($x:expr, $e: expr) => {{
+        if !($x) {
+            return Err($e);
+        };
+    }};
+}
+
 pub fn assert_ownership(account_info: &AccountInfo) -> ProgramResult {
-    if *account_info.owner != crate::ID {
-        return Err(EscrowError::ConstraintOwner.into());
-    }
-    Ok(())
+    Ok(require!(
+        *account_info.owner == crate::ID,
+        EscrowError::ConstraintOwner.into()
+    ))
 }
 
 pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
-    if !account_info.is_signer {
-        return Err(EscrowError::ConstraintSigner.into());
-    }
-    Ok(())
+    Ok(require!(
+        account_info.is_signer,
+        EscrowError::ConstraintSigner.into()
+    ))
 }
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
-    if is_token_program(account_info.owner)
-        && StateWithExtensions::<Mint2022>::unpack(&account_info.data.borrow()).is_ok()
-    {
-        Ok(())
-    } else {
-        Err(EscrowError::ConstraintTokenMint.into())
-    }
+    Ok(require!(
+        is_token_program(account_info.owner)
+            && StateWithExtensions::<Mint2022>::unpack(&account_info.data.borrow()).is_ok(),
+        EscrowError::ConstraintTokenMint.into()
+    ))
 }
 
 pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
-    if !account_info.is_writable {
-        return Err(EscrowError::AccountNotMutable.into());
-    }
-    Ok(())
+    Ok(require!(
+        account_info.is_writable,
+        EscrowError::AccountNotMutable.into()
+    ))
 }
 
 pub fn assert_token_account(
@@ -54,22 +60,25 @@ pub fn assert_token_account(
     // TODO: Support spl-token-2022
 
     // Check mint
-    if acc_data.base.mint != *mint {
-        return Err(EscrowError::ConstraintTokenMint.into());
-    }
+    require!(
+        acc_data.base.mint == *mint,
+        EscrowError::ConstraintTokenMint.into()
+    );
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
         // TODO Consider using associated token account check if needed (address was derived following ATA rules)
-        if acc_data.base.owner != *exp_authority {
-            return Err(EscrowError::ConstraintTokenOwner.into());
-        }
+        require!(
+            acc_data.base.owner == *exp_authority,
+            EscrowError::ConstraintTokenOwner.into()
+        );
     };
     if let Some(token_program) = opt_token_program {
         // Check token program of the account by checking
         // the solana account owner
-        if *account_info.owner != *token_program {
-            return Err(EscrowError::ConstraintMintTokenProgram.into());
-        }
+        require!(
+            *account_info.owner == *token_program,
+            EscrowError::ConstraintMintTokenProgram.into()
+        );
     }
     Ok(())
 }
@@ -81,16 +90,18 @@ pub fn assert_pda(
 ) -> Result<u8, ProgramError> {
     let (pda, bump) = Pubkey::try_find_program_address(seeds, program)
         .ok_or::<EscrowError>(EscrowError::ConstraintSeeds)?;
-    if *account_info.key != pda {
-        return Err(EscrowError::ConstraintSeeds.into());
-    }
+    require!(
+        *account_info.key == pda,
+        EscrowError::ConstraintSeeds.into()
+    );
     Ok(bump)
 }
 
 pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramResult {
-    if *account_info.key != *exp_pubkey {
-        return Err(EscrowError::ConstraintAddress.into());
-    }
+    require!(
+        *account_info.key == *exp_pubkey,
+        EscrowError::ConstraintAddress.into()
+    );
     Ok(())
 }
 
@@ -100,9 +111,10 @@ fn is_token_program(key: &Pubkey) -> bool {
 }
 
 pub fn assert_token_program(account_info: &AccountInfo) -> ProgramResult {
-    if !is_token_program(account_info.key) {
-        return Err(EscrowError::ConstraintAddress.into());
-    }
+    require!(
+        is_token_program(account_info.key),
+        EscrowError::ConstraintAddress.into()
+    );
     Ok(())
 }
 
@@ -117,32 +129,28 @@ pub fn init_ata_with_address_check(
                               // cpi call to create the account.
 ) -> ProgramResult {
     // Ensure the account does not exist already.
-    if account_info.data_is_empty()
-        && account_info.lamports() == 0
-        && *account_info.owner == solana_program::system_program::ID
-    {
-        // Validate the account address
-        let ata = spl_associated_token_account::get_associated_token_address_with_program_id(
-            authority,
-            mint,
-            token_program,
-        );
+    require!(
+        account_info.data_is_empty()
+            && account_info.lamports() == 0
+            && *account_info.owner == solana_program::system_program::ID,
+        ProgramError::AccountAlreadyInitialized
+    );
+    // Validate the account address
+    let ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+        authority,
+        mint,
+        token_program,
+    );
 
-        // Validate ata
-        if ata != *account_info.key {
-            return Err(EscrowError::AccountNotAssociatedTokenAccount.into());
-        }
-        // Create the associated token account
-        let create_ix = spl_ata_instruction::create_associated_token_account(
-            payer,
-            authority,
-            mint,
-            token_program,
-        );
-        invoke(&create_ix, accounts)
-    } else {
-        Err(ProgramError::AccountAlreadyInitialized)
-    }
+    require!(
+        ata == *account_info.key,
+        EscrowError::AccountNotAssociatedTokenAccount.into()
+    );
+
+    // Create the associated token account
+    let create_ix =
+        spl_ata_instruction::create_associated_token_account(payer, authority, mint, token_program);
+    invoke(&create_ix, accounts)
 }
 
 #[cfg(test)]
