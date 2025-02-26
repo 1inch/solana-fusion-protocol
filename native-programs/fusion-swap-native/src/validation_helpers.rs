@@ -4,7 +4,9 @@ use solana_program::{
 };
 use spl_associated_token_account::instruction as spl_ata_instruction;
 use spl_token_2022::instruction as spl2022_instruction;
-use spl_token_2022::{extension::StateWithExtensions, state::Account as Account2022};
+use spl_token_2022::{
+    extension::StateWithExtensions, state::Account as Account2022, state::Mint as Mint2022,
+};
 
 use crate::error::EscrowError;
 use Result::*;
@@ -24,9 +26,12 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 }
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
-    if *account_info.owner != spl_token::ID && *account_info.owner != spl_token_2022::ID {
-        // TODO This is really insufficient to properly validate that an account is
-        // a mint. Add further checks.
+    if is_token_program(account_info.owner) {
+        // Finish the check by trying to decoding the mint data
+        StateWithExtensions::<Mint2022>::unpack(&mut account_info.data.borrow()).map_err(|_| {
+            std::convert::Into::<ProgramError>::into(EscrowError::ConstraintTokenMint)
+        })?;
+    } else {
         return Err(EscrowError::ConstraintTokenMint.into());
     }
     Ok(())
@@ -91,8 +96,13 @@ pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramRes
     Ok(())
 }
 
+#[inline(always)]
+fn is_token_program(key: &Pubkey) -> bool {
+    *key == spl_token::ID || *key == spl_token_2022::ID
+}
+
 pub fn assert_token_program(account_info: &AccountInfo) -> ProgramResult {
-    if *account_info.key != spl_token::ID && *account_info.key != spl_token_2022::ID {
+    if !is_token_program(account_info.key) {
         return Err(EscrowError::ConstraintAddress.into());
     }
     Ok(())
@@ -316,7 +326,7 @@ mod tests {
 
     fn create_account_with_owner(ctx: &mut ProgramTestContext, owner: &Pubkey) -> Pubkey {
         let key = Pubkey::new_unique();
-        let asd = AccountSharedData::new(1_000_000, 10, owner);
+        let asd = AccountSharedData::new_data(1_000_000, &vec![0; 10], owner).unwrap();
         ctx.set_account(&key, &asd);
         key
     }
@@ -484,6 +494,15 @@ mod tests {
         call_contract(&mut ctx, &[AccountMeta::new(mint_kp.pubkey(), false)])
             .await
             .expect_success();
+    }
+
+    #[tokio::test]
+    async fn test_mint_data_validation_fail() {
+        let mut ctx = context_with_validation!(|x| assert_mint(x));
+        let bad_mint = create_account_with_owner(&mut ctx, &spl_token::ID);
+        call_contract(&mut ctx, &[AccountMeta::new(bad_mint, false)])
+            .await
+            .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
 
     // A test contract that is used in couple of following tests.
