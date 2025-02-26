@@ -20,4 +20,6 @@ pub enum EscrowError {
     InconsistentProtocolFeeConfig,
     #[msg("Inconsistent integrator fee config")]
     InconsistentIntegratorFeeConfig,
+    #[msg("Maker and taker assets cannot be the same")]
+    SameAsset,
 }

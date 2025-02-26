@@ -294,6 +294,9 @@ pub struct Create<'info> {
     /// Source asset
     src_mint: Box<InterfaceAccount<'info, Mint>>,
     /// Destination asset
+    #[account(
+        constraint = dst_mint.key() != src_mint.key() @ EscrowError::SameAsset
+    )]
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// Maker's ATA of src_mint

@@ -1070,6 +1070,36 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
+    it("Doesn't create with the same maker and taker assets", async () => {
+      const orderConfig = state.orderConfig();
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          getOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      await expect(
+        program.methods
+          .create(orderConfig as ReducedOrderConfig)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[0],
+            protocolDstAta: null,
+            integratorDstAta: null,
+            escrow: escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: SameAsset");
+    });
+
     it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
