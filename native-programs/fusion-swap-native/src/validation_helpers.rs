@@ -42,7 +42,7 @@ pub fn assert_token_account(
     account_info: &AccountInfo,
     mint: &Pubkey,
     opt_authority: Option<&Pubkey>,
-    opt_token_program: &Option<Pubkey>,
+    opt_token_program: Option<&Pubkey>,
 ) -> ProgramResult {
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
@@ -405,7 +405,7 @@ mod tests {
             &accounts[0],
             accounts[1].key,
             Some(accounts[2].key),
-            &Some(spl_token::ID),
+            Some(&spl_token::ID),
         )?;
         Ok(())
     }
