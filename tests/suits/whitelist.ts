@@ -26,10 +26,7 @@ class Initialize {
 class Register {
   constructor(public user: PublicKey) {}
   serialize() {
-    const layout = struct([
-      u8('variant'),
-      publicKey('user'),
-    ]);
+    const layout = struct([u8("variant"), publicKey("user")]);
     const buffer = Buffer.alloc(1000);
     const len = layout.encode({ variant: 1, user: this.user }, buffer);
     return buffer.slice(0, len);
@@ -39,10 +36,7 @@ class Register {
 class Deregister {
   constructor(public user: PublicKey) {}
   serialize() {
-    const layout = struct([
-      u8('variant'),
-      publicKey('user'),
-    ]);
+    const layout = struct([u8("variant"), publicKey("user")]);
     const buffer = Buffer.alloc(1000);
     const len = layout.encode({ variant: 2, user: this.user }, buffer);
     return buffer.slice(0, len);
@@ -52,10 +46,7 @@ class Deregister {
 class TransferOwnership {
   constructor(public newOwner: PublicKey) {}
   serialize() {
-    const layout = struct([
-      u8('variant'),
-      publicKey('newOwner'),
-    ]);
+    const layout = struct([u8("variant"), publicKey("newOwner")]);
     const buffer = Buffer.alloc(1000);
     const len = layout.encode({ variant: 3, newOwner: this.newOwner }, buffer);
     return buffer.slice(0, len);
@@ -65,7 +56,9 @@ class TransferOwnership {
 describe("Whitelist", () => {
   const connection = new Connection("http://localhost:8899", "confirmed");
   const payer = Keypair.generate();
-  const programId = new PublicKey("3cx4U4YnUNeDaQfqMkzw8AsVGtBXrcAbbjd1wPGMpMZc");
+  const programId = new PublicKey(
+    "3cx4U4YnUNeDaQfqMkzw8AsVGtBXrcAbbjd1wPGMpMZc"
+  );
 
   let userToWhitelist: Keypair;
   let newOwner: Keypair;
@@ -82,7 +75,7 @@ describe("Whitelist", () => {
         break;
       } catch (e) {
         console.log("Waiting for validator... Retries left:", retries);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         retries--;
         if (retries === 0) {
           throw new Error("Failed to connect to validator after 30 seconds");
@@ -91,7 +84,10 @@ describe("Whitelist", () => {
     }
 
     // Fund payer
-    const airdropSignature = await connection.requestAirdrop(payer.publicKey, 10 * LAMPORTS_PER_SOL);
+    const airdropSignature = await connection.requestAirdrop(
+      payer.publicKey,
+      10 * LAMPORTS_PER_SOL
+    );
     await connection.confirmTransaction(airdropSignature);
 
     userToWhitelist = Keypair.generate();
@@ -247,7 +243,7 @@ describe("Whitelist", () => {
     // Verify the new owner is set correctly
     const account = await connection.getAccountInfo(whitelistStatePDA);
     expect(account).to.not.be.null;
-    
+
     // Skip 8 bytes of discriminator and read the pubkey
     const ownerPubkey = new PublicKey(account!.data.slice(8, 40));
     expect(ownerPubkey.toString()).to.equal(newOwner.publicKey.toString());
@@ -448,10 +444,7 @@ describe("Whitelist", () => {
 
   it("Non-owner cannot transfer ownership", async () => {
     const randomUser = Keypair.generate();
-    await connection.requestAirdrop(
-      randomUser.publicKey,
-      1 * LAMPORTS_PER_SOL
-    );
+    await connection.requestAirdrop(randomUser.publicKey, 1 * LAMPORTS_PER_SOL);
 
     const transferIx = new TransactionInstruction({
       keys: [

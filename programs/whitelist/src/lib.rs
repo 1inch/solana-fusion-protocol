@@ -84,10 +84,8 @@ fn process_initialize(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (whitelist_state_pda, bump_seed) = Pubkey::find_program_address(
-        &[WHITELIST_STATE_SEED],
-        program_id,
-    );
+    let (whitelist_state_pda, bump_seed) =
+        Pubkey::find_program_address(&[WHITELIST_STATE_SEED], program_id);
 
     if whitelist_state_pda != *whitelist_state_info.key {
         return Err(ProgramError::InvalidSeeds);
@@ -141,10 +139,8 @@ fn process_register(program_id: &Pubkey, accounts: &[AccountInfo], user: Pubkey)
         return Err(WhitelistError::UnauthorizedOwner.into());
     }
 
-    let (resolver_access_pda, bump_seed) = Pubkey::find_program_address(
-        &[RESOLVER_ACCESS_SEED, user.as_ref()],
-        program_id,
-    );
+    let (resolver_access_pda, bump_seed) =
+        Pubkey::find_program_address(&[RESOLVER_ACCESS_SEED, user.as_ref()], program_id);
 
     if resolver_access_pda != *resolver_access_info.key {
         return Err(ProgramError::InvalidSeeds);
@@ -177,7 +173,11 @@ fn process_register(program_id: &Pubkey, accounts: &[AccountInfo], user: Pubkey)
     Ok(())
 }
 
-fn process_deregister(program_id: &Pubkey, accounts: &[AccountInfo], user: Pubkey) -> ProgramResult {
+fn process_deregister(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    user: Pubkey,
+) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let owner_info = next_account_info(account_info_iter)?;
     let whitelist_state_info = next_account_info(account_info_iter)?;
@@ -195,10 +195,8 @@ fn process_deregister(program_id: &Pubkey, accounts: &[AccountInfo], user: Pubke
         return Err(WhitelistError::UnauthorizedOwner.into());
     }
 
-    let (resolver_access_pda, _) = Pubkey::find_program_address(
-        &[RESOLVER_ACCESS_SEED, user.as_ref()],
-        program_id,
-    );
+    let (resolver_access_pda, _) =
+        Pubkey::find_program_address(&[RESOLVER_ACCESS_SEED, user.as_ref()], program_id);
 
     if resolver_access_pda != *resolver_access_info.key {
         return Err(ProgramError::InvalidSeeds);
