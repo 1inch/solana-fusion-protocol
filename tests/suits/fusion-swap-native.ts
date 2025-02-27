@@ -25,7 +25,7 @@ chai.use(chaiAsPromised);
 describe("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-  
+
   const program = new Program(FUSION_SWAP_NATIVE_IDL as FusionSwapNative, {
     connection: provider.connection,
   });
