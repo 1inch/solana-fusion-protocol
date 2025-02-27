@@ -159,7 +159,7 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
         src_mint.key,
         escrow.key,
         src_token_program.key,
-        // [maker, src_mint, system_program, src_token_program, escrow, escrow_src_ata]
+        // [src_mint, system_program, escrow, src_token_program, escrow_src_ata, maker]
         &accounts[0..=5],
     )?;
 
@@ -214,7 +214,7 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
 
     invoke(
         &transfer_ix,
-        // [src_token_program, maker, escrow_src_ata, maker_src_ata]
+        // [src_token_program, escrow_src_ata, maker, maker_src_ata]
         &accounts[3..=6],
     )
 }
