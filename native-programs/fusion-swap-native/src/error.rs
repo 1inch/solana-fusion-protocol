@@ -20,4 +20,16 @@ pub enum EscrowError {
     ConstraintAddress = 2012,
     #[error("The given account is not the associated token account")]
     AccountNotAssociatedTokenAccount = 3014,
+    #[error("Invalid amount")]
+    InvalidAmount = 1,
+    #[error("Missing maker dst ata")]
+    MissingMakerDstAta = 2,
+    #[error("Not enough tokens in escrow")]
+    NotEnoughTokensInEscrow = 3,
+    #[error("Order expired")]
+    OrderExpired = 4,
+    #[error("Inconsistent protocol fee config")]
+    InconsistentProtocolFeeConfig = 7,
+    #[error("Inconsistent integrator fee config")]
+    InconsistentIntegratorFeeConfig = 8,
 }
