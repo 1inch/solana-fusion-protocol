@@ -683,6 +683,70 @@ mod tests {
         assert_eq!(ata_data.mint, mint_kp.pubkey());
     }
 
+    fn validation_test_contract_for_init_ata_with_accounts_reordered(
+        _: &Pubkey,
+        accounts: &[AccountInfo],
+        _: &[u8],
+    ) -> ProgramResult {
+        init_ata_with_address_check(
+            &accounts[0],
+            accounts[1].key,
+            accounts[3].key,
+            accounts[2].key,
+            &spl_token::ID,
+            &[
+                // We jumble up account infos when passing to the
+                // function, to ensure that it works despite this.
+                accounts[5].clone(),
+                accounts[0].clone(),
+                accounts[1].clone(),
+                accounts[4].clone(),
+                accounts[3].clone(),
+                accounts[2].clone(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_init_ata_with_reordered_accounts() {
+        let program_test = ProgramTest::new(
+            "dummy",
+            crate::ID,
+            processor!(validation_test_contract_for_init_ata_with_accounts_reordered),
+        );
+        let mut ctx = program_test.start_with_context().await;
+        let mut client = ctx.banks_client.clone();
+        let mint_kp = deploy_spl_token(&mut ctx, 9).await;
+        let alice = Pubkey::new_unique();
+        let alice_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+            &alice,
+            &mint_kp.pubkey(),
+            &spl_token::ID,
+        );
+        let payer = ctx.payer.pubkey();
+
+        call_contract(
+            &mut ctx,
+            &[
+                AccountMeta::new(alice_ata, false),
+                AccountMeta::new_readonly(payer, true),
+                AccountMeta::new_readonly(alice, false),
+                AccountMeta::new_readonly(mint_kp.pubkey(), false),
+                AccountMeta::new_readonly(solana_program::system_program::ID, false),
+                AccountMeta::new_readonly(spl_token::ID, false),
+                AccountMeta::new_readonly(spl_associated_token_account::ID, false),
+            ],
+        )
+        .await
+        .expect_success();
+
+        // Assert ATA attributes.
+        let ata_data: Account = client.get_packed_account_data(alice_ata).await.unwrap();
+        assert_eq!(ata_data.owner, alice);
+        assert_eq!(ata_data.mint, mint_kp.pubkey());
+    }
+
     #[tokio::test]
     async fn test_init_ata_fail() {
         let program_test = ProgramTest::new(
