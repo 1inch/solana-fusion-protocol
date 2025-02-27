@@ -38,7 +38,10 @@ describe("Fusion Swap Native", () => {
   let state: TestState;
 
   before(async () => {
-    // Since 'fusion-swap-native' is not an Anchor program, we need to deploy it to localnet manually
+    // Since 'fusion-swap-native' is not an Anchor program, we need to deploy it to localnet manually.
+    //
+    // We also specify the path to fixed keypair file to make these tests work on CI and different machines,
+    // due to the fact that program id specified in hardcoded IDL is hardcoded too, and thus needs to be preserved.
     const deployOutput = require("child_process").execSync(
       "solana program deploy target/deploy/fusion_swap_native.so -u localhost --program-id fusion_swap_native-keypair.json"
     );
