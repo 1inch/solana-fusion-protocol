@@ -113,9 +113,22 @@ pub fn init_ata_with_address_check(
     mint: &Pubkey,
     authority: &Pubkey,
     token_program: &Pubkey,
-    accounts: &[AccountInfo], // Should contain all the accounts for account creation and better if it
-                              // contains nothing else, because it is passed directly to the
-                              // cpi call to create the account.
+    accounts: &[AccountInfo],
+    // NOTE: This argument is a slice so that the a subslice of the `&[AccountInfo]` slice from the
+    // entrypoint could be passed directly here to avoid cloning.
+    //
+    // So the following accounts should be present in this slice, but their order does not matter.
+    // * [writable] ATA address
+    // * [signer] Payer
+    // * Owner pubkey
+    // * Mint pubkey
+    // * System progam
+    // * SPL token program
+    //
+    // Ideally, this argument should not contain any other accounts. Because this argument is
+    // passed directly to the CPI call that will create and initialize the associated token
+    // account. So if the account contain more accounts, only the initial six would be passed to the
+    // call.
 ) -> ProgramResult {
     // Ensure the account does not exist already.
     require!(
@@ -139,7 +152,7 @@ pub fn init_ata_with_address_check(
     // Create the associated token account
     let create_ix =
         spl_ata_instruction::create_associated_token_account(payer, authority, mint, token_program);
-    invoke(&create_ix, accounts)
+    invoke(&create_ix, &accounts[0..6])
 }
 
 #[cfg(test)]
@@ -653,12 +666,12 @@ mod tests {
             &mut ctx,
             &[
                 AccountMeta::new(alice_ata, false),
-                AccountMeta::new(payer, true),
-                AccountMeta::new(alice, false),
-                AccountMeta::new(mint_kp.pubkey(), false),
-                AccountMeta::new(solana_program::system_program::ID, false),
-                AccountMeta::new(spl_associated_token_account::ID, false),
-                AccountMeta::new(spl_token::ID, false),
+                AccountMeta::new_readonly(payer, true),
+                AccountMeta::new_readonly(alice, false),
+                AccountMeta::new_readonly(mint_kp.pubkey(), false),
+                AccountMeta::new_readonly(solana_program::system_program::ID, false),
+                AccountMeta::new_readonly(spl_token::ID, false),
+                AccountMeta::new_readonly(spl_associated_token_account::ID, false),
             ],
         )
         .await
