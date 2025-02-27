@@ -19,14 +19,13 @@ import FUSION_SWAP_NATIVE_IDL from "../../idl/fusion_swap_native.json";
 import { FusionSwapNative } from "../../idl/fusion_swap_native";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
-import { sha256 } from "@noble/hashes/sha256";
 import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
 describe("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-
+  
   const program = new Program(FUSION_SWAP_NATIVE_IDL as FusionSwapNative, {
     connection: provider.connection,
   });
@@ -41,7 +40,7 @@ describe("Fusion Swap Native", () => {
   before(async () => {
     // Since 'fusion-swap-native' is not an Anchor program, we need to deploy it to localnet manually
     const deployOutput = require("child_process").execSync(
-      "solana program deploy target/deploy/fusion_swap_native.so -u localhost"
+      "solana program deploy target/deploy/fusion_swap_native.so -u localhost --program-id fusion_swap_native-keypair.json"
     );
     console.log(deployOutput.toString());
 
