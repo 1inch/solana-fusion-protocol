@@ -3,7 +3,6 @@ use solana_program::{
     program_error::ProgramError, pubkey::Pubkey,
 };
 use spl_associated_token_account::instruction as spl_ata_instruction;
-use spl_token_2022::instruction as spl2022_instruction;
 use spl_token_2022::{extension::StateWithExtensions, state::Account};
 
 use crate::error::EscrowError;
@@ -244,7 +243,7 @@ mod tests {
 
         let create_spl_acc_ix = spl_ata_instruction::create_associated_token_account(
             &ctx.payer.pubkey(),
-            &owner,
+            owner,
             mint_pubkey,
             &spl_token_2022::ID,
         );
