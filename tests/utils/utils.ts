@@ -7,6 +7,7 @@ import {
   PublicKey,
   LAMPORTS_PER_SOL,
   TransactionSignature,
+  Message,
 } from "@solana/web3.js";
 import { sha256 } from "@noble/hashes/sha256";
 import * as splBankrunToken from "spl-token-bankrun";
@@ -39,6 +40,7 @@ type FeeConfig = {
   integratorFee: number;
   surplusPercentage: number;
 };
+
 type OrderConfig = ReducedOrderConfig & {
   src_mint: anchor.web3.PublicKey;
   dst_mint: anchor.web3.PublicKey;
@@ -403,7 +405,7 @@ export class TestState {
       })
       .signers([this.alice.keypair]);
 
-    let txSignature;
+    let txSignature: string;
     if (provider instanceof anchor.AnchorProvider) {
       const tx = await txBuilder.transaction();
 
@@ -713,6 +715,86 @@ export async function setCurrentTime(
       BigInt(time)
     )
   );
+}
+
+type TxInfoInstruction = {
+  data: string | Uint8Array;
+  accountsIndexes: number[];
+};
+
+class TxInfo {
+  label: string;
+  instructions: TxInfoInstruction[];
+  length: number;
+  computeUnits: number;
+
+  constructor({
+    label = "",
+    instructions = [],
+    length = 0,
+    computeUnits = 0,
+  }: {
+    label: string;
+    instructions: TxInfoInstruction[];
+    length: number;
+    computeUnits: number;
+  }) {
+    this.label = label;
+    this.instructions = instructions;
+    this.length = length;
+    this.computeUnits = computeUnits;
+  }
+
+  toString() {
+    return `Tx ${this.label}: ${this.length} bytes, ${
+      this.computeUnits
+    } compute units\n${this.instructions
+      .map(
+        (ix, i) =>
+          `\tinst ${i}: ${ix.data.length} bytes + ${ix.accountsIndexes.length} accounts \n`
+      )
+      .join("")}`;
+  }
+}
+
+export async function printTxCosts(
+  label: string,
+  txSignature: TransactionSignature,
+  connection: anchor.web3.Connection
+) {
+  const tx = await connection.getTransaction(txSignature, {
+    commitment: "confirmed",
+    maxSupportedTransactionVersion: 0,
+  });
+
+  const serializedMessage = tx.transaction.message.serialize();
+  const signaturesSize = tx.transaction.signatures.length * 64;
+  const totalSize = serializedMessage.length + 1 + signaturesSize; // 1 byte for numSignatures
+
+  const txInfo = new TxInfo({
+    label,
+    length: totalSize,
+    computeUnits: tx.meta.computeUnitsConsumed,
+    instructions: [],
+  });
+
+  if (tx.transaction.message instanceof Message) {
+    tx.transaction.message.instructions.forEach((ix) => {
+      txInfo.instructions.push({
+        data: ix.data,
+        accountsIndexes: ix.accounts,
+      });
+    });
+  } else {
+    tx.transaction.message.compiledInstructions.forEach((ix) => {
+      txInfo.instructions.push({
+        data: ix.data,
+        accountsIndexes: ix.accountKeyIndexes,
+      });
+    });
+  }
+
+  console.log(txInfo.toString());
 }
 
 export async function waitForNewBlock(

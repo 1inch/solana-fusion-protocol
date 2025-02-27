@@ -15,6 +15,7 @@ import {
   trackReceivedTokenAndTx,
   ReducedOrderConfig,
   getOrderHash,
+  printTxCosts,
   waitForNewBlock,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
@@ -1812,8 +1813,7 @@ describe("Fusion Swap", () => {
   });
 
   describe("Tests tx cost", () => {
-    it("Calculate and print tx cost", async () => {
-      // create new escrow
+    it("Print bumps", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1823,7 +1823,6 @@ describe("Fusion Swap", () => {
         },
       });
 
-      // get bumps
       const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
@@ -1842,38 +1841,76 @@ describe("Fusion Swap", () => {
         whitelistProgram.programId
       );
       console.log("whitelistBump", whitelistBump);
+    });
+
+    it("Calculate and print tx cost", async () => {
+      // create new escrow
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          expirationTime: 0xffffffff,
+        },
+      });
 
       // create tx
       await waitForNewBlock(provider.connection, 1);
-      const receptCreate = await provider.connection.getTransaction(
-        escrow.txSignature,
-        { commitment: "confirmed" }
-      );
-      console.log(
-        "tx.message.length Create",
-        receptCreate.transaction.message.serialize().length
-      );
-      console.log(
-        "computeUnits Create",
-        receptCreate.meta.computeUnitsConsumed
-      );
-
-      // calculate rent
-      const ataRent =
-        await provider.connection.getMinimumBalanceForRentExemption(
-          splToken.AccountLayout.span
-        );
-
-      // const escrowData = await provider.connection.getAccountInfo(
-      //   escrow.escrow
-      // );
-      // const escrowRent =
-      //   await provider.connection.getMinimumBalanceForRentExemption(
-      //     escrowData.data.length
-      //   );
-      console.log("rent", /* escrowRent + */ ataRent);
+      await printTxCosts("Create", escrow.txSignature, provider.connection);
 
       // fill tx
+      const txFillSignature = await program.methods
+        .fill(escrow.orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      await waitForNewBlock(provider.connection, 1);
+      await printTxCosts("Fill", txFillSignature, provider.connection);
+
+      // cancel tx
+      // re-create escrow with same id
+      await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          id: escrow.orderConfig.id,
+          expirationTime: 0xffffffff,
+        },
+      });
+
+      const txCancelSignature = await program.methods
+        .cancel(Array.from(getOrderHash(escrow.orderConfig)))
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: state.tokens[0],
+          escrow: escrow.escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      await waitForNewBlock(provider.connection, 1);
+      await printTxCosts("Cancel", txCancelSignature, provider.connection);
+    });
+
+    it("Calculate and print tx cost (lookup tables)", async () => {
+      // create new escrow
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          expirationTime: 0xffffffff,
+        },
+      });
+
       const fillInst = await program.methods
         .fill(escrow.orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
         .accountsPartial(
@@ -1904,55 +1941,7 @@ describe("Fusion Swap", () => {
       );
 
       await waitForNewBlock(provider.connection, 1);
-      const receptFill = await provider.connection.getTransaction(
-        txFillSignature,
-        {
-          commitment: "confirmed",
-          maxSupportedTransactionVersion: 0,
-        }
-      );
-      console.log(
-        "tx.message.length Fill",
-        receptFill.transaction.message.serialize().length
-      );
-      console.log("computeUnits Fill", receptFill.meta.computeUnitsConsumed);
-
-      // cancel tx
-      // re-create escrow with same id
-      await state.createEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        orderConfig: {
-          id: escrow.orderConfig.id,
-          expirationTime: 0xffffffff,
-        },
-      });
-
-      const txCancelSignature = await program.methods
-        .cancel(Array.from(getOrderHash(escrow.orderConfig)))
-        .accountsPartial({
-          maker: state.alice.keypair.publicKey,
-          srcMint: state.tokens[0],
-          escrow: escrow.escrow,
-          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-        })
-        .signers([state.alice.keypair])
-        .rpc();
-
-      await waitForNewBlock(provider.connection, 1);
-      const receptCancel = await provider.connection.getTransaction(
-        txCancelSignature,
-        { commitment: "confirmed" }
-      );
-      console.log(
-        "tx.message.length Cancel",
-        receptCancel.transaction.message.serialize().length
-      );
-      console.log(
-        "computeUnits Cancel",
-        receptCancel.meta.computeUnitsConsumed
-      );
+      await printTxCosts("Fill (lookup)", txFillSignature, provider.connection);
     });
   });
 });
