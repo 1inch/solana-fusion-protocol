@@ -36,7 +36,7 @@ pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
 pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         account_info.is_writable,
-        EscrowError::AccountNotMutable.into()
+        EscrowError::AccountNotWritable.into()
     ))
 }
 
@@ -451,7 +451,7 @@ mod tests {
             &[AccountMeta::new_readonly(Pubkey::new_unique(), false)],
         )
         .await
-        .expect_error((0, EscrowError::AccountNotMutable.into()));
+        .expect_error((0, EscrowError::AccountNotWritable.into()));
     }
 
     #[tokio::test]
