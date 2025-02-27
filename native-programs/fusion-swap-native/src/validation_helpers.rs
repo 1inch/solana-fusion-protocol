@@ -447,7 +447,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mint_validation_fail() {
+    async fn test_mint_owner_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_mint(x));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
