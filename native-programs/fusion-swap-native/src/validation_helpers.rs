@@ -1,12 +1,11 @@
+#![allow(clippy::unit_arg)]
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
     program_error::ProgramError, pubkey::Pubkey,
 };
+
 use spl_associated_token_account::instruction as spl_ata_instruction;
-use spl_token_2022::instruction as spl2022_instruction;
-use spl_token_2022::{
-    extension::StateWithExtensions, state::Account as Account2022, state::Mint as Mint2022,
-};
+use spl_token_2022::{extension::StateWithExtensions, state::Account, state::Mint};
 
 use crate::error::EscrowError;
 use Result::*;
@@ -19,13 +18,6 @@ macro_rules! require {
     }};
 }
 
-pub fn assert_ownership(account_info: &AccountInfo) -> ProgramResult {
-    Ok(require!(
-        *account_info.owner == crate::ID,
-        EscrowError::ConstraintOwner.into()
-    ))
-}
-
 pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         account_info.is_signer,
@@ -36,7 +28,7 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         is_token_program(account_info.owner)
-            && StateWithExtensions::<Mint2022>::unpack(&account_info.data.borrow()).is_ok(),
+            && StateWithExtensions::<Mint>::unpack(&account_info.data.borrow()).is_ok(),
         EscrowError::ConstraintTokenMint.into()
     ))
 }
@@ -56,8 +48,7 @@ pub fn assert_token_account(
 ) -> ProgramResult {
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
-    let acc_data = StateWithExtensions::<Account2022>::unpack(data)?;
-    // TODO: Support spl-token-2022
+    let acc_data = StateWithExtensions::<Account>::unpack(data)?;
 
     // Check mint
     require!(
@@ -161,9 +152,10 @@ mod tests {
     use solana_program_test::{
         processor, tokio, BanksClientError, ProgramTest, ProgramTestContext,
     };
+    use solana_sdk::account::AccountSharedData;
     use solana_sdk::{
-        account::AccountSharedData, signature::Signer, signer::keypair::Keypair,
-        system_instruction, transaction::Transaction, transaction::TransactionError,
+        signature::Signer, signer::keypair::Keypair, system_instruction, transaction::Transaction,
+        transaction::TransactionError,
     };
     use spl_token::instruction as spl_instruction;
     use spl_token::state::{Account, Mint};
@@ -257,39 +249,33 @@ mod tests {
         ctx: &mut ProgramTestContext,
         mint_pubkey: &Pubkey,
         owner: &Pubkey,
-    ) -> Keypair {
-        // create mint account
-        let account_keypair = Keypair::new();
-
-        let create_spl_acc_ix = system_instruction::create_account(
-            &ctx.payer.pubkey(),
-            &account_keypair.pubkey(),
-            1_000_000_000, // Some lamports to pay rent
-            Account::LEN as u64,
+    ) -> Pubkey {
+        let ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+            owner,
+            mint_pubkey,
             &spl_token_2022::ID,
         );
 
-        let initialize_acc_ix: Instruction = spl2022_instruction::initialize_account(
-            &spl_token_2022::ID,
-            &account_keypair.pubkey(),
-            mint_pubkey,
+        let create_spl_acc_ix = spl_ata_instruction::create_associated_token_account(
+            &ctx.payer.pubkey(),
             owner,
-        )
-        .unwrap();
+            mint_pubkey,
+            &spl_token_2022::ID,
+        );
 
-        let signers: Vec<&Keypair> = vec![&ctx.payer, &account_keypair];
+        let signers: Vec<&Keypair> = vec![&ctx.payer];
 
         let client = &mut ctx.banks_client;
         client
             .process_transaction(Transaction::new_signed_with_payer(
-                &[create_spl_acc_ix, initialize_acc_ix],
+                &[create_spl_acc_ix],
                 Some(&ctx.payer.pubkey()),
                 &signers,
                 ctx.last_blockhash,
             ))
             .await
             .unwrap();
-        account_keypair
+        ata
     }
 
     pub async fn deploy_spl_token(ctx: &mut ProgramTestContext, decimals: u8) -> Keypair {
@@ -357,7 +343,7 @@ mod tests {
             &spl2022_program_id,
             &mint_keypair.pubkey(),
             &ctx.payer.pubkey(),
-            Option::None,
+            None, // Freeze authority pubkey
             decimals,
         )
         .unwrap();
@@ -394,25 +380,6 @@ mod tests {
             let ctx = program_test.start_with_context().await;
             ctx
         }};
-    }
-
-    #[tokio::test]
-    async fn test_ownership_validation() {
-        let mut ctx = context_with_validation!(|x| assert_ownership(x));
-        let key = create_account_with_owner(&mut ctx, &crate::ID);
-        call_contract(&mut ctx, &[AccountMeta::new(key, false)])
-            .await
-            .expect_success();
-    }
-
-    #[tokio::test]
-    async fn test_ownership_validation_fail() {
-        let mut ctx = context_with_validation!(|x| assert_ownership(x));
-        let random_address = Pubkey::new_unique();
-        let key = create_account_with_owner(&mut ctx, &random_address);
-        call_contract(&mut ctx, &[AccountMeta::new(key, false)])
-            .await
-            .expect_error((0, EscrowError::ConstraintOwner.into()));
     }
 
     #[tokio::test]
@@ -599,7 +566,7 @@ mod tests {
         call_contract(
             &mut ctx,
             &[
-                AccountMeta::new(ata.pubkey(), false),
+                AccountMeta::new(ata, false),
                 AccountMeta::new(mint_kp.pubkey(), false),
                 AccountMeta::new(user_pk, false),
             ],
