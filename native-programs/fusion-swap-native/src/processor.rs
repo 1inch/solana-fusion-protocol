@@ -1,12 +1,12 @@
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program::invoke_signed,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::{clock::Clock, Sysvar},
-    msg,
 };
 
 use spl_token::{
@@ -17,8 +17,11 @@ use spl_token::{
 use borsh::BorshDeserialize;
 use spl_discriminator::{ArrayDiscriminator, SplDiscriminate};
 
-use crate::{error::EscrowError, validation_helpers::{assert_pda, assert_signer, assert_token_program, assert_writable}};
-use crate::types::{ReducedOrderConfig, DutchAuctionData, order_hash, build_order_from_reduced};
+use crate::types::{build_order_from_reduced, order_hash, DutchAuctionData, ReducedOrderConfig};
+use crate::{
+    error::EscrowError,
+    validation_helpers::{assert_pda, assert_signer, assert_token_program, assert_writable},
+};
 
 pub struct Create;
 pub struct Fill;
@@ -64,7 +67,7 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
     let taker = next_account_info(account_info_iter)?;
-    let resolver_access = next_account_info(account_info_iter)?;
+    let _resolver_access = next_account_info(account_info_iter)?;
     let maker = next_account_info(account_info_iter)?;
     let maker_receiver = next_account_info(account_info_iter)?;
     let src_mint = next_account_info(account_info_iter)?;
@@ -79,10 +82,11 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     let src_token_program = next_account_info(account_info_iter)?;
     let dst_token_program = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-    let associated_token_program = next_account_info(account_info_iter)?;
+    let _associated_token_program = next_account_info(account_info_iter)?;
 
     // Deserialize input
-    let (reduced_order_data, remaining_data) = input.split_at(std::mem::size_of::<ReducedOrderConfig>());
+    let (reduced_order_data, remaining_data) =
+        input.split_at(std::mem::size_of::<ReducedOrderConfig>());
     let reduced_order = ReducedOrderConfig::try_from_slice(reduced_order_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
     let amount = u64::from_le_bytes(remaining_data[..8].try_into().unwrap());
@@ -102,7 +106,7 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     if clock.unix_timestamp > reduced_order.expiration_time as i64 {
         return Err(EscrowError::OrderExpired.into());
     }
-    
+
     // Deserialize SPL-token accounts
     let escrow_src_ata_data = Account::unpack(&escrow_src_ata.try_borrow_data()?)?;
     let src_mint_data = Mint::unpack(&src_mint.try_borrow_data()?)?;
@@ -124,8 +128,7 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         protocol_dst_ata.map(|ata| *ata.key),
         integrator_dst_ata.map(|ata| *ata.key),
     );
-    
-    
+
     // Calculate order hash
     let order_hash_array = order_hash(&order)?;
 
@@ -157,12 +160,7 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
             escrow.clone(),
             src_token_program.clone(),
         ],
-        &[&[
-            b"escrow",
-            maker.key.as_ref(),
-            &order_hash_array,
-            &[bump],
-        ]],
+        &[&[b"escrow", maker.key.as_ref(), &order_hash_array, &[bump]]],
     )?;
 
     // Calculate fees and transfer
@@ -183,7 +181,8 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
 
     // Оплата протокольной комиссии
     if protocol_fee_amount > 0 {
-        let protocol_dst_ata = protocol_dst_ata.ok_or(EscrowError::InconsistentProtocolFeeConfig)?;
+        let protocol_dst_ata =
+            protocol_dst_ata.ok_or(EscrowError::InconsistentProtocolFeeConfig)?;
         let protocol_transfer = token_instruction::transfer_checked(
             dst_token_program.key,
             taker_dst_ata.key,
@@ -196,14 +195,21 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         )?;
         invoke_signed(
             &protocol_transfer,
-            &[taker_dst_ata.clone(), dst_mint.clone(), protocol_dst_ata.clone(), taker.clone(), dst_token_program.clone()],
+            &[
+                taker_dst_ata.clone(),
+                dst_mint.clone(),
+                protocol_dst_ata.clone(),
+                taker.clone(),
+                dst_token_program.clone(),
+            ],
             &[],
         )?;
     }
 
     // Integrator fee
     if integrator_fee_amount > 0 {
-        let integrator_dst_ata = integrator_dst_ata.ok_or(EscrowError::InconsistentIntegratorFeeConfig)?;
+        let integrator_dst_ata =
+            integrator_dst_ata.ok_or(EscrowError::InconsistentIntegratorFeeConfig)?;
         let integrator_transfer = token_instruction::transfer_checked(
             dst_token_program.key,
             taker_dst_ata.key,
@@ -216,7 +222,13 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         )?;
         invoke_signed(
             &integrator_transfer,
-            &[taker_dst_ata.clone(), dst_mint.clone(), integrator_dst_ata.clone(), taker.clone(), dst_token_program.clone()],
+            &[
+                taker_dst_ata.clone(),
+                dst_mint.clone(),
+                integrator_dst_ata.clone(),
+                taker.clone(),
+                dst_token_program.clone(),
+            ],
             &[],
         )?;
     }
@@ -230,7 +242,11 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         );
         invoke_signed(
             &transfer_native,
-            &[taker.clone(), maker_receiver.clone(), system_program.clone()],
+            &[
+                taker.clone(),
+                maker_receiver.clone(),
+                system_program.clone(),
+            ],
             &[],
         )?;
     } else {
@@ -248,7 +264,13 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         )?;
         invoke_signed(
             &maker_transfer,
-            &[taker_dst_ata.clone(), dst_mint.clone(), maker_dst_ata.clone(), taker.clone(), dst_token_program.clone()],
+            &[
+                taker_dst_ata.clone(),
+                dst_mint.clone(),
+                maker_dst_ata.clone(),
+                taker.clone(),
+                dst_token_program.clone(),
+            ],
             &[],
         )?;
     }
@@ -264,25 +286,36 @@ fn process_fill(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         )?;
         invoke_signed(
             &close_instruction,
-            &[escrow_src_ata.clone(), maker.clone(), escrow.clone(), src_token_program.clone()],
-            &[&[
-                b"escrow",
-                maker.key.as_ref(),
-                &order_hash_array,
-                &[bump],
-            ]],
+            &[
+                escrow_src_ata.clone(),
+                maker.clone(),
+                escrow.clone(),
+                src_token_program.clone(),
+            ],
+            &[&[b"escrow", maker.key.as_ref(), &order_hash_array, &[bump]]],
         )?;
     }
 
     Ok(())
 }
 
-pub fn get_dst_amount(_: u64, _: u64, _: u64, _: Option<&DutchAuctionData>) -> Result<u64, ProgramError> {
+pub fn get_dst_amount(
+    _: u64,
+    _: u64,
+    _: u64,
+    _: Option<&DutchAuctionData>,
+) -> Result<u64, ProgramError> {
     // TODO: Implement
     Ok(0)
 }
 
-pub fn get_fee_amounts(_: u16, _: u16, _: u8, _: u64, _: u64) -> Result<(u64, u64, u64), ProgramError> {
+pub fn get_fee_amounts(
+    _: u16,
+    _: u16,
+    _: u8,
+    _: u64,
+    _: u64,
+) -> Result<(u64, u64, u64), ProgramError> {
     // TODO: Implement
-    Ok((0,0,0))
+    Ok((0, 0, 0))
 }
