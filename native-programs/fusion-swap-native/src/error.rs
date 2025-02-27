@@ -20,4 +20,22 @@ pub enum EscrowError {
     ConstraintAddress = 2012,
     #[error("The given account is not the associated token account")]
     AccountNotAssociatedTokenAccount = 3014,
+    #[error("Inconsistent native dst trait")]
+    InconsistentNativeDstTrait = 6000,
+    #[error("Invalid amount")]
+    InvalidAmount = 6001,
+    #[error("Missing maker dst ata")]
+    MissingMakerDstAta = 6002,
+    #[error("Not enough tokens in escrow")]
+    NotEnoughTokensInEscrow = 6003,
+    #[error("Order expired")]
+    OrderExpired = 6004,
+    #[error("Invalid estimated taking amount")]
+    InvalidEstimatedTakingAmount = 6005,
+    #[error("Protocol surplus fee too high")]
+    InvalidProtocolSurplusFee = 6006,
+    #[error("Inconsistent protocol fee config")]
+    InconsistentProtocolFeeConfig = 6007,
+    #[error("Inconsistent integrator fee config")]
+    InconsistentIntegratorFeeConfig = 6008,
 }
