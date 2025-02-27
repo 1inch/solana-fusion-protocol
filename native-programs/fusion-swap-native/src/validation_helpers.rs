@@ -2,7 +2,6 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
     program_error::ProgramError, pubkey::Pubkey,
 };
-use solana_sdk::account::AccountSharedData;
 
 use spl_associated_token_account::instruction as spl_ata_instruction;
 use spl_token_2022::{extension::StateWithExtensions, state::Account, state::Mint};
@@ -146,6 +145,7 @@ mod tests {
     use solana_program_test::{
         processor, tokio, BanksClientError, ProgramTest, ProgramTestContext,
     };
+    use solana_sdk::account::AccountSharedData;
     use solana_sdk::{
         signature::Signer, signer::keypair::Keypair, system_instruction, transaction::Transaction,
         transaction::TransactionError,
