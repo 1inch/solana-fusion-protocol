@@ -69,16 +69,20 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     let account_info_iter = &mut accounts.iter();
 
     // These accounts are required to be continuous subslice of 'accounts'
-    // to be passed to 'init_ata_with_address_check' to avoid cloning.
+    // to avoid cloning during CPI.
+    //
+    // accounts[0..=5] sub-slice will be used to initialize escrow src ata,
+    // and accounts[3..=6] sub-slice will be used to transfer tokens from maker
+    // src ata to escrow src ata
     let maker = next_account_info(account_info_iter)?;
-    let escrow = next_account_info(account_info_iter)?;
-    let escrow_src_ata = next_account_info(account_info_iter)?;
     let src_mint = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let src_token_program = next_account_info(account_info_iter)?;
+    let escrow = next_account_info(account_info_iter)?;
+    let escrow_src_ata = next_account_info(account_info_iter)?;
+    let maker_src_ata = next_account_info(account_info_iter)?;
 
     let dst_mint = next_account_info(account_info_iter)?;
-    let maker_src_ata = next_account_info(account_info_iter)?;
     let maker_receiver = next_account_info(account_info_iter)?;
     let associated_token_program = next_account_info(account_info_iter)?;
     // TODO handle optionals
@@ -147,6 +151,7 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
         src_mint.key,
         escrow.key,
         src_token_program.key,
+        // [maker, src_mint, system_program, src_token_program, escrow, escrow_src_ata]
         &accounts[0..=5],
     )?;
 
@@ -201,12 +206,8 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
 
     invoke(
         &transfer_ix,
-        &[
-            src_token_program.clone(), // TODO try to avoid cloning here
-            maker_src_ata.clone(),
-            escrow_src_ata.clone(),
-            escrow.clone(),
-        ],
+        // [src_token_program, escrow, escrow_src_ata, maker_src_ata]
+        &accounts[3..=6],
     )
 }
 
