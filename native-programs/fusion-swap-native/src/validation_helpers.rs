@@ -4,7 +4,7 @@ use solana_program::{
 };
 use spl_associated_token_account::instruction as spl_ata_instruction;
 use spl_token_2022::instruction as spl2022_instruction;
-use spl_token_2022::{extension::StateWithExtensions, state::Account as Account2022};
+use spl_token_2022::{extension::StateWithExtensions, state::Account};
 
 use crate::error::EscrowError;
 use Result::*;
@@ -40,7 +40,7 @@ pub fn assert_token_account(
 ) -> ProgramResult {
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
-    let acc_data = StateWithExtensions::<Account2022>::unpack(data)?;
+    let acc_data = StateWithExtensions::<Account>::unpack(data)?;
     // TODO: Support spl-token-2022
 
     // Check mint
