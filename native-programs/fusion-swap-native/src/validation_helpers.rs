@@ -41,7 +41,6 @@ pub fn assert_token_account(
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
     let acc_data = StateWithExtensions::<Account>::unpack(data)?;
-    // TODO: Support spl-token-2022
 
     // Check mint
     if acc_data.base.mint != *mint {
@@ -236,39 +235,33 @@ mod tests {
         ctx: &mut ProgramTestContext,
         mint_pubkey: &Pubkey,
         owner: &Pubkey,
-    ) -> Keypair {
-        // Create token account
-        let account_keypair = Keypair::new();
-
-        let create_spl_acc_ix = system_instruction::create_account(
-            &ctx.payer.pubkey(),
-            &account_keypair.pubkey(),
-            1_000_000_000, // Some lamports to pay rent
-            Account::LEN as u64,
+    ) -> Pubkey {
+        let ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+            owner,
+            mint_pubkey,
             &spl_token_2022::ID,
         );
 
-        let initialize_acc_ix: Instruction = spl2022_instruction::initialize_account(
-            &spl_token_2022::ID,
-            &account_keypair.pubkey(),
+        let create_spl_acc_ix = spl_ata_instruction::create_associated_token_account(
+            &ctx.payer.pubkey(),
+            &owner,
             mint_pubkey,
-            owner,
-        )
-        .unwrap();
+            &spl_token_2022::ID,
+        );
 
-        let signers: Vec<&Keypair> = vec![&ctx.payer, &account_keypair];
+        let signers: Vec<&Keypair> = vec![&ctx.payer];
 
         let client = &mut ctx.banks_client;
         client
             .process_transaction(Transaction::new_signed_with_payer(
-                &[create_spl_acc_ix, initialize_acc_ix],
+                &[create_spl_acc_ix],
                 Some(&ctx.payer.pubkey()),
                 &signers,
                 ctx.last_blockhash,
             ))
             .await
             .unwrap();
-        account_keypair
+        ata
     }
 
     pub async fn deploy_spl_token(ctx: &mut ProgramTestContext, decimals: u8) -> Keypair {
@@ -543,7 +536,7 @@ mod tests {
         call_contract(
             &mut ctx,
             &[
-                AccountMeta::new(ata.pubkey(), false),
+                AccountMeta::new(ata, false),
                 AccountMeta::new(mint_kp.pubkey(), false),
                 AccountMeta::new(user_pk, false),
             ],
