@@ -91,7 +91,7 @@ pub struct Deregister<'info> {
     #[account(
       seeds = [WHITELIST_STATE_SEED],
       bump,
-      // Ensures only the whitelist owner can register new users
+      // Ensures only the whitelist owner can deregister users from the whitelist
       constraint = whitelist_state.owner == owner.key() @ WhitelistError::UnauthorizedOwner
     )]
     pub whitelist_state: Account<'info, WhitelistState>,

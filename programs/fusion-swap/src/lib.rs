@@ -452,7 +452,6 @@ pub struct Cancel<'info> {
     maker: Signer<'info>,
 
     /// Maker asset
-    // TODO: Add src_mint to escrow or seeds
     src_mint: InterfaceAccount<'info, Mint>,
 
     /// Account to store order conditions
