@@ -19,6 +19,9 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     if is_token_program(account_info.owner)
         && StateWithExtensions::<Mint>::unpack(&account_info.data.borrow()).is_ok()
+    // Here we use spl-token-2022 library to unpack the Mint data. Since
+    // spl-token-2022 is backward compatible, this should work with spl-token
+    // mints as well.
     {
         Ok(())
     } else {
