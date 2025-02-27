@@ -237,7 +237,7 @@ mod tests {
         mint_pubkey: &Pubkey,
         owner: &Pubkey,
     ) -> Keypair {
-        // create mint account
+        // Create token account
         let account_keypair = Keypair::new();
 
         let create_spl_acc_ix = system_instruction::create_account(
@@ -329,7 +329,7 @@ mod tests {
             &spl2022_program_id,
             &mint_keypair.pubkey(),
             &ctx.payer.pubkey(),
-            Option::None,
+            None, // Freeze authority pubkey
             decimals,
         )
         .unwrap();
