@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/fusion_swap.json`.
  */
 export type FusionSwapNative = {
-  address: "9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh";
+  address: "4NoMYjvQeLuNqvRhfBM5gzc54KVEDTzGyAwf8CFdYhJs";
   metadata: {
     name: "fusionSwapNative";
     version: "0.1.0";
@@ -182,83 +182,19 @@ export type FusionSwapNative = {
       discriminator: [24, 30, 200, 40, 5, 28, 7, 119];
       accounts: [
         {
-          name: "maker";
-          docs: ["`maker`, who is willing to sell src token for dst token"];
-          writable: true;
-          signer: true;
-        },
-        {
           name: "srcMint";
           docs: ["Source asset"];
         },
         {
-          name: "dstMint";
-          docs: ["Destination asset"];
-        },
-        {
-          name: "makerSrcAta";
-          docs: ["Maker's ATA of src_mint"];
-          writable: true;
-          pda: {
-            seeds: [
-              {
-                kind: "account";
-                path: "maker";
-              },
-              {
-                kind: "account";
-                path: "srcTokenProgram";
-              },
-              {
-                kind: "account";
-                path: "srcMint";
-              }
-            ];
-            program: {
-              kind: "const";
-              value: [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ];
-            };
-          };
-        },
-        {
-          name: "makerReceiver";
+          name: "systemProgram";
+          address: "11111111111111111111111111111111";
         },
         {
           name: "escrow";
           docs: ["Account to store order conditions"];
+        },
+        {
+          name: "srcTokenProgram";
         },
         {
           name: "escrowSrcAta";
@@ -319,23 +255,87 @@ export type FusionSwapNative = {
           };
         },
         {
-          name: "protocolDstAta";
-          optional: true;
+          name: "maker";
+          docs: ["`maker`, who is willing to sell src token for dst token"];
+          writable: true;
+          signer: true;
         },
         {
-          name: "integratorDstAta";
-          optional: true;
+          name: "makerSrcAta";
+          docs: ["Maker's ATA of src_mint"];
+          writable: true;
+          pda: {
+            seeds: [
+              {
+                kind: "account";
+                path: "maker";
+              },
+              {
+                kind: "account";
+                path: "srcTokenProgram";
+              },
+              {
+                kind: "account";
+                path: "srcMint";
+              }
+            ];
+            program: {
+              kind: "const";
+              value: [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ];
+            };
+          };
+        },
+        {
+          name: "dstMint";
+          docs: ["Destination asset"];
+        },
+        {
+          name: "makerReceiver";
         },
         {
           name: "associatedTokenProgram";
           address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
         },
         {
-          name: "srcTokenProgram";
+          name: "protocolDstAta";
+          optional: true;
         },
         {
-          name: "systemProgram";
-          address: "11111111111111111111111111111111";
+          name: "integratorDstAta";
+          optional: true;
         }
       ];
       args: [
@@ -392,38 +392,38 @@ export type FusionSwapNative = {
             program: {
               kind: "const";
               value: [
-                38,
-                236,
-                245,
-                92,
-                234,
+                192,
+                198,
+                249,
+                112,
+                76,
+                121,
+                255,
+                180,
+                246,
+                175,
+                140,
+                1,
+                237,
+                62,
+                94,
+                243,
+                16,
+                224,
+                96,
+                58,
+                34,
+                111,
+                51,
+                89,
+                182,
+                25,
                 101,
-                113,
-                197,
-                44,
-                9,
-                86,
-                204,
-                101,
-                135,
-                29,
+                198,
+                247,
+                79,
                 146,
-                55,
-                150,
-                163,
-                138,
-                120,
-                130,
-                108,
-                248,
-                12,
-                230,
-                28,
-                220,
-                211,
-                97,
-                69,
-                171
+                237
               ];
             };
           };

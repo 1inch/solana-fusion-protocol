@@ -1,5 +1,5 @@
 {
-  "address": "9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh",
+  "address": "4NoMYjvQeLuNqvRhfBM5gzc54KVEDTzGyAwf8CFdYhJs",
   "metadata": {
     "name": "fusion_swap_native",
     "version": "0.1.0",
@@ -214,93 +214,23 @@
       ],
       "accounts": [
         {
-          "name": "maker",
-          "docs": [
-            "`maker`, who is willing to sell src token for dst token"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
           "name": "src_mint",
           "docs": [
             "Source asset"
           ]
         },
         {
-          "name": "dst_mint",
-          "docs": [
-            "Destination asset"
-          ]
-        },
-        {
-          "name": "maker_src_ata",
-          "docs": [
-            "Maker's ATA of src_mint"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "maker"
-              },
-              {
-                "kind": "account",
-                "path": "src_token_program"
-              },
-              {
-                "kind": "account",
-                "path": "src_mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "maker_receiver"
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         },
         {
           "name": "escrow",
           "docs": [
             "Account to store order conditions"
           ]
+        },
+        {
+          "name": "src_token_program"
         },
         {
           "name": "escrow_src_ata",
@@ -363,23 +293,93 @@
           }
         },
         {
-          "name": "protocol_dst_ata",
-          "optional": true
+          "name": "maker",
+          "docs": [
+            "`maker`, who is willing to sell src token for dst token"
+          ],
+          "writable": true,
+          "signer": true
         },
         {
-          "name": "integrator_dst_ata",
-          "optional": true
+          "name": "maker_src_ata",
+          "docs": [
+            "Maker's ATA of src_mint"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "maker"
+              },
+              {
+                "kind": "account",
+                "path": "src_token_program"
+              },
+              {
+                "kind": "account",
+                "path": "src_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "dst_mint",
+          "docs": [
+            "Destination asset"
+          ]
+        },
+        {
+          "name": "maker_receiver"
         },
         {
           "name": "associated_token_program",
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "src_token_program"
+          "name": "protocol_dst_ata",
+          "optional": true
         },
         {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
+          "name": "integrator_dst_ata",
+          "optional": true
         }
       ],
       "args": [
@@ -449,38 +449,38 @@
             "program": {
               "kind": "const",
               "value": [
-                38,
-                236,
-                245,
-                92,
-                234,
+                192,
+                198,
+                249,
+                112,
+                76,
+                121,
+                255,
+                180,
+                246,
+                175,
+                140,
+                1,
+                237,
+                62,
+                94,
+                243,
+                16,
+                224,
+                96,
+                58,
+                34,
+                111,
+                51,
+                89,
+                182,
+                25,
                 101,
-                113,
-                197,
-                44,
-                9,
-                86,
-                204,
-                101,
-                135,
-                29,
+                198,
+                247,
+                79,
                 146,
-                55,
-                150,
-                163,
-                138,
-                120,
-                130,
-                108,
-                248,
-                12,
-                230,
-                28,
-                220,
-                211,
-                97,
-                69,
-                171
+                237
               ]
             }
           }

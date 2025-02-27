@@ -287,26 +287,10 @@ pub mod fusion_swap {
 #[derive(Accounts)]
 #[instruction(order: ReducedOrderConfig)]
 pub struct Create<'info> {
-    /// `maker`, who is willing to sell src token for dst token
-    #[account(mut, signer)]
-    maker: Signer<'info>,
-
     /// Source asset
     src_mint: Box<InterfaceAccount<'info, Mint>>,
-    /// Destination asset
-    dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// Maker's ATA of src_mint
-    #[account(
-        mut,
-        associated_token::mint = src_mint,
-        associated_token::authority = maker,
-        associated_token::token_program = src_token_program,
-    )]
-    maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    /// CHECK: maker_receiver only has to be equal to escrow parameter
-    maker_receiver: AccountInfo<'info>,
+    system_program: Program<'info, System>,
 
     /// Account to store order conditions
     #[account(
@@ -327,6 +311,8 @@ pub struct Create<'info> {
     /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
 
+    src_token_program: Interface<'info, TokenInterface>,
+
     /// ATA of src_mint to store escrowed tokens
     #[account(
         init,
@@ -337,6 +323,27 @@ pub struct Create<'info> {
     )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    /// `maker`, who is willing to sell src token for dst token
+    #[account(mut, signer)]
+    maker: Signer<'info>,
+
+    /// Maker's ATA of src_mint
+    #[account(
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
+    )]
+    maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Destination asset
+    dst_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    /// CHECK: maker_receiver only has to be equal to escrow parameter
+    maker_receiver: AccountInfo<'info>,
+
+    associated_token_program: Program<'info, AssociatedToken>,
+
     #[account(
         constraint = protocol_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentProtocolFeeConfig
     )]
@@ -346,10 +353,6 @@ pub struct Create<'info> {
         constraint = integrator_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentIntegratorFeeConfig
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
-
-    associated_token_program: Program<'info, AssociatedToken>,
-    src_token_program: Interface<'info, TokenInterface>,
-    system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

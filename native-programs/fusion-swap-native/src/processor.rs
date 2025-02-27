@@ -74,29 +74,37 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     // accounts[0..=5] sub-slice will be used to initialize escrow src ata,
     // and accounts[3..=6] sub-slice will be used to transfer tokens from maker
     // src ata to escrow src ata
-    let maker = next_account_info(account_info_iter)?;
     let src_mint = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-    let src_token_program = next_account_info(account_info_iter)?;
     let escrow = next_account_info(account_info_iter)?;
+    let src_token_program = next_account_info(account_info_iter)?;
     let escrow_src_ata = next_account_info(account_info_iter)?;
+    let maker = next_account_info(account_info_iter)?;
     let maker_src_ata = next_account_info(account_info_iter)?;
 
     let dst_mint = next_account_info(account_info_iter)?;
     let maker_receiver = next_account_info(account_info_iter)?;
     let associated_token_program = next_account_info(account_info_iter)?;
     // TODO handle optionals
-    let protocol_dst_ata = Some(next_account_info(account_info_iter)?);
-    let integrator_dst_ata = Some(next_account_info(account_info_iter)?);
+    let _protocol_dst_ata = Some(next_account_info(account_info_iter)?);
+    let _integrator_dst_ata = Some(next_account_info(account_info_iter)?);
 
     let order = ReducedOrderConfig::try_from_slice(input)?;
+    // let order_full = build_order_from_reduced(
+    //     &order,
+    //     *src_mint.key,
+    //     *dst_mint.key,
+    //     *maker_receiver.key,
+    //     protocol_dst_ata.map(|a| *a.key),
+    //     integrator_dst_ata.map(|a| *a.key),
+    // );
     let order_full = build_order_from_reduced(
         &order,
         *src_mint.key,
         *dst_mint.key,
         *maker_receiver.key,
-        protocol_dst_ata.map(|a| *a.key),
-        integrator_dst_ata.map(|a| *a.key),
+        None,
+        None,
     );
     let order_hash = order_hash(&order_full)?;
 
@@ -127,14 +135,14 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     )?;
 
     // Protocol dst ata validations
-    if let Some(protocol_dst_ata) = protocol_dst_ata {
-        assert_token_account(protocol_dst_ata, dst_mint.key, None, None)?;
-    }
+    // if let Some(protocol_dst_ata) = protocol_dst_ata {
+    //     assert_token_account(protocol_dst_ata, dst_mint.key, None, None)?;
+    // }
 
     // Integrator dst ata validations
-    if let Some(integrator_dst_ata) = integrator_dst_ata {
-        assert_token_account(integrator_dst_ata, dst_mint.key, None, None)?;
-    }
+    // if let Some(integrator_dst_ata) = integrator_dst_ata {
+    //     assert_token_account(integrator_dst_ata, dst_mint.key, None, None)?;
+    // }
 
     // Associated token program validations
     assert_key(associated_token_program, &spl_associated_token_account::ID)?;
@@ -182,31 +190,31 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     );
 
     // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
-    require!(
-        (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-            == protocol_dst_ata.is_some(),
-        EscrowError::InconsistentProtocolFeeConfig.into()
-    );
+    // require!(
+    //     (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
+    //         == protocol_dst_ata.is_some(),
+    //     EscrowError::InconsistentProtocolFeeConfig.into()
+    // );
 
     // Iff integrator fee is positive, integrator_dst_ata must be set
-    require!(
-        (order.fee.integrator_fee > 0) == integrator_dst_ata.is_some(),
-        EscrowError::InconsistentIntegratorFeeConfig.into()
-    );
+    // require!(
+    //     (order.fee.integrator_fee > 0) == integrator_dst_ata.is_some(),
+    //     EscrowError::InconsistentIntegratorFeeConfig.into()
+    // );
 
     // TODO transfer checked
     let transfer_ix = spl_token::instruction::transfer(
         src_token_program.key,
         maker_src_ata.key,
         escrow_src_ata.key,
-        escrow.key,
+        maker.key,
         &[], // signer pubkeys
         order.src_amount,
     )?;
 
     invoke(
         &transfer_ix,
-        // [src_token_program, escrow, escrow_src_ata, maker_src_ata]
+        // [src_token_program, maker, escrow_src_ata, maker_src_ata]
         &accounts[3..=6],
     )
 }

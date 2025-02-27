@@ -12,6 +12,7 @@ import {
   mintTokens,
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
+  ReducedOrderConfig,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
 import FUSION_SWAP_NATIVE_IDL from "../../idl/fusion_swap_native.json";
@@ -19,9 +20,10 @@ import { FusionSwapNative } from "../../idl/fusion_swap_native";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 import { Program } from "@coral-xyz/anchor";
 import { sha256 } from "@noble/hashes/sha256";
+import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
-describe.skip("Fusion Swap Native", () => {
+describe("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
@@ -893,15 +895,16 @@ describe.skip("Fusion Swap Native", () => {
 
     // TODO: Add a test for the case of accepting an expired order
 
-    it("Fails to create with zero amounts", async () => {
+    it.only("Fails to create with zero src amount", async () => {
       const orderConfig = state.orderConfig({
         srcAmount: new anchor.BN(0),
       });
+
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -909,9 +912,10 @@ describe.skip("Fusion Swap Native", () => {
       // srcAmount = 0
       await expect(
         program.methods
-          .create(orderConfig)
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -919,26 +923,35 @@ describe.skip("Fusion Swap Native", () => {
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
-          .signers([state.alice.keypair])
           .transaction()
           .then((tx) =>
             sendAndConfirmTransaction(provider.connection, tx, [
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("Error Code: InvalidAmount");
+      ).to.be.rejectedWith("0x1771");
+    });
 
-      // minDstAmount = 0
+    it.only("Fails to create with zero min dst amount", async () => {
+      const orderConfig = state.orderConfig({
+        minDstAmount: new anchor.BN(0),
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
       await expect(
         program.methods
-          .create(
-            state.orderConfig({
-              id: orderConfig.id,
-              minDstAmount: new anchor.BN(0),
-            })
-          )
+          .create(orderConfig as ReducedOrderConfig)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
             protocolDstAta: null,
@@ -946,14 +959,13 @@ describe.skip("Fusion Swap Native", () => {
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
-          .signers([state.alice.keypair])
           .transaction()
           .then((tx) =>
             sendAndConfirmTransaction(provider.connection, tx, [
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("Error Code: InvalidAmount");
+      ).to.be.rejectedWith("0x1771");
     });
 
     it("Fails to create if escrow has been created already", async () => {
@@ -964,7 +976,7 @@ describe.skip("Fusion Swap Native", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1092,7 +1104,7 @@ describe.skip("Fusion Swap Native", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1132,7 +1144,7 @@ describe.skip("Fusion Swap Native", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1173,7 +1185,7 @@ describe.skip("Fusion Swap Native", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1852,7 +1864,7 @@ describe.skip("Fusion Swap Native", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          sha256(program.coder.types.encode("orderConfig", orderConfig)),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
