@@ -310,7 +310,6 @@ export class TestState {
     payer: anchor.web3.Keypair;
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
-    needInstraction?: boolean;
   }): Promise<Escrow> {
     orderConfig = this.orderConfig(orderConfig);
 
