@@ -40,9 +40,7 @@ pub fn assert_token_account(
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
 
-    // Unpack the data using spl-2022 account deserialization
-    // which should also work with spl-token accounts, because of
-    // backward compatibility.
+    // Unpack the data using spl-2022 account deserialization because of backward compatibility with spl-token.
     let acc_data = StateWithExtensions::<Account>::unpack(data)?;
 
     // Check mint
