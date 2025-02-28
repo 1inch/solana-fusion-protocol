@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use common::constants::BASE_1E2;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -30,10 +31,6 @@ macro_rules! require {
         };
     }};
 }
-
-// TODO move to common crate
-pub const BASE_1E2: u64 = 100;
-pub const BASE_1E5: u64 = 100_000;
 
 pub struct Create;
 pub struct Fill;

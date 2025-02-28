@@ -21,6 +21,7 @@ thiserror = "2.0.11"
 num-derive = "0.4.2"
 borsh = "1.5.5"
 borsh-derive = "1.5.5"
+common = { path = "../../common" }
 
 [dev-dependencies]
 solana-program-test = "1.18.26"

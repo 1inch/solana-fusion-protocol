@@ -8,6 +8,7 @@ use anchor_spl::{
         TransferChecked,
     },
 };
+use common::constants::*;
 use dutch_auction::{calculate_rate_bump, DutchAuctionData};
 use muldiv::MulDiv;
 
@@ -17,9 +18,6 @@ pub mod error;
 use error::EscrowError;
 
 declare_id!("9CnwB8RDNtRzRcxvkNqwgatRDENBCh2f56HgJLPStn8S");
-
-pub const BASE_1E2: u64 = 100;
-pub const BASE_1E5: u64 = 100_000;
 
 #[program]
 pub mod fusion_swap {
