@@ -66,7 +66,7 @@ fn process_cancel(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     assert_writable(escrow)?;
     assert_token_program(src_token_program)?;
 
-    // Decerealize order_hash
+    // Deserialize order_hash
     let order_hash = input
         .get(ArrayDiscriminator::LENGTH..ArrayDiscriminator::LENGTH + 32)
         .ok_or(ProgramError::InvalidInstructionData)?;
@@ -81,11 +81,11 @@ fn process_cancel(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         &crate::ID,
     )?;
 
-    // Decerealize accounts
+    // Deserialize accounts
     let escrow_src_ata_data = Account::unpack(&escrow_src_ata.try_borrow_data()?)?;
     let src_mint_data = Mint::unpack(&src_mint.try_borrow_data()?)?;
 
-    // Check escrow owns src_ata
+    // Verify escrow is the owner of the src_ata
     assert_token_account(
         escrow_src_ata,
         src_mint.key,
@@ -105,7 +105,7 @@ fn process_cancel(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         escrow_src_ata.key,
         src_mint.key,
         maker_src_ata.key,
-        escrow.key, // escrow should be signed
+        escrow.key,
         &[],
         escrow_src_ata_data.amount,
         src_mint_data.decimals,
