@@ -1,7 +1,7 @@
 use spl_program_error::num_traits;
 use spl_program_error::spl_program_error;
 #[spl_program_error]
-pub enum EscrowError {
+pub enum FusionError {
     #[error("A token mint constraint was violated")]
     ConstraintTokenMint = 2014,
     #[error("A signer constraint was violated")]
