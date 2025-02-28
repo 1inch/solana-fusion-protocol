@@ -26,6 +26,9 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
 }
 
 pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
+    // Here we use spl-token-2022 library to unpack the Mint data. Since
+    // spl-token-2022 is backward compatible, this should work with spl-token
+    // mints as well.
     Ok(require!(
         is_token_program(account_info.owner)
             && StateWithExtensions::<Mint>::unpack(&account_info.data.borrow()).is_ok(),
@@ -451,7 +454,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mint_validation_fail() {
+    async fn test_mint_owner_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_mint(x));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
