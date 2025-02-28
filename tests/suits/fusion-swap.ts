@@ -14,7 +14,6 @@ import {
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
   ReducedOrderConfig,
-  getOrderHash,
   printTxCosts,
   waitForNewBlock,
 } from "../utils/utils";
@@ -23,6 +22,7 @@ import {
   initializeLookupTable,
   sendV0Transaction,
 } from "../utils/lookupTables";
+import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
 describe("Fusion Swap", () => {
@@ -570,7 +570,7 @@ describe("Fusion Swap", () => {
           srcTokenProgram: tokenProgram,
         });
 
-        const orderHash = getOrderHash(escrow.orderConfig);
+        const orderHash = calculateOrderHash(escrow.orderConfig);
 
         const transactionPromise = () =>
           program.methods
@@ -823,7 +823,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -856,7 +856,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -886,7 +886,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -987,7 +987,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1019,7 +1019,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1052,7 +1052,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1361,7 +1361,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Cancel the trade", async () => {
-      const orderHash = getOrderHash(state.escrows[0].orderConfig);
+      const orderHash = calculateOrderHash(state.escrows[0].orderConfig);
 
       const transactionPromise = () =>
         program.methods
@@ -1396,7 +1396,7 @@ describe("Fusion Swap", () => {
         },
       });
 
-      const orderHash = getOrderHash(escrow.orderConfig);
+      const orderHash = calculateOrderHash(escrow.orderConfig);
 
       const transactionPromise = () =>
         program.methods
@@ -1422,7 +1422,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong order_id", async () => {
-      const orderHash = getOrderHash(state.escrows[1].orderConfig);
+      const orderHash = calculateOrderHash(state.escrows[1].orderConfig);
 
       await expect(
         program.methods
@@ -1439,7 +1439,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong escrow ata", async () => {
-      const orderHash = getOrderHash(state.escrows[0].orderConfig);
+      const orderHash = calculateOrderHash(state.escrows[0].orderConfig);
 
       await expect(
         program.methods
@@ -1457,7 +1457,7 @@ describe("Fusion Swap", () => {
     });
 
     it("Doesn't cancel the trade with the wrong maker", async () => {
-      const orderHash = getOrderHash(state.escrows[0].orderConfig);
+      const orderHash = calculateOrderHash(state.escrows[0].orderConfig);
 
       await expect(
         program.methods
@@ -1539,7 +1539,7 @@ describe("Fusion Swap", () => {
         -BigInt(state.defaultDstAmount.divn(2).toNumber()),
       ]);
 
-      const orderHash = getOrderHash(escrow.orderConfig);
+      const orderHash = calculateOrderHash(escrow.orderConfig);
 
       // Cancel the trade
       const transactionPromiseCancel = () =>
@@ -1646,7 +1646,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(orderConfig),
+          calculateOrderHash(orderConfig),
         ],
         program.programId
       );
@@ -1827,7 +1827,7 @@ describe("Fusion Swap", () => {
         [
           anchor.utils.bytes.utf8.encode("escrow"),
           state.alice.keypair.publicKey.toBuffer(),
-          getOrderHash(escrow.orderConfig),
+          calculateOrderHash(escrow.orderConfig),
         ],
         program.programId
       );
@@ -1886,7 +1886,7 @@ describe("Fusion Swap", () => {
       });
 
       const txCancelSignature = await program.methods
-        .cancel(Array.from(getOrderHash(escrow.orderConfig)))
+        .cancel(Array.from(calculateOrderHash(escrow.orderConfig)))
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],

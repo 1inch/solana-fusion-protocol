@@ -7,20 +7,22 @@ import {
 } from "@solana/web3.js";
 import { BN, Program } from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
+const fs = require("fs");
 
 import FUSION_IDL from "../../target/idl/fusion_swap.json";
 import WHITELIST_IDL from "../../target/idl/whitelist.json";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import { Whitelist } from "../../target/types/whitelist";
 import {
+  calculateOrderHash,
   findEscrowAddress,
   findResolverAccessAddress,
   getClusterUrlEnv,
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
+  ReducedOrderConfig,
 } from "../utils";
-import { sha256 } from "@noble/hashes/sha256";
 
 const prompt = require("prompt-sync")({ sigint: true });
 
@@ -29,14 +31,16 @@ async function fill(
   program: Program<FusionSwap>,
   whitelistProgramId: PublicKey,
   takerKeypair: Keypair,
-  orderConfig: OrderConfig
+  maker: PublicKey,
+  amount: number,
+  orderConfig: OrderConfig,
+  reducedOrderConfig: ReducedOrderConfig
 ): Promise<void> {
-  const orderHash = sha256(
-    program.coder.types.encode("orderConfig", orderConfig)
-  );
+  const orderHash = calculateOrderHash(orderConfig);
+
   const escrow = findEscrowAddress(
     program.programId,
-    orderConfig.maker,
+    maker,
     Buffer.from(orderHash)
   );
   const escrowSrcAta = await splToken.getAssociatedTokenAddress(
@@ -61,24 +65,21 @@ async function fill(
   );
 
   const fillIx = await program.methods
-    .fill(
-      orderConfig,
-      new BN(orderConfig.srcAmount * Math.pow(10, srcMintDecimals))
-    )
+    .fill(reducedOrderConfig, new BN(amount * Math.pow(10, srcMintDecimals)))
     .accountsPartial({
       taker: takerKeypair.publicKey,
       resolverAccess,
-      maker: orderConfig.maker,
+      maker,
       makerReceiver: orderConfig.receiver,
       srcMint: orderConfig.srcMint,
       dstMint: orderConfig.dstMint,
       escrow,
       escrowSrcAta,
       takerSrcAta,
-      protocolDstAta: orderConfig.fees.protocolDstAta,
-      integratorDstAta: orderConfig.fees.integratorDstAta,
-      srcTokenProgram: orderConfig.srcTokenProgram,
-      dstTokenProgram: orderConfig.dstTokenProgram,
+      protocolDstAta: orderConfig.fee.protocolDstAta,
+      integratorDstAta: orderConfig.fee.integratorDstAta,
+      srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+      dstTokenProgram: splToken.TOKEN_PROGRAM_ID,
     })
     .signers([takerKeypair])
     .instruction();
@@ -93,48 +94,68 @@ async function fill(
 
 async function main() {
   const clusterUrl = getClusterUrlEnv();
+  const orderFilePath = prompt("Enter order config file path: ");
   const maker = new PublicKey(prompt("Enter maker public key: "));
-  const orderHash = prompt("Enter order hash: ");
+
+  const orderConfigs = JSON.parse(fs.readFileSync(orderFilePath));
+
+  const orderConfig = {
+    ...orderConfigs.full,
+    srcAmount: new BN(orderConfigs.full.srcAmount, "hex"),
+    minDstAmount: new BN(orderConfigs.full.minDstAmount, "hex"),
+    estimatedDstAmount: new BN(orderConfigs.full.estimatedDstAmount, "hex"),
+    srcMint: new PublicKey(orderConfigs.full.srcMint),
+    dstMint: new PublicKey(orderConfigs.full.dstMint),
+    receiver: new PublicKey(orderConfigs.full.receiver),
+  };
+  const reducedOrderConfig = {
+    ...orderConfigs.reduced,
+    srcAmount: new BN(orderConfigs.reduced.srcAmount, "hex"),
+    minDstAmount: new BN(orderConfigs.reduced.minDstAmount, "hex"),
+    estimatedDstAmount: new BN(orderConfigs.reduced.estimatedDstAmount, "hex"),
+  };
+
+  const takerKeypairPath = prompt("Enter taker keypair path: ");
+  const takerKeypair = await loadKeypairFromFile(takerKeypairPath);
+  const amount = Number(prompt("Enter fill amount: "));
+
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
   const whitelist = new Program(WHITELIST_IDL as Whitelist, { connection });
 
   try {
+    const orderHash = calculateOrderHash(orderConfig);
+
     const escrowAddr = findEscrowAddress(
       fusionSwap.programId,
       maker,
-      orderHash
+      Buffer.from(orderHash)
     );
-    console.log(JSON.stringify(escrowAddr));
+
+    const escrowSrcAtaAddr = await splToken.getAssociatedTokenAddress(
+      orderConfig.srcMint,
+      escrowAddr,
+      true
+    );
+
+    await splToken.getAccount(connection, escrowSrcAtaAddr);
+    console.log(`Order exists`);
   } catch (e) {
     console.error(
-      `Escrow with order hash = ${orderHash} and maker = ${maker.toString()} does not exist`
+      `Escrow with given order config and maker = ${maker.toString()} does not exist`
     );
     return;
   }
-
-  const takerKeypairPath = prompt("Enter taker keypair path: ");
-  const srcMint = new PublicKey(prompt("Enter src mint public key: "));
-  const dstMint = new PublicKey(prompt("Enter dst mint public key: "));
-  const amount = Number(prompt("Enter fill amount: "));
-
-  const takerKeypair = await loadKeypairFromFile(takerKeypairPath);
-
-  const orderConfig: OrderConfig = {
-    srcMint,
-    dstMint,
-    makerReceiver: maker,
-    srcAmount: amount,
-    srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-    dstTokenProgram: splToken.TOKEN_PROGRAM_ID,
-  };
 
   await fill(
     connection,
     fusionSwap,
     whitelist.programId,
     takerKeypair,
-    orderConfig
+    maker,
+    amount,
+    orderConfig,
+    reducedOrderConfig
   );
 }
 
