@@ -265,7 +265,7 @@ mod tests {
         ata
     }
 
-    pub async fn initialize_spl_account(
+    pub async fn initialize_token_account(
         ctx: &mut ProgramTestContext,
         mint_pubkey: &Pubkey,
         owner: &Pubkey,
@@ -610,7 +610,7 @@ mod tests {
 
         let user_pk = Pubkey::new_unique();
         let mint_kp = deploy_spl_token(&mut ctx, 9).await;
-        let non_ata = initialize_spl_account(&mut ctx, &mint_kp.pubkey(), &user_pk).await;
+        let non_ata = initialize_token_account(&mut ctx, &mint_kp.pubkey(), &user_pk).await;
         call_contract(
             &mut ctx,
             &[
