@@ -59,13 +59,16 @@ pub fn assert_token_account(
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
         require!(
-            acc_data.base.owner == *exp_authority
-                && spl_associated_token_account::get_associated_token_address_with_program_id(
-                    &acc_data.base.owner,
-                    &acc_data.base.mint,
-                    account_info.owner
-                ) == *account_info.key,
+            acc_data.base.owner == *exp_authority,
             EscrowError::ConstraintTokenOwner.into()
+        );
+        require!(
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &acc_data.base.owner,
+                &acc_data.base.mint,
+                account_info.owner
+            ) == *account_info.key,
+            EscrowError::AccountNotAssociatedTokenAccount.into()
         );
     };
     if let Some(token_program) = opt_token_program {
@@ -618,7 +621,7 @@ mod tests {
             ],
         )
         .await
-        .expect_error((0, EscrowError::ConstraintTokenOwner.into()));
+        .expect_error((0, EscrowError::AccountNotAssociatedTokenAccount.into()));
     }
 
     #[tokio::test]
