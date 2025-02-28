@@ -57,9 +57,13 @@ pub fn assert_token_account(
     );
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
-        // TODO Consider using associated token account check if needed (address was derived following ATA rules)
         require!(
-            acc_data.base.owner == *exp_authority,
+            acc_data.base.owner == *exp_authority
+                && spl_associated_token_account::get_associated_token_address_with_program_id(
+                    &acc_data.base.owner,
+                    &acc_data.base.mint,
+                    account_info.owner
+                ) == *account_info.key,
             EscrowError::ConstraintTokenOwner.into()
         );
     };
