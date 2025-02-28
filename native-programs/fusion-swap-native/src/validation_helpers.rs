@@ -601,7 +601,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_token_account_ata_validation_fail() {
+    async fn test_ata_validation_fail_for_token_account() {
         let program_test = ProgramTest::new(
             "dummy",
             crate::ID,
