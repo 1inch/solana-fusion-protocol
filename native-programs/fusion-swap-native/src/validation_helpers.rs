@@ -149,10 +149,12 @@ mod tests {
     use solana_program_test::{
         processor, tokio, BanksClientError, ProgramTest, ProgramTestContext,
     };
-    use solana_sdk::account::AccountSharedData;
-    use solana_sdk::account::WritableAccount;
     use solana_sdk::{
-        signature::Signer, signer::keypair::Keypair, system_instruction, transaction::Transaction,
+        account::{AccountSharedData, WritableAccount},
+        signature::Signer,
+        signer::keypair::Keypair,
+        system_instruction,
+        transaction::Transaction,
         transaction::TransactionError,
     };
     use spl_token::instruction as spl_instruction;
