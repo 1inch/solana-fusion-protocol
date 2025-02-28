@@ -22,6 +22,37 @@ import { Program } from "@coral-xyz/anchor";
 import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
+const ESCROW_ERRORS = {
+  ConstraintTokenMint: 2014,
+  ConstraintSigner: 2002,
+  AccountNotMutable: 3006,
+  ConstraintOwner: 2004,
+  ConstraintTokenOwner: 2015,
+  ConstraintMintTokenProgram: 2022,
+  ConstraintSeeds: 2006,
+  ConstraintAddress: 2012,
+  AccountNotAssociatedTokenAccount: 3014,
+  InconsistentNativeDstTrait: 6000,
+  InvalidAmount: 6001,
+  MissingMakerDstAta: 6002,
+  NotEnoughTokensInEscrow: 6003,
+  OrderExpired: 6004,
+  InvalidEstimatedTakingAmount: 6005,
+  InvalidProtocolSurplusFee: 6006,
+  InconsistentProtocolFeeConfig: 6007,
+  InconsistentIntegratorFeeConfig: 6008,
+};
+
+function errorCodeHex(error: string): string {
+  const errorCode = ESCROW_ERRORS[error as keyof typeof ESCROW_ERRORS];
+
+  if (errorCode === undefined) {
+    throw new Error(`Error code not found for ${error}`);
+  }
+
+  return `0x${errorCode.toString(16)}`;
+}
+
 describe("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -931,7 +962,7 @@ describe("Fusion Swap Native", () => {
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("0x1771");
+      ).to.be.rejectedWith(errorCodeHex("InvalidAmount"));
     });
 
     it("Fails to create with zero min dst amount", async () => {
@@ -967,7 +998,7 @@ describe("Fusion Swap Native", () => {
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("0x1771");
+      ).to.be.rejectedWith(errorCodeHex("InvalidAmount"));
     });
 
     it("Fails to create if escrow has been created already", async () => {
@@ -1133,8 +1164,7 @@ describe("Fusion Swap Native", () => {
               state.alice.keypair,
             ])
           )
-        // ).to.be.rejectedWith("Error Code: InvalidProtocolSurplusFee");
-      ).to.be.rejectedWith("0x1776");
+      ).to.be.rejectedWith(errorCodeHex("InvalidProtocolSurplusFee"));
     });
 
     it("Doesn't create escrow with protocol_dst_ata from different mint", async () => {
@@ -1172,7 +1202,7 @@ describe("Fusion Swap Native", () => {
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("0x7d6");
+      ).to.be.rejectedWith(errorCodeHex("ConstraintSeeds"));
     });
 
     it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
@@ -1210,7 +1240,7 @@ describe("Fusion Swap Native", () => {
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("0x7d6");
+      ).to.be.rejectedWith(errorCodeHex("ConstraintSeeds"));
     });
 
     it.skip("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
@@ -1885,7 +1915,7 @@ describe("Fusion Swap Native", () => {
               state.alice.keypair,
             ])
           )
-      ).to.be.rejectedWith("0x1770");
+      ).to.be.rejectedWith(errorCodeHex("InconsistentNativeDstTrait"));
     });
 
     it.skip("Execute the trade and transfer wSOL if native_dst_asset = false and native dst mint is provided", async () => {
