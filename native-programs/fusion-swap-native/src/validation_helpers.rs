@@ -5,7 +5,6 @@ use solana_program::{
 };
 
 use spl_associated_token_account::instruction as spl_ata_instruction;
-use spl_token::instruction;
 use spl_token_2022::{extension::StateWithExtensions, state::Account, state::Mint};
 
 use crate::error::EscrowError;
@@ -281,7 +280,7 @@ mod tests {
             &spl_token::ID,
         );
 
-        let initialize_acc_ix: Instruction = instruction::initialize_account(
+        let initialize_acc_ix: Instruction = spl_token::instruction::initialize_account(
             &spl_token::ID,
             &account_keypair.pubkey(),
             mint_pubkey,
