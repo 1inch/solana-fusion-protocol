@@ -141,6 +141,7 @@ pub fn init_ata_with_address_check(
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult, instruction::AccountMeta,
         instruction::Instruction, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey,
@@ -149,6 +150,7 @@ mod tests {
         processor, tokio, BanksClientError, ProgramTest, ProgramTestContext,
     };
     use solana_sdk::account::AccountSharedData;
+    use solana_sdk::account::WritableAccount;
     use solana_sdk::{
         signature::Signer, signer::keypair::Keypair, system_instruction, transaction::Transaction,
         transaction::TransactionError,
@@ -449,7 +451,18 @@ mod tests {
     #[tokio::test]
     async fn test_mint_owner_validation_fail() {
         let mut ctx = context_with_validation!(|x| assert_mint(x));
-        call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
+        let mint_kp = deploy_spl_token(&mut ctx, 9).await;
+        let mut client = ctx.banks_client.clone();
+
+        // Get mint account
+        let mint_acount = client.get_account(mint_kp.pubkey()).await.unwrap().unwrap();
+
+        // Change its owner to something random
+        let mut asd = AccountSharedData::from(mint_acount);
+        asd.set_owner(Pubkey::new_unique());
+        ctx.set_account(&mint_kp.pubkey(), &asd);
+
+        call_contract(&mut ctx, &[AccountMeta::new(mint_kp.pubkey(), false)])
             .await
             .expect_error((0, EscrowError::ConstraintTokenMint.into()));
     }
