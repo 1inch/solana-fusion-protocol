@@ -16,6 +16,7 @@ import {
   ProgramTestContext,
   startAnchor,
 } from "solana-bankrun";
+import bs58 from "bs58";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
@@ -713,7 +714,7 @@ export async function printTxCosts(
   } else {
     tx.transaction.message.compiledInstructions.forEach((ix) => {
       txInfo.instructions.push({
-        data: ix.data,
+        data: bs58.encode(ix.data),
         accountsIndexes: ix.accountKeyIndexes,
       });
     });
