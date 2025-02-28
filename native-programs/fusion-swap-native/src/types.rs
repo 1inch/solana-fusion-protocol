@@ -1,9 +1,15 @@
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use solana_program::{hash::hash, program_error::ProgramError, pubkey::Pubkey};
-// use Result::*;
 
 // TODO move to common crate
-
+//
+// Since it's imposible to just move the struct definition to the common crate,
+// because Anchor program requires 'AnchorSerialize' and 'AnchorDeserialize'
+// traits to be derived, but native program requires 'BorshSerialize' and
+// 'BorshDeserialize' traits to be derived, we can do 2 options
+//
+// 1. Write a macro for struct definition and expand it in the program
+// 2. Write conditional deriving in the commot crate based on #[cfg()] macro
 /// Configuration for fees applied to the escrow
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct FeeConfig {
