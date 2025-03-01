@@ -1,18 +1,4 @@
-use anchor_lang::prelude::*;
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct PointAndTimeDelta {
-    rate_bump: u16,
-    time_delta: u16,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct DutchAuctionData {
-    pub start_time: u32,
-    pub duration: u32,
-    pub initial_rate_bump: u16,
-    pub points_and_time_deltas: Vec<PointAndTimeDelta>,
-}
+use common::types::DutchAuctionData;
 
 pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
     if timestamp <= data.start_time as u64 {

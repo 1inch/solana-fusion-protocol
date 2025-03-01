@@ -7,7 +7,7 @@
     "lint:ts": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "yarn lint:ts:fix && yarn lint:rust:fix",
     "lint": "yarn lint:ts && yarn lint:rust",
-    "test": "yarn build && RUST_LOG=error anchor test --skip-build && cargo test",
+    "test": "yarn build && RUST_LOG=error anchor test --skip-build && cargo test --features native",
     "clean": "anchor clean",
     "build": "cargo build-sbf && anchor build -p fusion-swap && anchor build -p whitelist",
     "new": "anchor new",

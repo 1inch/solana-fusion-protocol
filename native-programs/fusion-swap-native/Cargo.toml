@@ -9,6 +9,7 @@ crate-type = ["cdylib", "lib"]
 
 [features]
 no-entrypoint = []
+native = []
 
 [dependencies]
 solana-program = "1.18.26"
