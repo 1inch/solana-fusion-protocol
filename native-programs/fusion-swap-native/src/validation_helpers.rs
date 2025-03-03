@@ -117,21 +117,13 @@ pub fn init_ata_with_address_check(
     authority: &Pubkey,
     token_program: &Pubkey,
     accounts: &[AccountInfo],
-    // NOTE: This argument is a slice so that the a subslice of the `&[AccountInfo]` slice from the
-    // entrypoint could be passed directly here to avoid cloning.
-    //
-    // So the following accounts should be present in this slice, but their order does not matter.
+    // The following accounts should be present in this slice, but their order does not matter.
     // * [writable] ATA address
     // * [signer] Payer
     // * Owner pubkey
     // * Mint pubkey
     // * System progam
     // * SPL token program
-    //
-    // Ideally, this argument should not contain any other accounts. Because this argument is
-    // passed directly to the CPI call that will create and initialize the associated token
-    // account. So if the account contain more accounts, only the initial six would be passed to the
-    // call.
 ) -> ProgramResult {
     // Ensure the account does not exist already.
     require!(
