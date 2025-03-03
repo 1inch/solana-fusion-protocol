@@ -5,8 +5,8 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-fusion_swap = "9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh"
-whitelist = "3cx4U4YnUNeDaQfqMkzw8AsVGtBXrcAbbjd1wPGMpMZc"
+fusion_swap = "9CnwB8RDNtRzRcxvkNqwgatRDENBCh2f56HgJLPStn8S"
+whitelist = "DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ"
 
 [registry]
 url = "https://api.apr.dev"
