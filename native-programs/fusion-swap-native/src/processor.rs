@@ -16,7 +16,8 @@ use spl_token::native_mint;
 
 use crate::{
     error::EscrowError,
-    types::{build_order_from_reduced, order_hash, ReducedOrderConfig},
+    types::ReducedOrderConfig,
+    utils::{build_order_from_reduced, order_hash},
     validation_helpers::{
         assert_key, assert_mint, assert_pda, assert_signer, assert_token_account,
         assert_token_program, assert_writable, init_ata_with_address_check,

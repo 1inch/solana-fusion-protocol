@@ -1,5 +1,5 @@
-use borsh::{to_vec, BorshDeserialize, BorshSerialize};
-use solana_program::{hash::hash, program_error::ProgramError, pubkey::Pubkey};
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::pubkey::Pubkey;
 
 // TODO move to common crate
 //
@@ -80,37 +80,4 @@ pub struct DutchAuctionData {
     pub duration: u32,
     pub initial_rate_bump: u16,
     pub points_and_time_deltas: Vec<PointAndTimeDelta>,
-}
-
-pub fn build_order_from_reduced(
-    order: &ReducedOrderConfig,
-    src_mint: Pubkey,
-    dst_mint: Pubkey,
-    receiver: Pubkey,
-    protocol_dst_ata: Option<Pubkey>,
-    integrator_dst_ata: Option<Pubkey>,
-) -> OrderConfig {
-    OrderConfig {
-        id: order.id,
-        src_amount: order.src_amount,
-        min_dst_amount: order.min_dst_amount,
-        estimated_dst_amount: order.estimated_dst_amount,
-        expiration_time: order.expiration_time,
-        native_dst_asset: order.native_dst_asset,
-        receiver,
-        fee: FeeConfig {
-            protocol_dst_ata,
-            integrator_dst_ata,
-            protocol_fee: order.fee.protocol_fee,
-            integrator_fee: order.fee.integrator_fee,
-            surplus_percentage: order.fee.surplus_percentage,
-        },
-        dutch_auction_data: order.dutch_auction_data.clone(),
-        src_mint,
-        dst_mint,
-    }
-}
-
-pub fn order_hash(order: &OrderConfig) -> Result<[u8; 32], ProgramError> {
-    Ok(hash(to_vec(order)?.as_ref()).to_bytes())
 }
