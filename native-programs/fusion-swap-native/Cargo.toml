@@ -19,6 +19,7 @@ spl-discriminator = "0.4.1"
 spl-program-error = "0.6.0"
 thiserror = "2.0.11"
 num-derive = "0.4.2"
+common = { path =  "../../common", features = ["native"] }
 
 [dev-dependencies]
 solana-program-test = "1.18.26"

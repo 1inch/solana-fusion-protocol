@@ -8,7 +8,8 @@ use anchor_spl::{
         TransferChecked,
     },
 };
-use dutch_auction::{calculate_rate_bump, DutchAuctionData};
+use common::types::{DutchAuctionData, FeeConfig, OrderConfig, ReducedOrderConfig};
+use dutch_auction::calculate_rate_bump;
 use muldiv::MulDiv;
 
 pub mod dutch_auction;
@@ -486,64 +487,6 @@ pub struct Cancel<'info> {
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
     src_token_program: Interface<'info, TokenInterface>,
-}
-
-/// Configuration for fees applied to the escrow
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct FeeConfig {
-    protocol_dst_ata: Option<Pubkey>,
-    integrator_dst_ata: Option<Pubkey>,
-
-    /// Protocol fee in basis points where `BASE_1E5` = 100%
-    protocol_fee: u16,
-
-    /// Integrator fee in basis points where `BASE_1E5` = 100%
-    integrator_fee: u16,
-
-    /// Percentage of positive slippage taken by the protocol as an additional fee.
-    /// Value in basis points where `BASE_1E2` = 100%
-    surplus_percentage: u8,
-}
-
-/// Configuration for fees applied to the escrow
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct ReducedFeeConfig {
-    /// Protocol fee in basis points where `BASE_1E5` = 100%
-    protocol_fee: u16,
-
-    /// Integrator fee in basis points where `BASE_1E5` = 100%
-    integrator_fee: u16,
-
-    /// Percentage of positive slippage taken by the protocol as an additional fee.
-    /// Value in basis points where `BASE_1E2` = 100%
-    surplus_percentage: u8,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct OrderConfig {
-    id: u32,
-    src_amount: u64,
-    min_dst_amount: u64,
-    estimated_dst_amount: u64,
-    expiration_time: u32,
-    native_dst_asset: bool,
-    receiver: Pubkey,
-    fee: FeeConfig,
-    dutch_auction_data: DutchAuctionData,
-    src_mint: Pubkey,
-    dst_mint: Pubkey,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct ReducedOrderConfig {
-    id: u32,
-    src_amount: u64,
-    min_dst_amount: u64,
-    estimated_dst_amount: u64,
-    expiration_time: u32,
-    native_dst_asset: bool,
-    fee: ReducedFeeConfig,
-    dutch_auction_data: DutchAuctionData,
 }
 
 fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
