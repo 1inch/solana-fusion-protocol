@@ -90,13 +90,13 @@ fn process_cancel(accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         escrow_src_ata,
         src_mint.key,
         Some(escrow.key),
-        Some(&spl_token::ID),
+        Some(src_token_program.key),
     )?;
     assert_token_account(
         maker_src_ata,
         src_mint.key,
         Some(maker.key),
-        Some(&spl_token::ID),
+        Some(src_token_program.key),
     )?;
 
     // Transfer tokens from escrow to maker
