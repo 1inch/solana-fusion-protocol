@@ -133,7 +133,7 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     )?;
 
     // Escrow validations
-    let _escrow_bump = assert_pda(
+    assert_pda(
         escrow,
         &["escrow".as_bytes(), maker.key.as_ref(), &order_hash],
         program_id,
