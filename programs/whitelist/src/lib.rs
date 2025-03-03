@@ -4,7 +4,7 @@ use common::constants::DISCRIMINATOR;
 pub mod error;
 use error::WhitelistError;
 
-declare_id!("3cx4U4YnUNeDaQfqMkzw8AsVGtBXrcAbbjd1wPGMpMZc");
+declare_id!("DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ");
 
 pub const WHITELIST_STATE_SEED: &[u8] = b"whitelist_state";
 pub const RESOLVER_ACCESS_SEED: &[u8] = b"resolver_access";
@@ -91,7 +91,7 @@ pub struct Deregister<'info> {
     #[account(
       seeds = [WHITELIST_STATE_SEED],
       bump,
-      // Ensures only the whitelist owner can register new users
+      // Ensures only the whitelist owner can deregister users from the whitelist
       constraint = whitelist_state.owner == owner.key() @ WhitelistError::UnauthorizedOwner
     )]
     pub whitelist_state: Account<'info, WhitelistState>,

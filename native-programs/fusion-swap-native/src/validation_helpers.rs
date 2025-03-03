@@ -7,7 +7,7 @@ use solana_program::{
 use spl_associated_token_account::instruction as spl_ata_instruction;
 use spl_token_2022::{extension::StateWithExtensions, state::Account, state::Mint};
 
-use crate::error::EscrowError;
+use crate::error::FusionError;
 use Result::*;
 
 macro_rules! require {
@@ -21,7 +21,7 @@ macro_rules! require {
 pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         account_info.is_signer,
-        EscrowError::ConstraintSigner.into()
+        FusionError::ConstraintSigner.into()
     ))
 }
 
@@ -30,14 +30,14 @@ pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         is_token_program(account_info.owner)
             && StateWithExtensions::<Mint>::unpack(&account_info.data.borrow()).is_ok(),
-        EscrowError::ConstraintTokenMint.into()
+        FusionError::ConstraintTokenMint.into()
     ))
 }
 
 pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         account_info.is_writable,
-        EscrowError::AccountNotMutable.into()
+        FusionError::AccountNotMutable.into()
     ))
 }
 
@@ -49,19 +49,21 @@ pub fn assert_token_account(
 ) -> ProgramResult {
     // Decode account data
     let data: &[u8] = &mut account_info.data.borrow();
+
+    // Unpack the data using spl-2022 account deserialization because of backward compatibility with spl-token.
     let acc_data = StateWithExtensions::<Account>::unpack(data)?;
 
     // Check mint
     require!(
         acc_data.base.mint == *mint,
-        EscrowError::ConstraintTokenMint.into()
+        FusionError::ConstraintTokenMint.into()
     );
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
         // TODO Consider using associated token account check if needed (address was derived following ATA rules)
         require!(
             acc_data.base.owner == *exp_authority,
-            EscrowError::ConstraintTokenOwner.into()
+            FusionError::ConstraintTokenOwner.into()
         );
     };
     if let Some(token_program) = opt_token_program {
@@ -69,7 +71,7 @@ pub fn assert_token_account(
         // the solana account owner
         require!(
             *account_info.owner == *token_program,
-            EscrowError::ConstraintMintTokenProgram.into()
+            FusionError::ConstraintMintTokenProgram.into()
         );
     }
     Ok(())
@@ -81,10 +83,10 @@ pub fn assert_pda(
     program: &Pubkey,
 ) -> Result<u8, ProgramError> {
     let (pda, bump) = Pubkey::try_find_program_address(seeds, program)
-        .ok_or::<EscrowError>(EscrowError::ConstraintSeeds)?;
+        .ok_or::<FusionError>(FusionError::ConstraintSeeds)?;
     require!(
         *account_info.key == pda,
-        EscrowError::ConstraintSeeds.into()
+        FusionError::ConstraintSeeds.into()
     );
     Ok(bump)
 }
@@ -92,7 +94,7 @@ pub fn assert_pda(
 pub fn assert_key(account_info: &AccountInfo, exp_pubkey: &Pubkey) -> ProgramResult {
     Ok(require!(
         *account_info.key == *exp_pubkey,
-        EscrowError::ConstraintAddress.into()
+        FusionError::ConstraintAddress.into()
     ))
 }
 
@@ -104,7 +106,7 @@ fn is_token_program(key: &Pubkey) -> bool {
 pub fn assert_token_program(account_info: &AccountInfo) -> ProgramResult {
     Ok(require!(
         is_token_program(account_info.key),
-        EscrowError::ConstraintAddress.into()
+        FusionError::ConstraintAddress.into()
     ))
 }
 
@@ -134,7 +136,7 @@ pub fn init_ata_with_address_check(
 
     require!(
         ata == *account_info.key,
-        EscrowError::AccountNotAssociatedTokenAccount.into()
+        FusionError::AccountNotAssociatedTokenAccount.into()
     );
 
     // Create the associated token account
@@ -400,7 +402,7 @@ mod tests {
         let mut ctx = context_with_validation!(|x| assert_key(x, &crate::ID));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
-            .expect_error((0, EscrowError::ConstraintAddress.into()));
+            .expect_error((0, FusionError::ConstraintAddress.into()));
     }
 
     #[tokio::test]
@@ -424,7 +426,7 @@ mod tests {
         let mut ctx = context_with_validation!(|x| assert_token_program(x));
         call_contract(&mut ctx, &[AccountMeta::new(Pubkey::new_unique(), false)])
             .await
-            .expect_error((0, EscrowError::ConstraintAddress.into()));
+            .expect_error((0, FusionError::ConstraintAddress.into()));
     }
 
     #[tokio::test]
@@ -443,7 +445,7 @@ mod tests {
             &[AccountMeta::new_readonly(Pubkey::new_unique(), false)],
         )
         .await
-        .expect_error((0, EscrowError::AccountNotMutable.into()));
+        .expect_error((0, FusionError::AccountNotMutable.into()));
     }
 
     #[tokio::test]
@@ -471,7 +473,7 @@ mod tests {
 
         call_contract(&mut ctx, &[AccountMeta::new(mint_kp.pubkey(), false)])
             .await
-            .expect_error((0, EscrowError::ConstraintTokenMint.into()));
+            .expect_error((0, FusionError::ConstraintTokenMint.into()));
     }
 
     #[tokio::test]
@@ -489,7 +491,7 @@ mod tests {
         let bad_mint = create_account_with_owner(&mut ctx, &spl_token::ID);
         call_contract(&mut ctx, &[AccountMeta::new(bad_mint, false)])
             .await
-            .expect_error((0, EscrowError::ConstraintTokenMint.into()));
+            .expect_error((0, FusionError::ConstraintTokenMint.into()));
     }
 
     // A test contract that is used in couple of following tests.
@@ -554,7 +556,7 @@ mod tests {
             ],
         )
         .await
-        .expect_error((0, EscrowError::ConstraintTokenOwner.into()));
+        .expect_error((0, FusionError::ConstraintTokenOwner.into()));
     }
 
     #[tokio::test]
@@ -628,7 +630,7 @@ mod tests {
         let (pda, _) = Pubkey::find_program_address(&[b"bad"], &crate::ID);
         call_contract(&mut ctx, &[AccountMeta::new(pda, false)])
             .await
-            .expect_error((0, EscrowError::ConstraintSeeds.into()));
+            .expect_error((0, FusionError::ConstraintSeeds.into()));
     }
 
     fn validation_test_contract_for_init_ata(
@@ -712,6 +714,6 @@ mod tests {
             ],
         )
         .await
-        .expect_error((0, EscrowError::AccountNotAssociatedTokenAccount.into()));
+        .expect_error((0, FusionError::AccountNotAssociatedTokenAccount.into()));
     }
 }
