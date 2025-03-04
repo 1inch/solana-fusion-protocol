@@ -70,7 +70,7 @@ pub fn assert_token_account(
                 &acc_data.base.mint,
                 account_info.owner
             ) == *account_info.key,
-            EscrowError::AccountNotAssociatedTokenAccount.into()
+            FusionError::AccountNotAssociatedTokenAccount.into()
         );
     };
     if let Some(token_program) = opt_token_program {
@@ -630,7 +630,7 @@ mod tests {
             ],
         )
         .await
-        .expect_error((0, EscrowError::AccountNotAssociatedTokenAccount.into()));
+        .expect_error((0, FusionError::AccountNotAssociatedTokenAccount.into()));
     }
 
     #[tokio::test]
