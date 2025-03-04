@@ -60,10 +60,17 @@ pub fn assert_token_account(
     );
     // Check token account owner
     if let Some(exp_authority) = opt_authority {
-        // TODO Consider using associated token account check if needed (address was derived following ATA rules)
         require!(
             acc_data.base.owner == *exp_authority,
             FusionError::ConstraintTokenOwner.into()
+        );
+        require!(
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &acc_data.base.owner,
+                &acc_data.base.mint,
+                account_info.owner
+            ) == *account_info.key,
+            EscrowError::AccountNotAssociatedTokenAccount.into()
         );
     };
     if let Some(token_program) = opt_token_program {
@@ -257,7 +264,45 @@ mod tests {
         ata
     }
 
-    pub async fn initialize_spl2022_account(
+    pub async fn initialize_token_account(
+        ctx: &mut ProgramTestContext,
+        mint_pubkey: &Pubkey,
+        owner: &Pubkey,
+    ) -> Keypair {
+        let account_keypair = Keypair::new();
+
+        let create_spl_acc_ix = system_instruction::create_account(
+            &ctx.payer.pubkey(),
+            &account_keypair.pubkey(),
+            1_000_000_000,
+            Account::LEN as u64,
+            &spl_token::ID,
+        );
+
+        let initialize_acc_ix: Instruction = spl_token::instruction::initialize_account(
+            &spl_token::ID,
+            &account_keypair.pubkey(),
+            mint_pubkey,
+            owner,
+        )
+        .unwrap();
+
+        let signers: Vec<&Keypair> = vec![&ctx.payer, &account_keypair];
+
+        let client = &mut ctx.banks_client;
+        client
+            .process_transaction(Transaction::new_signed_with_payer(
+                &[create_spl_acc_ix, initialize_acc_ix],
+                Some(&ctx.payer.pubkey()),
+                &signers,
+                ctx.last_blockhash,
+            ))
+            .await
+            .unwrap();
+        account_keypair
+    }
+
+    pub async fn initialize_spl2022_associated_token_account(
         ctx: &mut ProgramTestContext,
         mint_pubkey: &Pubkey,
         owner: &Pubkey,
@@ -565,6 +610,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_ata_validation_fail_for_token_account() {
+        let program_test = ProgramTest::new(
+            "dummy",
+            crate::ID,
+            processor!(validation_test_contract_for_token_account_validation_test),
+        );
+        let mut ctx = program_test.start_with_context().await;
+
+        let user_pk = Pubkey::new_unique();
+        let mint_kp = deploy_spl_token(&mut ctx, 9).await;
+        let non_ata = initialize_token_account(&mut ctx, &mint_kp.pubkey(), &user_pk).await;
+        call_contract(
+            &mut ctx,
+            &[
+                AccountMeta::new(non_ata.pubkey(), false),
+                AccountMeta::new(mint_kp.pubkey(), false),
+                AccountMeta::new(user_pk, false),
+            ],
+        )
+        .await
+        .expect_error((0, EscrowError::AccountNotAssociatedTokenAccount.into()));
+    }
+
+    #[tokio::test]
     async fn test_token2022_account_validation() {
         fn validation_test_contract(
             _: &Pubkey,
@@ -585,7 +654,9 @@ mod tests {
 
         let user_pk = Pubkey::new_unique();
         let mint_kp = deploy_spl2022_token(&mut ctx, 9).await;
-        let ata = initialize_spl2022_account(&mut ctx, &mint_kp.pubkey(), &user_pk).await;
+        let ata =
+            initialize_spl2022_associated_token_account(&mut ctx, &mint_kp.pubkey(), &user_pk)
+                .await;
         call_contract(
             &mut ctx,
             &[
