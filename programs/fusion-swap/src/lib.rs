@@ -14,9 +14,9 @@ use muldiv::MulDiv;
 pub mod auction;
 pub mod error;
 
-use error::EscrowError;
+use error::FusionError;
 
-declare_id!("9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh");
+declare_id!("9CnwB8RDNtRzRcxvkNqwgatRDENBCh2f56HgJLPStn8S");
 
 pub const BASE_1E2: u64 = 100;
 pub const BASE_1E3: u64 = 1000;
@@ -29,41 +29,41 @@ pub mod fusion_swap {
     pub fn create(ctx: Context<Create>, order: ReducedOrderConfig) -> Result<()> {
         require!(
             order.src_amount != 0 && order.min_dst_amount != 0,
-            EscrowError::InvalidAmount
+            FusionError::InvalidAmount
         );
 
         // we support only original spl_token::native_mint
         require!(
             ctx.accounts.dst_mint.key() == native_mint::id() || !order.native_dst_asset,
-            EscrowError::InconsistentNativeDstTrait
+            FusionError::InconsistentNativeDstTrait
         );
 
         require!(
             Clock::get()?.unix_timestamp <= order.expiration_time as i64,
-            EscrowError::OrderExpired
+            FusionError::OrderExpired
         );
 
         require!(
             order.fee.surplus_percentage as u64 <= BASE_1E2,
-            EscrowError::InvalidProtocolSurplusFee
+            FusionError::InvalidProtocolSurplusFee
         );
 
         require!(
             order.estimated_dst_amount >= order.min_dst_amount,
-            EscrowError::InvalidEstimatedTakingAmount
+            FusionError::InvalidEstimatedTakingAmount
         );
 
         // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
         require!(
             (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
                 == ctx.accounts.protocol_dst_ata.is_some(),
-            EscrowError::InconsistentProtocolFeeConfig
+            FusionError::InconsistentProtocolFeeConfig
         );
 
         // Iff integrator fee is positive, integrator_dst_ata must be set
         require!(
             (order.fee.integrator_fee > 0) == ctx.accounts.integrator_dst_ata.is_some(),
-            EscrowError::InconsistentIntegratorFeeConfig
+            FusionError::InconsistentIntegratorFeeConfig
         );
 
         // Maker => Escrow
@@ -85,15 +85,15 @@ pub mod fusion_swap {
     pub fn fill(ctx: Context<Fill>, reduced_order: ReducedOrderConfig, amount: u64) -> Result<()> {
         require!(
             Clock::get()?.unix_timestamp <= reduced_order.expiration_time as i64,
-            EscrowError::OrderExpired
+            FusionError::OrderExpired
         );
 
         require!(
             amount <= ctx.accounts.escrow_src_ata.amount,
-            EscrowError::NotEnoughTokensInEscrow
+            FusionError::NotEnoughTokensInEscrow
         );
 
-        require!(amount != 0, EscrowError::InvalidAmount);
+        require!(amount != 0, FusionError::InvalidAmount);
 
         let order = build_order_from_reduced(
             &reduced_order,
@@ -149,7 +149,7 @@ pub mod fusion_swap {
                 .accounts
                 .protocol_dst_ata
                 .as_ref()
-                .ok_or(EscrowError::InconsistentProtocolFeeConfig)?;
+                .ok_or(FusionError::InconsistentProtocolFeeConfig)?;
 
             transfer_checked(
                 CpiContext::new(
@@ -172,7 +172,7 @@ pub mod fusion_swap {
                 .accounts
                 .integrator_dst_ata
                 .as_ref()
-                .ok_or(EscrowError::InconsistentIntegratorFeeConfig)?;
+                .ok_or(FusionError::InconsistentIntegratorFeeConfig)?;
 
             transfer_checked(
                 CpiContext::new(
@@ -207,7 +207,7 @@ pub mod fusion_swap {
                 .accounts
                 .maker_dst_ata
                 .as_ref()
-                .ok_or(EscrowError::MissingMakerDstAta)?;
+                .ok_or(FusionError::MissingMakerDstAta)?;
 
             // Transfer SPL tokens
             transfer_checked(
@@ -290,12 +290,12 @@ pub mod fusion_swap {
     ) -> Result<()> {
         require!(
             reduced_order.fee.min_cancellation_premium > 0,
-            EscrowError::CancelOrderByResolverIsForbidden
+            FusionError::CancelOrderByResolverIsForbidden
         );
         let current_timestamp = Clock::get()?.unix_timestamp;
         require!(
             current_timestamp >= reduced_order.expiration_time as i64,
-            EscrowError::OrderNotExpired
+            FusionError::OrderNotExpired
         );
 
         // Calculate the total cancellation premium (base + auction premium)
@@ -313,7 +313,7 @@ pub mod fusion_swap {
             .ok_or(ProgramError::ArithmeticOverflow)?;
         require!(
             total_cancellation_premium <= ctx.accounts.escrow_src_ata.amount,
-            EscrowError::InvalidCancellationFee
+            FusionError::InvalidCancellationFee
         );
 
         let order = build_order_from_reduced(
@@ -445,12 +445,12 @@ pub struct Create<'info> {
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
-        constraint = protocol_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentProtocolFeeConfig
+        constraint = protocol_dst_ata.mint == dst_mint.key() @ FusionError::InconsistentProtocolFeeConfig
     )]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(
-        constraint = integrator_dst_ata.mint == dst_mint.key() @ EscrowError::InconsistentIntegratorFeeConfig
+        constraint = integrator_dst_ata.mint == dst_mint.key() @ FusionError::InconsistentIntegratorFeeConfig
     )]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
@@ -559,7 +559,6 @@ pub struct Cancel<'info> {
     maker: Signer<'info>,
 
     /// Maker asset
-    // TODO: Add src_mint to escrow or seeds
     src_mint: InterfaceAccount<'info, Mint>,
 
     /// Account to store order conditions

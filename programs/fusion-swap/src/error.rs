@@ -1,7 +1,7 @@
 use anchor_lang::error_code;
 
 #[error_code]
-pub enum EscrowError {
+pub enum FusionError {
     #[msg("Inconsistent native dst trait")]
     InconsistentNativeDstTrait,
     #[msg("Invalid amount")]

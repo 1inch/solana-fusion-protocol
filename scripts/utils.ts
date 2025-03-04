@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import * as splToken from "@solana/spl-token";
+import { sha256 } from "@noble/hashes/sha256";
+import * as borsh from "borsh";
 
 const FusionSwapIDL = require("../target/idl/fusion_swap.json");
 
@@ -12,6 +14,11 @@ const reducedOrderConfigType = FusionSwapIDL.types.find(
 );
 export type ReducedOrderConfig =
   (typeof reducedOrderConfigType)["type"]["fields"];
+
+const reducedFeeConfigType = FusionSwapIDL.types.find(
+  (t) => t.name === "ReducedFeeConfig"
+);
+export type ReducedFeeConfig = (typeof reducedFeeConfigType)["type"]["fields"];
 
 export type FeeConfig = {
   protocolDstAta: anchor.web3.PublicKey | null;
@@ -23,10 +30,11 @@ export type FeeConfig = {
   maxCancellationMultiplier: number;
 };
 export type OrderConfig = ReducedOrderConfig & {
-  src_mint: anchor.web3.PublicKey;
-  dst_mint: anchor.web3.PublicKey;
+  srcMint: anchor.web3.PublicKey;
+  dstMint: anchor.web3.PublicKey;
   receiver: anchor.web3.PublicKey;
   fee: FeeConfig;
+  cancellationAuctionDuration: number;
 };
 
 const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
@@ -37,12 +45,10 @@ const auctionDataType = FusionSwapIDL.types.find(
 );
 export type AuctionData = (typeof auctionDataType)["type"]["fields"];
 
-export const defaultFeeConfig: FeeConfig = {
+export const defaultFeeConfig: ReducedFeeConfig = {
   protocolFee: 0,
   integratorFee: 0,
   surplusPercentage: 0,
-  protocolDstAta: null,
-  integratorDstAta: null,
   minCancellationPremium: new anchor.BN(0),
   maxCancellationMultiplier: 0,
 };
@@ -139,3 +145,83 @@ export function getClusterUrlEnv() {
   }
   return clusterUrl;
 }
+
+export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
+  const values = {
+    id: orderConfig.id,
+    srcAmount: orderConfig.srcAmount.toNumber(),
+    minDstAmount: orderConfig.minDstAmount.toNumber(),
+    estimatedDstAmount: orderConfig.estimatedDstAmount.toNumber(),
+    expirationTime: orderConfig.expirationTime,
+    nativeDstAsset: orderConfig.nativeDstAsset,
+    receiver: orderConfig.receiver.toBuffer(),
+    fee: {
+      protocolDstAta: orderConfig.fee.protocolDstAta?.toBuffer(),
+      integratorDstAta: orderConfig.fee.integratorDstAta?.toBuffer(),
+      protocolFee: orderConfig.fee.protocolFee,
+      integratorFee: orderConfig.fee.integratorFee,
+      surplusPercentage: orderConfig.fee.surplusPercentage,
+      minCancellationPremium: orderConfig.fee.minCancellationPremium,
+      maxCancellationMultiplier: orderConfig.fee.maxCancellationMultiplier,
+    },
+    dutchAuctionData: {
+      startTime: orderConfig.dutchAuctionData.startTime,
+      duration: orderConfig.dutchAuctionData.duration,
+      initialRateBump: orderConfig.dutchAuctionData.initialRateBump,
+      pointsAndTimeDeltas: orderConfig.dutchAuctionData.pointsAndTimeDeltas.map(
+        (p) => ({
+          rateBump: p.rateBump,
+          timeDelta: p.timeDelta,
+        })
+      ),
+    },
+    cancellationAuctionDuration: orderConfig.cancellationAuctionDuration,
+    srcMint: orderConfig.srcMint.toBuffer(),
+    dstMint: orderConfig.dstMint.toBuffer(),
+  };
+
+  return sha256(borsh.serialize(orderConfigSchema, values));
+}
+
+const orderConfigSchema = {
+  struct: {
+    id: "u32",
+    srcAmount: "u64",
+    minDstAmount: "u64",
+    estimatedDstAmount: "u64",
+    expirationTime: "u32",
+    nativeDstAsset: "bool",
+    receiver: { array: { type: "u8", len: 32 } },
+    fee: {
+      struct: {
+        protocolDstAta: { option: { array: { type: "u8", len: 32 } } },
+        integratorDstAta: { option: { array: { type: "u8", len: 32 } } },
+        protocolFee: "u16",
+        integratorFee: "u16",
+        surplusPercentage: "u8",
+        minCancellationPremium: "u64",
+        maxCancellationMultiplier: "u16",
+      },
+    },
+    dutchAuctionData: {
+      struct: {
+        startTime: "u32",
+        duration: "u32",
+        initialRateBump: "u16",
+        pointsAndTimeDeltas: {
+          array: {
+            type: {
+              struct: {
+                rateBump: "u16",
+                timeDelta: "u16",
+              },
+            },
+          },
+        },
+      },
+    },
+    cancellationAuctionDuration: "u32",
+    srcMint: { array: { type: "u8", len: 32 } },
+    dstMint: { array: { type: "u8", len: 32 } },
+  },
+};

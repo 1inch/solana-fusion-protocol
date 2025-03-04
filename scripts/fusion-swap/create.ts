@@ -8,21 +8,24 @@ import {
 } from "@solana/web3.js";
 import { BN, Program } from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
+const fs = require("fs");
 
 import FUSION_IDL from "../../target/idl/fusion_swap.json";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import {
+  calculateOrderHash,
   defaultAuctionData,
   defaultExpirationTime,
   defaultFeeConfig,
   AuctionData,
-  FeeConfig,
   findEscrowAddress,
   getClusterUrlEnv,
   getTokenDecimals,
   loadKeypairFromFile,
+  OrderConfig,
+  ReducedFeeConfig,
+  ReducedOrderConfig,
 } from "../utils";
-import { sha256 } from "@noble/hashes/sha256";
 
 const prompt = require("prompt-sync")({ sigint: true });
 
@@ -30,40 +33,56 @@ async function create(
   connection: Connection,
   program: Program<FusionSwap>,
   makerKeypair: Keypair,
-  srcAmount: number,
-  minDstAmount: number,
+  srcAmount: BN,
+  minDstAmount: BN,
   srcMint: PublicKey,
   dstMint: PublicKey,
   orderId: number,
   expirationTime: number = defaultExpirationTime(),
   receiver: PublicKey = makerKeypair.publicKey,
   nativeDstAsset: boolean = false,
-  fees: FeeConfig = defaultFeeConfig,
+  fee: ReducedFeeConfig = defaultFeeConfig,
   protocolDstAta: PublicKey = null,
   integratorDstAta: PublicKey = null,
-  estimatedDstAmount: number = minDstAmount,
+  estimatedDstAmount: BN = minDstAmount,
   dutchAuctionData: AuctionData = defaultAuctionData,
   cancellationAuctionDuration: number = defaultAuctionData.duration,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
-  const orderConfig = {
-    orderId,
-    maker: makerKeypair.publicKey,
+  const reducedOrderConfig: ReducedOrderConfig = {
+    id: orderId,
     srcAmount,
     minDstAmount,
+    estimatedDstAmount,
     expirationTime,
-    receiver,
     nativeDstAsset,
-    fees,
+    fee,
     dutchAuctionData,
     cancellationAuctionDuration,
-    srcMint,
-    dstMint,
   };
 
-  const orderHash = sha256(
-    program.coder.types.encode("orderConfig", orderConfig)
-  );
+  const orderConfig: OrderConfig = {
+    ...reducedOrderConfig,
+    srcMint,
+    dstMint,
+    receiver,
+    fee: {
+      ...fee,
+      protocolDstAta,
+      integratorDstAta,
+    },
+  };
+
+  const orderHash = calculateOrderHash(orderConfig);
+  console.log(`Order hash hex: ${Buffer.from(orderHash).toString("hex")}`);
+
+  const orderConfigs = {
+    full: orderConfig,
+    reduced: reducedOrderConfig,
+  };
+
+  fs.writeFileSync("order.json", JSON.stringify(orderConfigs));
+  console.log("Saved full and reduced order configs to order.json");
 
   const escrow = findEscrowAddress(
     program.programId,
@@ -88,7 +107,7 @@ async function create(
     const transferIx = SystemProgram.transfer({
       fromPubkey: makerKeypair.publicKey,
       toPubkey: makerNativeAta,
-      lamports: srcAmount,
+      lamports: srcAmount.toNumber(),
     });
     tx.add(transferIx);
 
@@ -96,17 +115,7 @@ async function create(
   }
 
   const createIx = await program.methods
-    .create({
-      id: orderId,
-      srcAmount: new BN(srcAmount),
-      minDstAmount: new BN(minDstAmount),
-      estimatedDstAmount: new BN(estimatedDstAmount),
-      expirationTime,
-      nativeDstAsset,
-      fee: fees,
-      dutchAuctionData,
-      cancellationAuctionDuration,
-    })
+    .create(reducedOrderConfig)
     .accountsPartial({
       maker: makerKeypair.publicKey,
       makerReceiver: receiver,
@@ -151,8 +160,8 @@ async function main() {
     connection,
     fusionSwap,
     makerKeypair,
-    srcAmount * Math.pow(10, srcMintDecimals),
-    minDstAmount * Math.pow(10, dstMintDecimals),
+    new BN(srcAmount * Math.pow(10, srcMintDecimals)),
+    new BN(minDstAmount * Math.pow(10, dstMintDecimals)),
     new PublicKey(srcMint),
     new PublicKey(dstMint),
     orderId
