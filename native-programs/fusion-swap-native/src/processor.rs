@@ -15,7 +15,7 @@ use spl_discriminator::{ArrayDiscriminator, SplDiscriminate};
 use spl_token::native_mint;
 
 use crate::{
-    error::EscrowError,
+    error::FusionError,
     types::ReducedOrderConfig,
     utils::{build_order_from_reduced, order_hash},
     validation_helpers::{
@@ -171,41 +171,41 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
 
     require!(
         order.src_amount != 0 && order.min_dst_amount != 0,
-        EscrowError::InvalidAmount.into()
+        FusionError::InvalidAmount.into()
     );
 
     // We support only original spl_token::native_mint
     require!(
         *dst_mint.key == native_mint::ID || !order.native_dst_asset,
-        EscrowError::InconsistentNativeDstTrait.into()
+        FusionError::InconsistentNativeDstTrait.into()
     );
 
     require!(
         Clock::get()?.unix_timestamp <= order.expiration_time as i64,
-        EscrowError::OrderExpired.into()
+        FusionError::OrderExpired.into()
     );
 
     require!(
         order.fee.surplus_percentage as u64 <= BASE_1E2,
-        EscrowError::InvalidProtocolSurplusFee.into()
+        FusionError::InvalidProtocolSurplusFee.into()
     );
 
     require!(
         order.estimated_dst_amount >= order.min_dst_amount,
-        EscrowError::InvalidEstimatedTakingAmount.into()
+        FusionError::InvalidEstimatedTakingAmount.into()
     );
 
     // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
     require!(
         (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
             == protocol_dst_ata.is_some(),
-        EscrowError::InconsistentProtocolFeeConfig.into()
+        FusionError::InconsistentProtocolFeeConfig.into()
     );
 
     // Iff integrator fee is positive, integrator_dst_ata must be set
     require!(
         (order.fee.integrator_fee > 0) == integrator_dst_ata.is_some(),
-        EscrowError::InconsistentIntegratorFeeConfig.into()
+        FusionError::InconsistentIntegratorFeeConfig.into()
     );
 
     // TODO transfer checked
