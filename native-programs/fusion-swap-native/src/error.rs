@@ -1,13 +1,13 @@
 use spl_program_error::num_traits;
 use spl_program_error::spl_program_error;
 #[spl_program_error]
-pub enum EscrowError {
+pub enum FusionError {
     #[error("A token mint constraint was violated")]
     ConstraintTokenMint = 2014,
     #[error("A signer constraint was violated")]
     ConstraintSigner = 2002,
     #[error("The given account is not mutable")]
-    AccountNotMutable = 3006,
+    AccountNotWritable = 3006,
     #[error("An owner constraint was violated")]
     ConstraintOwner = 2004,
     #[error("A token owner constraint was violated")]
