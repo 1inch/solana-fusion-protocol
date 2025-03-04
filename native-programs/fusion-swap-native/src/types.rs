@@ -9,7 +9,7 @@ use solana_program::pubkey::Pubkey;
 // 'BorshDeserialize' traits to be derived, we can do 2 options
 //
 // 1. Write a macro for struct definition and expand it in the program
-// 2. Write conditional deriving in the commot crate based on #[cfg()] macro
+// 2. Write conditional deriving in the common crate based on #[cfg()] macro
 /// Configuration for fees applied to the escrow
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct FeeConfig {
