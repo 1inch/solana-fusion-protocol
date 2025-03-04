@@ -55,15 +55,15 @@ pub fn calculate_rate_bump(timestamp: u64, data: &AuctionData) -> u64 {
 
 pub fn calculate_premium_multiplier(
     timestamp: u64,
-    expiration_time: u32,
+    auction_start_time: u32,
     auction_duration: u32,
     max_cancellation_multiplier: u16,
 ) -> u16 {
-    if timestamp <= expiration_time as u64 {
+    if timestamp <= auction_start_time as u64 {
         return 0;
     }
 
-    let time_elapsed = timestamp - expiration_time as u64;
+    let time_elapsed = timestamp - auction_start_time as u64;
     if time_elapsed >= auction_duration as u64 {
         return max_cancellation_multiplier;
     }
