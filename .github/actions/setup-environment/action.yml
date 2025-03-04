@@ -29,9 +29,9 @@ runs:
 
     # Rust and Cargo
     - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ inputs.rustc-version }}
+        toolchain: ${{ 1.82.0 }}
         components: clippy, rustfmt
     
     - name: Cache Cargo dependencies
