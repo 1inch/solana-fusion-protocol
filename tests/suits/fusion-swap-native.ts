@@ -96,6 +96,52 @@ describe("Fusion Swap Native", () => {
   });
 
   describe("Single escrow", () => {
+    it.only("Creates escrow src ata", async () => {
+      const orderConfig = state.orderConfig({});
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: state.tokens[0],
+          dstMint: state.tokens[1],
+          protocolDstAta: null,
+          integratorDstAta: null,
+          escrow: escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .transaction()
+        .then((tx) =>
+          sendAndConfirmTransaction(provider.connection, tx, [
+            state.alice.keypair,
+          ])
+        );
+
+      const escrowAtaAddr = await splToken.getAssociatedTokenAddress(
+        state.tokens[0],
+        escrow,
+        true
+      );
+      const escrowSrcAta = await splToken.getAccount(
+        provider.connection,
+        escrowAtaAddr
+      );
+
+      expect(escrowSrcAta.amount).to.be.eq(
+        BigInt(orderConfig.srcAmount.toNumber())
+      );
+    });
+
     it.skip("Execute the trade", async () => {
       const transactionPromise = () =>
         program.methods
