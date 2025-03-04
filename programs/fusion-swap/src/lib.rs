@@ -330,8 +330,6 @@ pub mod fusion_swap {
 
         let order_hash = order_hash(&order)?;
 
-        // TODO: Make it possible to cancel escrow with native tokens
-
         // Transfer cancellation fee to resolver
         transfer_checked(
             CpiContext::new_with_signer(
