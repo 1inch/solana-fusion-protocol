@@ -29,7 +29,7 @@ runs:
 
     # Rust and Cargo
     - name: Set up Rust
-      uses: dtolnay/rust-toolchain@master
+      uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ inputs.rustc-version }}
         components: clippy, rustfmt
