@@ -19,7 +19,8 @@ export type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
-  cancellationPremium: anchor.BN;
+  minCancellationPremium: anchor.BN;
+  maxCancellationMultiplier: number;
 };
 export type OrderConfig = ReducedOrderConfig & {
   src_mint: anchor.web3.PublicKey;
@@ -42,7 +43,8 @@ export const defaultFeeConfig: FeeConfig = {
   surplusPercentage: 0,
   protocolDstAta: null,
   integratorDstAta: null,
-  cancellationPremium: new anchor.BN(0),
+  minCancellationPremium: new anchor.BN(0),
+  maxCancellationMultiplier: 0,
 };
 
 export const defaultAuctionData: AuctionData = {

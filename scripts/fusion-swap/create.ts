@@ -43,7 +43,7 @@ async function create(
   integratorDstAta: PublicKey = null,
   estimatedDstAmount: number = minDstAmount,
   dutchAuctionData: AuctionData = defaultAuctionData,
-  cancellationAuctionData: AuctionData = defaultAuctionData,
+  cancellationAuctionDuration: number = defaultAuctionData.duration,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
   const orderConfig = {
@@ -56,7 +56,7 @@ async function create(
     nativeDstAsset,
     fees,
     dutchAuctionData,
-    cancellationAuctionData,
+    cancellationAuctionDuration,
     srcMint,
     dstMint,
   };
@@ -105,7 +105,7 @@ async function create(
       nativeDstAsset,
       fee: fees,
       dutchAuctionData,
-      cancellationAuctionData,
+      cancellationAuctionDuration,
     })
     .accountsPartial({
       maker: makerKeypair.publicKey,

@@ -24,4 +24,6 @@ pub enum EscrowError {
     OrderNotExpired,
     #[msg("Invalid cancellation fee")]
     InvalidCancellationFee,
+    #[msg("Cancel order by resolver is forbidden")]
+    CancelOrderByResolverIsForbidden,
 }

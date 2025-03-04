@@ -19,6 +19,7 @@ describe("Cancel by Resolver", () => {
   const defaultCancellationPremium = defaultSrcAmount
     .muln(5 * 100)
     .divn(100 * 100); // 5%
+  const defaultMaxCancellationMultiplier = 500; // 50%
   let provider: BankrunProvider;
   let banksClient: BanksClient;
   let context: ProgramTestContext;
@@ -27,13 +28,9 @@ describe("Cancel by Resolver", () => {
   let payer: anchor.web3.Keypair;
 
   const auction = {
+    createTime: 0, // We update it before each test
     startTime: 0, // We update it before each test
     duration: 32000,
-    initialRateBump: 50000,
-    pointsAndTimeDeltas: [
-      { rateBump: 20000, timeDelta: 10000 },
-      { rateBump: 10000, timeDelta: 20000 },
-    ],
   };
 
   before(async () => {
@@ -55,32 +52,35 @@ describe("Cancel by Resolver", () => {
   });
 
   beforeEach(async () => {
-    auction.startTime = Math.floor(new Date().getTime() / 1000);
+    auction.createTime = Math.floor(new Date().getTime() / 1000);
+    auction.startTime = auction.createTime + auction.duration;
     // Rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.startTime);
+    await setCurrentTime(context, auction.createTime);
   });
 
   it("Resolver can cancel the order and receive a portion of the remaining tokens", async () => {
     const cancellationPremiums = [1, 2.5, 7.5].map((percentage) =>
       defaultSrcAmount.muln(percentage * 100).divn(100 * 100)
     );
-    for (const cancellationPremium of cancellationPremiums) {
-      await setCurrentTime(context, Math.floor(Date.now() / 1000));
+    for (const minCancellationPremium of cancellationPremiums) {
+      await setCurrentTime(context, auction.createTime);
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider: banksClient,
         orderConfig: state.orderConfig({
           srcAmount: defaultSrcAmount,
+          expirationTime: auction.createTime + auction.duration,
           fee: {
-            cancellationPremium,
+            minCancellationPremium,
+            maxCancellationMultiplier: defaultMaxCancellationMultiplier,
           },
-          cancellationAuction: auction,
+          cancellationAuctionDuration: auction.duration,
         }),
       });
 
       // Rewind time to expire the order
-      await setCurrentTime(context, state.defaultExpirationTime + 1);
+      await setCurrentTime(context, auction.startTime + 1);
 
       const transactionPromise = () =>
         program.methods
@@ -110,10 +110,133 @@ describe("Cancel by Resolver", () => {
       );
 
       expect(results).to.be.deep.eq([
-        BigInt(defaultSrcAmount.sub(cancellationPremium).toNumber()),
-        BigInt(cancellationPremium.toNumber()),
+        BigInt(defaultSrcAmount.sub(minCancellationPremium).toNumber()),
+        BigInt(minCancellationPremium.toNumber()),
       ]);
     }
+  });
+
+  it("Resolver can cancel the order at different points in the auction time frame", async () => {
+    const cancellationPoints = [10, 25, 50, 100].map(
+      (percentage) =>
+        auction.startTime +
+        (auction.duration * (percentage * 100)) / (100 * 100)
+    );
+    for (const cancellationPoint of cancellationPoints) {
+      await setCurrentTime(context, auction.createTime);
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider: banksClient,
+        orderConfig: state.orderConfig({
+          srcAmount: defaultSrcAmount,
+          expirationTime: auction.startTime,
+          fee: {
+            minCancellationPremium: defaultCancellationPremium,
+            maxCancellationMultiplier: defaultMaxCancellationMultiplier,
+          },
+          cancellationAuctionDuration: auction.duration,
+        }),
+      });
+
+      await setCurrentTime(context, cancellationPoint);
+
+      const timeElapsed = cancellationPoint - auction.startTime;
+      const rateBump = Math.floor(
+        (timeElapsed * defaultMaxCancellationMultiplier) / auction.duration
+      );
+      const resolverPremium = defaultCancellationPremium
+        .muln(1e3 + rateBump)
+        .divn(1e3);
+
+      const transactionPromise = () =>
+        program.methods
+          .cancelByResolver(escrow.reducedOrderConfig)
+          .accountsPartial({
+            resolver: state.bob.keypair.publicKey,
+            maker: state.alice.keypair.publicKey,
+            makerReceiver: escrow.orderConfig.receiver,
+            srcMint: escrow.orderConfig.srcMint,
+            dstMint: escrow.orderConfig.dstMint,
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+            integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          })
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[state.tokens[0].toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+        ],
+        transactionPromise
+      );
+
+      expect(results).to.be.deep.eq([
+        BigInt(defaultSrcAmount.sub(resolverPremium).toNumber()),
+        BigInt(resolverPremium.toNumber()),
+      ]);
+    }
+  });
+
+  it("Resolver can cancel the order after auction", async () => {
+    const escrow = await state.createEscrow({
+      escrowProgram: program,
+      payer,
+      provider: banksClient,
+      orderConfig: state.orderConfig({
+        srcAmount: defaultSrcAmount,
+        expirationTime: auction.startTime,
+        fee: {
+          minCancellationPremium: defaultCancellationPremium,
+          maxCancellationMultiplier: defaultMaxCancellationMultiplier,
+        },
+        cancellationAuctionDuration: auction.duration,
+      }),
+    });
+
+    await setCurrentTime(context, auction.startTime + auction.duration + 1);
+
+    const transactionPromise = () =>
+      program.methods
+        .cancelByResolver(escrow.reducedOrderConfig)
+        .accountsPartial({
+          resolver: state.bob.keypair.publicKey,
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.bob.keypair])
+        .rpc({ skipPreflight: true });
+
+    const results = await trackReceivedTokenAndTx(
+      provider.connection,
+      [
+        state.alice.atas[state.tokens[0].toString()].address,
+        state.bob.atas[state.tokens[0].toString()].address,
+      ],
+      transactionPromise
+    );
+
+    const resolverPremium = defaultCancellationPremium
+      .muln(1e3 + defaultMaxCancellationMultiplier)
+      .divn(1e3);
+    console.log();
+
+    expect(results).to.be.deep.eq([
+      BigInt(defaultSrcAmount.sub(resolverPremium).toNumber()),
+      BigInt(resolverPremium.toNumber()),
+    ]);
   });
 
   it("Resolver can't cancel if the order has not expired", async () => {
@@ -123,9 +246,9 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         fee: {
-          cancellationPremium: defaultCancellationPremium,
+          minCancellationPremium: defaultCancellationPremium,
         },
-        cancellationAuction: auction,
+        cancellationAuctionDuration: auction.duration,
       }),
     });
 
@@ -156,13 +279,13 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         fee: {
-          cancellationPremium: defaultCancellationPremium,
+          minCancellationPremium: defaultCancellationPremium,
         },
-        cancellationAuction: auction,
+        cancellationAuctionDuration: auction.duration,
       }),
     });
 
-    await setCurrentTime(context, state.defaultExpirationTime + 1);
+    await setCurrentTime(context, auction.startTime + 1);
     await expect(
       program.methods
         .cancelByResolver(escrow.reducedOrderConfig)

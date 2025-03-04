@@ -37,7 +37,8 @@ type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
-  cancellationPremium: anchor.BN;
+  minCancellationPremium: anchor.BN;
+  maxCancellationMultiplier: number;
 };
 type OrderConfig = ReducedOrderConfig & {
   src_mint: anchor.web3.PublicKey;
@@ -80,11 +81,12 @@ const orderConfigSchema = {
         protocolFee: "u16",
         integratorFee: "u16",
         surplusPercentage: "u8",
-        cancellationPremium: "u64",
+        minCancellationPremium: "u64",
+        maxCancellationMultiplier: "u16",
       },
     },
     dutchAuctionData: auctionSchema,
-    cancellationAuctionData: auctionSchema,
+    cancellationAuctionDuration: "u32",
     srcMint: { array: { type: "u8", len: 32 } },
     dstMint: { array: { type: "u8", len: 32 } },
   },
@@ -434,7 +436,7 @@ export class TestState {
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
-      cancellationAuctionData: this.auction,
+      cancellationAuctionDuration: 0,
       srcMint: this.tokens[0],
       dstMint: this.tokens[1],
       ...params,
@@ -444,7 +446,8 @@ export class TestState {
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
-        cancellationPremium: new anchor.BN(0),
+        minCancellationPremium: new anchor.BN(0),
+        maxCancellationMultiplier: 0,
         ...(params.fee ?? {}),
       },
     };
@@ -466,7 +469,8 @@ export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
       protocolFee: orderConfig.fee.protocolFee,
       integratorFee: orderConfig.fee.integratorFee,
       surplusPercentage: orderConfig.fee.surplusPercentage,
-      cancellationPremium: orderConfig.fee.cancellationPremium.toNumber(),
+      minCancellationPremium: orderConfig.fee.minCancellationPremium.toNumber(),
+      maxCancellationMultiplier: orderConfig.fee.maxCancellationMultiplier,
     },
     dutchAuctionData: {
       startTime: orderConfig.dutchAuctionData.startTime,
@@ -479,16 +483,7 @@ export function getOrderHash(orderConfig: OrderConfig): Uint8Array {
         })
       ),
     },
-    cancellationAuctionData: {
-      startTime: orderConfig.cancellationAuctionData.startTime,
-      duration: orderConfig.cancellationAuctionData.duration,
-      initialRateBump: orderConfig.cancellationAuctionData.initialRateBump,
-      pointsAndTimeDeltas:
-        orderConfig.cancellationAuctionData.pointsAndTimeDeltas.map((p) => ({
-          rateBump: p.rateBump,
-          timeDelta: p.timeDelta,
-        })),
-    },
+    cancellationAuctionDuration: orderConfig.cancellationAuctionDuration,
     srcMint: orderConfig.srcMint.toBuffer(),
     dstMint: orderConfig.dstMint.toBuffer(),
   };

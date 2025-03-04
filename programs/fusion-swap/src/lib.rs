@@ -8,7 +8,7 @@ use anchor_spl::{
         TransferChecked,
     },
 };
-use auction::{calculate_cancellation_bump, calculate_rate_bump, AuctionData};
+use auction::{calculate_premium_multiplier, calculate_rate_bump, AuctionData};
 use muldiv::MulDiv;
 
 pub mod auction;
@@ -19,6 +19,7 @@ use error::EscrowError;
 declare_id!("9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh");
 
 pub const BASE_1E2: u64 = 100;
+pub const BASE_1E3: u64 = 1000;
 pub const BASE_1E5: u64 = 100_000;
 
 #[program]
@@ -287,6 +288,10 @@ pub mod fusion_swap {
         ctx: Context<CancelByResolver>,
         reduced_order: ReducedOrderConfig,
     ) -> Result<()> {
+        require!(
+            reduced_order.fee.min_cancellation_premium > 0,
+            EscrowError::CancelOrderByResolverIsForbidden
+        );
         let current_timestamp = Clock::get()?.unix_timestamp;
         require!(
             current_timestamp >= reduced_order.expiration_time as i64,
@@ -294,15 +299,17 @@ pub mod fusion_swap {
         );
 
         // Calculate the total cancellation premium (base + auction premium)
-        let rate_bump = calculate_cancellation_bump(
+        let rate_bump = calculate_premium_multiplier(
             current_timestamp as u64,
-            &reduced_order.cancellation_auction_data,
+            reduced_order.expiration_time,
+            reduced_order.cancellation_auction_duration,
+            reduced_order.fee.max_cancellation_multiplier,
         );
-        // TODO: Use BASE_1E7?
+
         let total_cancellation_premium = reduced_order
             .fee
-            .cancellation_premium
-            .mul_div_ceil(BASE_1E5 + rate_bump, BASE_1E5)
+            .min_cancellation_premium
+            .mul_div_ceil(BASE_1E3 + rate_bump as u64, BASE_1E3)
             .ok_or(ProgramError::ArithmeticOverflow)?;
         require!(
             total_cancellation_premium <= ctx.accounts.escrow_src_ata.amount,
@@ -322,6 +329,8 @@ pub mod fusion_swap {
         );
 
         let order_hash = order_hash(&order)?;
+
+        // TODO: Make it possible to cancel escrow with native tokens
 
         // Transfer cancellation fee to resolver
         transfer_checked(
@@ -688,7 +697,11 @@ pub struct FeeConfig {
 
     /// Fee charged to the maker if the order is cancelled by resolver
     /// Value in absolute token amount
-    cancellation_premium: u64,
+    min_cancellation_premium: u64,
+
+    /// Maximum cancellation premium multiplier
+    /// Value in basis points where `BASE_1E3` = 100%
+    max_cancellation_multiplier: u16,
 }
 
 /// Configuration for fees applied to the escrow
@@ -706,7 +719,10 @@ pub struct ReducedFeeConfig {
 
     /// Fee charged to the maker if the order is cancelled by resolver
     /// Value in absolute token amount
-    cancellation_premium: u64,
+    min_cancellation_premium: u64,
+    /// Maximum cancellation premium multiplier
+    /// Value in basis points where `BASE_1E3` = 100%
+    max_cancellation_multiplier: u16,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -720,7 +736,7 @@ pub struct OrderConfig {
     receiver: Pubkey,
     fee: FeeConfig,
     dutch_auction_data: AuctionData,
-    cancellation_auction_data: AuctionData,
+    cancellation_auction_duration: u32,
     src_mint: Pubkey,
     dst_mint: Pubkey,
 }
@@ -735,7 +751,7 @@ pub struct ReducedOrderConfig {
     native_dst_asset: bool,
     fee: ReducedFeeConfig,
     dutch_auction_data: AuctionData,
-    cancellation_auction_data: AuctionData,
+    cancellation_auction_duration: u32,
 }
 
 fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
@@ -816,10 +832,11 @@ fn build_order_from_reduced(
             protocol_fee: order.fee.protocol_fee,
             integrator_fee: order.fee.integrator_fee,
             surplus_percentage: order.fee.surplus_percentage,
-            cancellation_premium: order.fee.cancellation_premium,
+            min_cancellation_premium: order.fee.min_cancellation_premium,
+            max_cancellation_multiplier: order.fee.max_cancellation_multiplier,
         },
         dutch_auction_data: order.dutch_auction_data.clone(),
-        cancellation_auction_data: order.cancellation_auction_data.clone(),
+        cancellation_auction_duration: order.cancellation_auction_duration,
         src_mint,
         dst_mint,
     }
