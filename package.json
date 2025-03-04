@@ -1,8 +1,8 @@
 {
   "license": "ISC",
   "scripts": {
-    "lint:rust:fix": "cargo fmt && cargo clippy --fix --allow-dirty --allow-staged",
-    "lint:rust": "cargo fmt -- --check && cargo clippy",
+    "lint:rust:fix": "cargo fmt && cargo clippy --manifest-path programs/fusion-swap/Cargo.toml --tests && cargo clippy --manifest-path native-programs/fusion-swap-native/Cargo.toml --tests --fix --allow-dirty --allow-staged",
+    "lint:rust": "cargo fmt -- --check && cargo clippy --manifest-path programs/fusion-swap/Cargo.toml --tests && cargo clippy --manifest-path native-programs/fusion-swap-native/Cargo.toml --tests",
     "lint:ts:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint:ts": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "yarn lint:ts:fix && yarn lint:rust:fix",
