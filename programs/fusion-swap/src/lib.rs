@@ -660,10 +660,8 @@ pub struct CancelByResolver<'info> {
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
-    #[account(mut)]
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    #[account(mut)]
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     /// Resolver's ATA of src_mint
