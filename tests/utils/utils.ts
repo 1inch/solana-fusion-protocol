@@ -687,6 +687,7 @@ export async function printTxCosts(
   txSignature: TransactionSignature,
   connection: anchor.web3.Connection
 ) {
+  await waitForNewBlock(connection, 1);
   const tx = await connection.getTransaction(txSignature, {
     commitment: "confirmed",
     maxSupportedTransactionVersion: 0,

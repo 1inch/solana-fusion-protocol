@@ -15,7 +15,6 @@ import {
   trackReceivedTokenAndTx,
   ReducedOrderConfig,
   printTxCosts,
-  waitForNewBlock,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
 import {
@@ -1855,7 +1854,6 @@ describe("Fusion Swap", () => {
       });
 
       // create tx
-      await waitForNewBlock(provider.connection, 1);
       await printTxCosts("Create", escrow.txSignature, provider.connection);
 
       // fill tx
@@ -1870,7 +1868,6 @@ describe("Fusion Swap", () => {
         .signers([state.bob.keypair])
         .rpc();
 
-      await waitForNewBlock(provider.connection, 1);
       await printTxCosts("Fill", txFillSignature, provider.connection);
 
       // cancel tx
@@ -1896,7 +1893,6 @@ describe("Fusion Swap", () => {
         .signers([state.alice.keypair])
         .rpc();
 
-      await waitForNewBlock(provider.connection, 1);
       await printTxCosts("Cancel", txCancelSignature, provider.connection);
     });
 
@@ -1929,7 +1925,6 @@ describe("Fusion Swap", () => {
         provider.connection,
         addresses
       );
-      await waitForNewBlock(provider.connection, 1);
       const lookupTableAccount = (
         await provider.connection.getAddressLookupTable(lookupTableAddress)
       ).value;
@@ -1940,7 +1935,6 @@ describe("Fusion Swap", () => {
         [lookupTableAccount]
       );
 
-      await waitForNewBlock(provider.connection, 1);
       await printTxCosts("Fill (lookup)", txFillSignature, provider.connection);
     });
   });

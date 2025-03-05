@@ -8,7 +8,6 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { debugLog } from "../utils/utils";
 
 export async function initializeLookupTable(
   payer: Keypair,
@@ -35,6 +34,7 @@ export async function initializeLookupTable(
     lookupTableInst,
     extendInstruction,
   ]);
+  await waitForNewBlock(connection, 1);
 
   return lookupTableAddress;
 }
@@ -62,12 +62,8 @@ export async function sendV0Transaction(
   // Sign the transaction with the payer's keypair
   transaction.sign([payer]);
 
-  debugLog(`Txx size ${transaction.serialize().length}`);
-
   // Send the transaction to the cluster
   const txid = await connection.sendTransaction(transaction);
-
-  debugLog(`Tx ${txid}`);
 
   // Confirm the transaction
   await connection.confirmTransaction(
@@ -86,7 +82,6 @@ export async function waitForNewBlock(
   connection: Connection,
   targetHeight: number
 ): Promise<void> {
-  debugLog(`Waiting for ${targetHeight} new blocks`);
   return new Promise(async (resolve: any) => {
     // Get the last valid block height of the blockchain
     const { lastValidBlockHeight } = await connection.getLatestBlockhash();
