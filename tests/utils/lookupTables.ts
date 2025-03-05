@@ -9,11 +9,16 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 
+export type lookupTableResult = {
+  address: PublicKey;
+  txid: string;
+};
+
 export async function initializeLookupTable(
   payer: Keypair,
   connection: Connection,
   addresses: PublicKey[]
-): Promise<PublicKey> {
+): Promise<lookupTableResult> {
   const slot = await connection.getSlot();
 
   const [lookupTableInst, lookupTableAddress] =
@@ -30,13 +35,13 @@ export async function initializeLookupTable(
     addresses: addresses.slice(0, 30), // 30 is a maximum limit of accounts in ALT
   });
 
-  await sendV0Transaction(connection, payer, [
+  const txid = await sendV0Transaction(connection, payer, [
     lookupTableInst,
     extendInstruction,
   ]);
   await waitForNewBlock(connection, 1);
 
-  return lookupTableAddress;
+  return { address: lookupTableAddress, txid };
 }
 
 export async function sendV0Transaction(
