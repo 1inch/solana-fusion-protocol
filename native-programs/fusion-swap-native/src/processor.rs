@@ -16,6 +16,7 @@ use spl_token::native_mint;
 
 use crate::{
     error::FusionError,
+    require,
     types::ReducedOrderConfig,
     utils::{build_order_from_reduced, order_hash},
     validation_helpers::{
@@ -23,15 +24,6 @@ use crate::{
         assert_token_program, assert_writable, init_ata_with_address_check,
     },
 };
-
-// TODO remove after merging PR with it
-macro_rules! require {
-    ($x:expr, $e: expr) => {{
-        if !($x) {
-            return Err($e);
-        };
-    }};
-}
 
 pub struct Create;
 pub struct Fill;

@@ -10,6 +10,7 @@ use spl_token_2022::{extension::StateWithExtensions, state::Account, state::Mint
 use crate::error::FusionError;
 use Result::*;
 
+#[macro_export]
 macro_rules! require {
     ($x:expr, $e: expr) => {{
         if !($x) {
