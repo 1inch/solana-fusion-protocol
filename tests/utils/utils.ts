@@ -707,14 +707,14 @@ export async function printTxCosts(
   if (tx.transaction.message instanceof Message) {
     tx.transaction.message.instructions.forEach((ix) => {
       txInfo.instructions.push({
-        data: ix.data,
+        data: bs58.decode(ix.data),
         accountsIndexes: ix.accounts,
       });
     });
   } else {
     tx.transaction.message.compiledInstructions.forEach((ix) => {
       txInfo.instructions.push({
-        data: bs58.encode(ix.data),
+        data: ix.data,
         accountsIndexes: ix.accountKeyIndexes,
       });
     });
