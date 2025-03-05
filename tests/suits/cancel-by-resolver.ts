@@ -27,10 +27,9 @@ describe("Cancel by Resolver", () => {
   let program: anchor.Program<FusionSwap>;
   let payer: anchor.web3.Keypair;
 
-  const auction = {
+  const order = {
     createTime: 0, // We update it before each test
-    startTime: 0, // We update it before each test
-    duration: 32000,
+    auctionDuration: 32000,
   };
 
   before(async () => {
@@ -52,10 +51,9 @@ describe("Cancel by Resolver", () => {
   });
 
   beforeEach(async () => {
-    auction.createTime = Math.floor(new Date().getTime() / 1000);
-    auction.startTime = auction.createTime + auction.duration;
+    order.createTime = Math.floor(new Date().getTime() / 1000);
     // Rollback clock to the current time after tests that move time forward when order already expired
-    await setCurrentTime(context, auction.createTime);
+    await setCurrentTime(context, order.createTime);
   });
 
   it("Resolver can cancel the order and receive a portion of the remaining tokens", async () => {
@@ -63,24 +61,23 @@ describe("Cancel by Resolver", () => {
       defaultSrcAmount.muln(percentage * 100).divn(100 * 100)
     );
     for (const minCancellationPremium of cancellationPremiums) {
-      await setCurrentTime(context, auction.createTime);
+      await setCurrentTime(context, order.createTime);
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider: banksClient,
         orderConfig: state.orderConfig({
           srcAmount: defaultSrcAmount,
-          expirationTime: auction.createTime + auction.duration,
           fee: {
             minCancellationPremium,
             maxCancellationMultiplier: defaultMaxCancellationMultiplier,
           },
-          cancellationAuctionDuration: auction.duration,
+          cancellationAuctionDuration: order.auctionDuration,
         }),
       });
 
       // Rewind time to expire the order
-      await setCurrentTime(context, auction.startTime + 1);
+      await setCurrentTime(context, state.defaultExpirationTime + 1);
 
       const transactionPromise = () =>
         program.methods
@@ -116,34 +113,33 @@ describe("Cancel by Resolver", () => {
     }
   });
 
-  it("Resolver can cancel the order at different points in the auction time frame", async () => {
+  it("Resolver can cancel the order at different points in the order time frame", async () => {
     const cancellationPoints = [10, 25, 50, 100].map(
       (percentage) =>
-        auction.startTime +
-        (auction.duration * (percentage * 100)) / (100 * 100)
+        state.defaultExpirationTime +
+        (order.auctionDuration * (percentage * 100)) / (100 * 100)
     );
     for (const cancellationPoint of cancellationPoints) {
-      await setCurrentTime(context, auction.createTime);
+      await setCurrentTime(context, order.createTime);
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider: banksClient,
         orderConfig: state.orderConfig({
           srcAmount: defaultSrcAmount,
-          expirationTime: auction.startTime,
           fee: {
             minCancellationPremium: defaultCancellationPremium,
             maxCancellationMultiplier: defaultMaxCancellationMultiplier,
           },
-          cancellationAuctionDuration: auction.duration,
+          cancellationAuctionDuration: order.auctionDuration,
         }),
       });
 
       await setCurrentTime(context, cancellationPoint);
 
-      const timeElapsed = cancellationPoint - auction.startTime;
+      const timeElapsed = cancellationPoint - state.defaultExpirationTime;
       const rateBump = Math.floor(
-        (timeElapsed * defaultMaxCancellationMultiplier) / auction.duration
+        (timeElapsed * defaultMaxCancellationMultiplier) / order.auctionDuration
       );
       const resolverPremium = defaultCancellationPremium
         .muln(1e3 + rateBump)
@@ -190,16 +186,18 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         srcAmount: defaultSrcAmount,
-        expirationTime: auction.startTime,
         fee: {
           minCancellationPremium: defaultCancellationPremium,
           maxCancellationMultiplier: defaultMaxCancellationMultiplier,
         },
-        cancellationAuctionDuration: auction.duration,
+        cancellationAuctionDuration: order.auctionDuration,
       }),
     });
 
-    await setCurrentTime(context, auction.startTime + auction.duration + 1);
+    await setCurrentTime(
+      context,
+      state.defaultExpirationTime + order.auctionDuration + 1
+    );
 
     const transactionPromise = () =>
       program.methods
@@ -231,7 +229,6 @@ describe("Cancel by Resolver", () => {
     const resolverPremium = defaultCancellationPremium
       .muln(1e3 + defaultMaxCancellationMultiplier)
       .divn(1e3);
-    console.log();
 
     expect(results).to.be.deep.eq([
       BigInt(defaultSrcAmount.sub(resolverPremium).toNumber()),
@@ -248,7 +245,7 @@ describe("Cancel by Resolver", () => {
         fee: {
           minCancellationPremium: defaultCancellationPremium,
         },
-        cancellationAuctionDuration: auction.duration,
+        cancellationAuctionDuration: order.auctionDuration,
       }),
     });
 
@@ -281,11 +278,11 @@ describe("Cancel by Resolver", () => {
         fee: {
           minCancellationPremium: defaultCancellationPremium,
         },
-        cancellationAuctionDuration: auction.duration,
+        cancellationAuctionDuration: order.auctionDuration,
       }),
     });
 
-    await setCurrentTime(context, auction.startTime + 1);
+    await setCurrentTime(context, state.defaultExpirationTime + 1);
     await expect(
       program.methods
         .cancelByResolver(escrow.reducedOrderConfig)
@@ -306,5 +303,43 @@ describe("Cancel by Resolver", () => {
     ).to.be.rejectedWith(
       "AnchorError caused by account: resolver_access. Error Code: AccountNotInitialized"
     );
+  });
+
+  it("Resolver can't cancel if the fee is greater than remaining balance", async () => {
+    const escrow = await state.createEscrow({
+      escrowProgram: program,
+      payer,
+      provider: banksClient,
+      orderConfig: state.orderConfig({
+        fee: {
+          minCancellationPremium: defaultSrcAmount,
+          maxCancellationMultiplier: defaultMaxCancellationMultiplier,
+        },
+        cancellationAuctionDuration: order.auctionDuration,
+      }),
+    });
+
+    await setCurrentTime(
+      context,
+      state.defaultExpirationTime + order.auctionDuration + 1
+    );
+    await expect(
+      program.methods
+        .cancelByResolver(escrow.reducedOrderConfig)
+        .accountsPartial({
+          resolver: state.bob.keypair.publicKey,
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.bob.keypair])
+        .rpc()
+    ).to.be.rejectedWith("Error Code: InvalidCancellationFee");
   });
 });

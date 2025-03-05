@@ -299,17 +299,17 @@ pub mod fusion_swap {
         );
 
         // Calculate the total cancellation premium (base + auction premium)
-        let rate_bump = calculate_premium_multiplier(
+        let premium_bump = calculate_premium_multiplier(
             current_timestamp as u64,
             reduced_order.expiration_time,
             reduced_order.cancellation_auction_duration,
             reduced_order.fee.max_cancellation_multiplier,
-        );
+        )?;
 
         let total_cancellation_premium = reduced_order
             .fee
             .min_cancellation_premium
-            .mul_div_ceil(BASE_1E3 + rate_bump as u64, BASE_1E3)
+            .mul_div_ceil(BASE_1E3 + premium_bump, BASE_1E3)
             .ok_or(ProgramError::ArithmeticOverflow)?;
         require!(
             total_cancellation_premium <= ctx.accounts.escrow_src_ata.amount,
@@ -351,26 +351,30 @@ pub mod fusion_swap {
             ctx.accounts.src_mint.decimals,
         )?;
 
-        // Return the remaining src tokens back to the maker
-        transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.src_token_program.to_account_info(),
-                TransferChecked {
-                    from: ctx.accounts.escrow_src_ata.to_account_info(),
-                    mint: ctx.accounts.src_mint.to_account_info(),
-                    to: ctx.accounts.maker_src_ata.to_account_info(),
-                    authority: ctx.accounts.escrow.to_account_info(),
-                },
-                &[&[
-                    "escrow".as_bytes(),
-                    ctx.accounts.maker.key().as_ref(),
-                    &order_hash,
-                    &[ctx.bumps.escrow],
-                ]],
-            ),
-            ctx.accounts.escrow_src_ata.amount - total_cancellation_premium,
-            ctx.accounts.src_mint.decimals,
-        )?;
+        let remaining_src_amount = ctx.accounts.escrow_src_ata.amount - total_cancellation_premium;
+
+        // Return the remaining src tokens back to the maker if any
+        if remaining_src_amount > 0 {
+            transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.src_token_program.to_account_info(),
+                    TransferChecked {
+                        from: ctx.accounts.escrow_src_ata.to_account_info(),
+                        mint: ctx.accounts.src_mint.to_account_info(),
+                        to: ctx.accounts.maker_src_ata.to_account_info(),
+                        authority: ctx.accounts.escrow.to_account_info(),
+                    },
+                    &[&[
+                        "escrow".as_bytes(),
+                        ctx.accounts.maker.key().as_ref(),
+                        &order_hash,
+                        &[ctx.bumps.escrow],
+                    ]],
+                ),
+                remaining_src_amount,
+                ctx.accounts.src_mint.decimals,
+            )?;
+        }
 
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
