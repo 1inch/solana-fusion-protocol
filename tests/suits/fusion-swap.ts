@@ -1920,7 +1920,7 @@ describe("Fusion Swap", () => {
 
       const addressesList = fillInst.keys.map((acc) => acc.pubkey);
       const addresses = Array.from(new Set(addressesList));
-      const {address: lookupTableAddress, txid} = await initializeLookupTable(
+      const { address: lookupTableAddress, txid } = await initializeLookupTable(
         state.bob.keypair,
         provider.connection,
         addresses
