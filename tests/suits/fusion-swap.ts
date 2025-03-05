@@ -1831,7 +1831,7 @@ describe("Fusion Swap", () => {
         ],
         program.programId
       );
-      console.log("bump", bump);
+      console.log("escrow bump", bump);
 
       const [, whitelistBump] = anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -1840,7 +1840,7 @@ describe("Fusion Swap", () => {
         ],
         whitelistProgram.programId
       );
-      console.log("whitelistBump", whitelistBump);
+      console.log("resolver access bump", whitelistBump);
     });
 
     it("Calculate and print tx cost", async () => {
