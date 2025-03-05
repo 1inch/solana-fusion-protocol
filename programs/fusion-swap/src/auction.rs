@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use muldiv::MulDiv;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct PointAndTimeDelta {
@@ -55,23 +54,19 @@ pub fn calculate_rate_bump(timestamp: u64, data: &AuctionData) -> u64 {
 }
 
 pub fn calculate_premium_multiplier(
-    timestamp: u64,
+    timestamp: u32,
     auction_start_time: u32,
     auction_duration: u32,
     max_cancellation_multiplier: u16,
-) -> Result<u64> {
-    if timestamp <= auction_start_time as u64 {
-        return Ok(0);
+) -> u64 {
+    if timestamp <= auction_start_time {
+        return 0;
     }
 
-    let time_elapsed = timestamp - auction_start_time as u64;
-    if time_elapsed >= auction_duration as u64 {
-        return Ok(max_cancellation_multiplier as u64);
+    let time_elapsed = timestamp - auction_start_time;
+    if time_elapsed >= auction_duration {
+        return max_cancellation_multiplier as u64;
     }
 
-    let result = time_elapsed
-        .mul_div_floor(max_cancellation_multiplier as u64, auction_duration as u64)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
-
-    Ok(result)
+    (time_elapsed as u64 * max_cancellation_multiplier as u64) / auction_duration as u64
 }

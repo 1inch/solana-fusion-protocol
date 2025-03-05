@@ -300,11 +300,11 @@ pub mod fusion_swap {
 
         // Calculate the total cancellation premium (base + auction premium)
         let premium_bump = calculate_premium_multiplier(
-            current_timestamp as u64,
+            current_timestamp as u32,
             reduced_order.expiration_time,
             reduced_order.cancellation_auction_duration,
             reduced_order.fee.max_cancellation_multiplier,
-        )?;
+        );
 
         let total_cancellation_premium = reduced_order
             .fee
