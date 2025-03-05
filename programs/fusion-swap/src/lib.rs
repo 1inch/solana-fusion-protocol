@@ -285,9 +285,6 @@ pub mod fusion_swap {
 #[derive(Accounts)]
 #[instruction(order: ReducedOrderConfig)]
 pub struct Create<'info> {
-    /// Source asset
-    src_mint: Box<InterfaceAccount<'info, Mint>>,
-
     system_program: Program<'info, System>,
 
     /// Account to store order conditions
@@ -308,6 +305,9 @@ pub struct Create<'info> {
     )]
     /// CHECK: check is not needed here as we never initialize the account
     escrow: AccountInfo<'info>,
+
+    /// Source asset
+    src_mint: Box<InterfaceAccount<'info, Mint>>,
 
     src_token_program: Interface<'info, TokenInterface>,
 

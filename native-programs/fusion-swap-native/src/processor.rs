@@ -70,11 +70,11 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     // to avoid cloning during CPI.
     //
     // accounts[0..=5] sub-slice will be used to initialize escrow src ata,
-    // and accounts[3..=6] sub-slice will be used to transfer tokens from maker
+    // and accounts[2..=6] sub-slice will be used to transfer tokens from maker
     // src ata to escrow src ata
-    let src_mint = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let escrow = next_account_info(account_info_iter)?;
+    let src_mint = next_account_info(account_info_iter)?;
     let src_token_program = next_account_info(account_info_iter)?;
     let escrow_src_ata = next_account_info(account_info_iter)?;
     let maker = next_account_info(account_info_iter)?;
@@ -119,7 +119,7 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     assert_writable(maker)?;
 
     // Src mint validations
-    assert_mint(src_mint)?;
+    let src_mint_data = assert_mint(src_mint)?;
 
     // Dst mint validations
     assert_mint(dst_mint)?;
@@ -165,7 +165,7 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
         src_mint.key,
         escrow.key,
         src_token_program.key,
-        // [src_mint, system_program, escrow, src_token_program, escrow_src_ata, maker]
+        // [system_program, escrow, src_mint, src_token_program, escrow_src_ata, maker]
         &accounts[0..=5],
     )?;
 
@@ -208,20 +208,21 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
         FusionError::InconsistentIntegratorFeeConfig.into()
     );
 
-    // TODO transfer checked
-    let transfer_ix = spl_token::instruction::transfer(
+    let transfer_checked_ix = spl_token::instruction::transfer_checked(
         src_token_program.key,
         maker_src_ata.key,
+        src_mint.key,
         escrow_src_ata.key,
         maker.key,
         &[], // signer pubkeys
         order.src_amount,
+        src_mint_data.decimals,
     )?;
 
     invoke(
-        &transfer_ix,
-        // [src_token_program, escrow_src_ata, maker, maker_src_ata]
-        &accounts[3..=6],
+        &transfer_checked_ix,
+        // [src_mint, src_token_program, escrow_src_ata, maker, maker_src_ata]
+        &accounts[2..=6],
     )
 }
 

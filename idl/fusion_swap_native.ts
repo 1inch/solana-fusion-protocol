@@ -182,16 +182,16 @@ export type FusionSwapNative = {
       discriminator: [24, 30, 200, 40, 5, 28, 7, 119];
       accounts: [
         {
-          name: "srcMint";
-          docs: ["Source asset"];
-        },
-        {
           name: "systemProgram";
           address: "11111111111111111111111111111111";
         },
         {
           name: "escrow";
           docs: ["Account to store order conditions"];
+        },
+        {
+          name: "srcMint";
+          docs: ["Source asset"];
         },
         {
           name: "srcTokenProgram";

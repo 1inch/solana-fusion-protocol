@@ -214,12 +214,6 @@
       ],
       "accounts": [
         {
-          "name": "src_mint",
-          "docs": [
-            "Source asset"
-          ]
-        },
-        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
@@ -227,6 +221,12 @@
           "name": "escrow",
           "docs": [
             "Account to store order conditions"
+          ]
+        },
+        {
+          "name": "src_mint",
+          "docs": [
+            "Source asset"
           ]
         },
         {

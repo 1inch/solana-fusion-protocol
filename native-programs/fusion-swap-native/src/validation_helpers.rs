@@ -25,13 +25,16 @@ pub fn assert_signer(account_info: &AccountInfo) -> ProgramResult {
     ))
 }
 
-pub fn assert_mint(account_info: &AccountInfo) -> ProgramResult {
-    // Here we use spl-token-2022 library to unpack the Mint data because of backward compatibility.
-    Ok(require!(
-        is_token_program(account_info.owner)
-            && StateWithExtensions::<Mint>::unpack(&account_info.data.borrow()).is_ok(),
+pub fn assert_mint(account_info: &AccountInfo) -> Result<Mint, ProgramError> {
+    require!(
+        is_token_program(account_info.owner),
         FusionError::ConstraintTokenMint.into()
-    ))
+    );
+
+    // Here we use spl-token-2022 library to unpack the Mint data because of backward compatibility.
+    StateWithExtensions::<Mint>::unpack(&account_info.data.borrow())
+        .map_err(|_| FusionError::ConstraintTokenMint.into())
+        .map(|s| s.base)
 }
 
 pub fn assert_writable(account_info: &AccountInfo) -> ProgramResult {
