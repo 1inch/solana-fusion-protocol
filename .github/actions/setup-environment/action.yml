@@ -8,7 +8,7 @@ inputs:
   rustc-version:
     description: "Rust version"
     required: true
-    default: "stable"
+    default: "1.82.0"
   solana-version:
     description: "Solana version"
     required: true
@@ -23,7 +23,7 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: 'yarn'
-    
+
     - shell: bash
       run: yarn
 
@@ -33,7 +33,7 @@ runs:
       with:
         toolchain: ${{ inputs.rustc-version }}
         components: clippy, rustfmt
-    
+
     - name: Cache Cargo dependencies
       uses: Swatinem/rust-cache@v2
 
@@ -45,7 +45,7 @@ runs:
         path: ~/.local/share/solana
         key: solana-${{ runner.os }}-${{ inputs.solana-version }}
         restore-keys: solana-${{ runner.os }}-
-      
+
     - name: Install Solana CLI (if cache is not hit)
       shell: bash
       if: steps.cache-solana.outputs.cache-hit != 'true'
@@ -56,7 +56,7 @@ runs:
     - name: Add Solana CLI to PATH
       shell: bash
       run: echo "/home/runner/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-    
+
     - name: Create Solana Wallet
       shell: bash
       run: solana-keygen new --no-bip39-passphrase
@@ -65,7 +65,7 @@ runs:
     - name: Install Anchor CLI
       shell: bash
       run: cargo install anchor-cli
-    
+
     # Verifications
     - name: Verify Yarn installation
       shell: bash
