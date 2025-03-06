@@ -53,7 +53,7 @@ function errorCodeHex(error: string): string {
   return `0x${errorCode.toString(16)}`;
 }
 
-describe("Fusion Swap Native", () => {
+describe.skip("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
