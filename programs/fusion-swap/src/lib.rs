@@ -456,7 +456,6 @@ pub struct Cancel<'info> {
 
     /// Account to store order conditions
     #[account(
-        mut,
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
