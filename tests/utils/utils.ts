@@ -5,6 +5,8 @@ import {
   sendAndConfirmTransaction,
   PublicKey,
   LAMPORTS_PER_SOL,
+  TransactionSignature,
+  Message,
 } from "@solana/web3.js";
 import * as splBankrunToken from "spl-token-bankrun";
 import {
@@ -14,6 +16,7 @@ import {
   ProgramTestContext,
   startAnchor,
 } from "solana-bankrun";
+import bs58 from "bs58";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
@@ -39,6 +42,7 @@ type FeeConfig = {
   minCancellationPremium: anchor.BN;
   maxCancellationMultiplier: number;
 };
+
 type OrderConfig = ReducedOrderConfig & {
   srcMint: anchor.web3.PublicKey;
   dstMint: anchor.web3.PublicKey;
@@ -408,6 +412,7 @@ export class TestState {
   }
 }
 
+let tokensCounter = 0;
 export async function createTokens(
   num: number,
   provider: anchor.AnchorProvider | BanksClient,
@@ -421,7 +426,10 @@ export async function createTokens(
       ? [splToken, provider.connection, [undefined, programId]]
       : [splBankrunToken, provider, [programId]];
 
-  for (let i = 0; i < num; ++i) {
+  for (let i = 0; i < num; ++i, ++tokensCounter) {
+    const keypair = anchor.web3.Keypair.fromSeed(
+      new Uint8Array(32).fill(tokensCounter + 101)
+    );
     tokens.push(
       await tokenLibrary.createMint(
         connection,
@@ -429,7 +437,7 @@ export async function createTokens(
         payer.publicKey,
         null,
         6,
-        undefined,
+        keypair,
         ...extraArgs
       )
     );
@@ -437,6 +445,7 @@ export async function createTokens(
   return tokens;
 }
 
+let usersCounter = 0;
 async function createUsers(
   num: number,
   tokens: Array<anchor.web3.PublicKey>,
@@ -444,8 +453,10 @@ async function createUsers(
   payer: anchor.web3.Keypair
 ): Promise<Array<User>> {
   let usersKeypairs: Array<anchor.web3.Keypair> = [];
-  for (let i = 0; i < num; ++i) {
-    const keypair = anchor.web3.Keypair.generate();
+  for (let i = 0; i < num; ++i, ++usersCounter) {
+    const keypair = anchor.web3.Keypair.fromSeed(
+      new Uint8Array(32).fill(usersCounter)
+    );
     usersKeypairs.push(keypair);
     if (provider instanceof anchor.AnchorProvider) {
       await provider.connection.requestAirdrop(
@@ -633,8 +644,110 @@ export async function setCurrentTime(
   );
 }
 
-export function numberToBuffer(n: number, bufSize: number) {
-  return Buffer.from((~~n).toString(16).padStart(bufSize * 2, "0"), "hex");
+type TxInfoInstruction = {
+  data: string | Uint8Array;
+  accountsIndexes: number[];
+};
+
+class TxInfo {
+  label: string;
+  instructions: TxInfoInstruction[];
+  length: number;
+  computeUnits: number;
+
+  constructor({
+    label = "",
+    instructions = [],
+    length = 0,
+    computeUnits = 0,
+  }: {
+    label: string;
+    instructions: TxInfoInstruction[];
+    length: number;
+    computeUnits: number;
+  }) {
+    this.label = label;
+    this.instructions = instructions;
+    this.length = length;
+    this.computeUnits = computeUnits;
+  }
+
+  toString() {
+    return `Tx ${this.label}: ${this.length} bytes, ${
+      this.computeUnits
+    } compute units\n${this.instructions
+      .map(
+        (ix, i) =>
+          `\tinst ${i}: ${ix.data.length} bytes + ${ix.accountsIndexes.length} accounts \n`
+      )
+      .join("")}`;
+  }
+}
+
+export async function printTxCosts(
+  label: string,
+  txSignature: TransactionSignature,
+  connection: anchor.web3.Connection
+) {
+  await waitForNewBlock(connection, 1);
+  const tx = await connection.getTransaction(txSignature, {
+    commitment: "confirmed",
+    maxSupportedTransactionVersion: 0,
+  });
+
+  const serializedMessage = tx.transaction.message.serialize();
+  const signaturesSize = tx.transaction.signatures.length * 64;
+  const totalSize = serializedMessage.length + 1 + signaturesSize; // 1 byte for numSignatures
+
+  const txInfo = new TxInfo({
+    label,
+    length: totalSize,
+    computeUnits: tx.meta.computeUnitsConsumed,
+    instructions: [],
+  });
+
+  if (tx.transaction.message instanceof Message) {
+    tx.transaction.message.instructions.forEach((ix) => {
+      txInfo.instructions.push({
+        data: bs58.decode(ix.data),
+        accountsIndexes: ix.accounts,
+      });
+    });
+  } else {
+    tx.transaction.message.compiledInstructions.forEach((ix) => {
+      txInfo.instructions.push({
+        data: ix.data,
+        accountsIndexes: ix.accountKeyIndexes,
+      });
+    });
+  }
+
+  console.log(txInfo.toString());
+}
+
+export async function waitForNewBlock(
+  connection: anchor.web3.Connection,
+  targetHeight: number
+): Promise<void> {
+  debugLog(`Waiting for ${targetHeight} new blocks`);
+  return new Promise(async (resolve: any) => {
+    // Get the last valid block height of the blockchain
+    const { lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+    // Set an interval to check for new blocks every 1000ms
+    const intervalId = setInterval(async () => {
+      // Get the new valid block height
+      const { lastValidBlockHeight: newValidBlockHeight } =
+        await connection.getLatestBlockhash();
+
+      // Check if the new valid block height is greater than the target block height
+      if (newValidBlockHeight > lastValidBlockHeight + targetHeight) {
+        // If the target block height is reached, clear the interval and resolve the promise
+        clearInterval(intervalId);
+        resolve();
+      }
+    }, 1000);
+  });
 }
 
 // Anchor test fails with "Account does not exist <pubkey>" error when account does not exist

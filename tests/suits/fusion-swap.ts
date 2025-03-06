@@ -14,8 +14,13 @@ import {
   removeWhitelistedAccount,
   trackReceivedTokenAndTx,
   ReducedOrderConfig,
+  printTxCosts,
 } from "../utils/utils";
 import { Whitelist } from "../../target/types/whitelist";
+import {
+  initializeLookupTable,
+  sendV0Transaction,
+} from "../utils/lookupTables";
 import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
@@ -1803,6 +1808,161 @@ describe("Fusion Swap", () => {
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
       ]);
+    });
+  });
+
+  describe("Tests tx cost", () => {
+    it("Print bumps", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          expirationTime: 0xffffffff,
+        },
+      });
+
+      const [, bump] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(escrow.orderConfig),
+        ],
+        program.programId
+      );
+      console.log("escrow bump", bump);
+
+      const [, whitelistBump] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("resolver_access"),
+          state.bob.keypair.publicKey.toBuffer(),
+        ],
+        whitelistProgram.programId
+      );
+      console.log("resolver access bump", whitelistBump);
+    });
+
+    it("Calculate and print tx cost", async () => {
+      // create new escrow
+      const orderConfig = state.orderConfig({
+        expirationTime: 0xffffffff,
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      const escrowAta = await splToken.getAssociatedTokenAddress(
+        orderConfig.srcMint,
+        escrow,
+        true,
+        splToken.TOKEN_PROGRAM_ID
+      );
+
+      const txSignature = await program.methods
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: state.tokens[0],
+          dstMint: state.tokens[1],
+          protocolDstAta: null,
+          integratorDstAta: null,
+          escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      // create tx
+      await printTxCosts("Create", txSignature, provider.connection);
+
+      // fill tx
+      const txFillSignature = await program.methods
+        .fill(orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow,
+            escrowSrcAta: escrowAta,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      await printTxCosts("Fill", txFillSignature, provider.connection);
+
+      // cancel tx
+      // re-create escrow with same id
+      await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          id: orderConfig.id,
+          expirationTime: 0xffffffff,
+        },
+      });
+
+      const txCancelSignature = await program.methods
+        .cancel(Array.from(calculateOrderHash(orderConfig)))
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: state.tokens[0],
+          escrow: escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      await printTxCosts("Cancel", txCancelSignature, provider.connection);
+    });
+
+    it("Calculate and print tx cost (lookup tables)", async () => {
+      // create new escrow
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          expirationTime: 0xffffffff,
+        },
+      });
+
+      const fillInst = await program.methods
+        .fill(escrow.orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+          })
+        )
+        .signers([state.bob.keypair])
+        .instruction();
+
+      const addressesList = fillInst.keys.map((acc) => acc.pubkey);
+      const addresses = Array.from(new Set(addressesList));
+      const { address: lookupTableAddress, txid } = await initializeLookupTable(
+        state.bob.keypair,
+        provider.connection,
+        addresses
+      );
+      await printTxCosts("Deploy lookup (lookup)", txid, provider.connection);
+      const lookupTableAccount = (
+        await provider.connection.getAddressLookupTable(lookupTableAddress)
+      ).value;
+      const txFillSignature = await sendV0Transaction(
+        provider.connection,
+        state.bob.keypair,
+        [fillInst],
+        [lookupTableAccount]
+      );
+
+      await printTxCosts("Fill (lookup)", txFillSignature, provider.connection);
     });
   });
 });
