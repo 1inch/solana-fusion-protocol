@@ -20,4 +20,10 @@ pub enum FusionError {
     InconsistentProtocolFeeConfig,
     #[msg("Inconsistent integrator fee config")]
     InconsistentIntegratorFeeConfig,
+    #[msg("Order not expired")]
+    OrderNotExpired,
+    #[msg("Invalid cancellation fee")]
+    InvalidCancellationFee,
+    #[msg("Cancel order by resolver is forbidden")]
+    CancelOrderByResolverIsForbidden,
 }

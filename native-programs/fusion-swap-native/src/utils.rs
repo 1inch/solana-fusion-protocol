@@ -24,8 +24,11 @@ pub fn build_order_from_reduced(
             protocol_fee: order.fee.protocol_fee,
             integrator_fee: order.fee.integrator_fee,
             surplus_percentage: order.fee.surplus_percentage,
+            min_cancellation_premium: order.fee.min_cancellation_premium,
+            max_cancellation_multiplier: order.fee.max_cancellation_multiplier,
         },
         dutch_auction_data: order.dutch_auction_data.clone(),
+        cancellation_auction_duration: order.cancellation_auction_duration,
         src_mint,
         dst_mint,
     }

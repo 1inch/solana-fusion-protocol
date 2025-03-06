@@ -96,7 +96,7 @@ describe("Fusion Swap Native", () => {
   });
 
   describe("Single escrow", () => {
-    it.only("Creates escrow src ata", async () => {
+    it("Creates escrow src ata", async () => {
       const orderConfig = state.orderConfig({});
 
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(

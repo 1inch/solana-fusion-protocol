@@ -26,29 +26,34 @@ export type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
+  minCancellationPremium: anchor.BN;
+  maxCancellationMultiplier: number;
 };
 export type OrderConfig = ReducedOrderConfig & {
   srcMint: anchor.web3.PublicKey;
   dstMint: anchor.web3.PublicKey;
   receiver: anchor.web3.PublicKey;
   fee: FeeConfig;
+  cancellationAuctionDuration: number;
 };
 
 const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
 export type Escrow = (typeof escrowType)["type"]["fields"];
 
-const dutchAuctionDataType = FusionSwapIDL.types.find(
-  (t) => t.name === "DutchAuctionData"
+const auctionDataType = FusionSwapIDL.types.find(
+  (t) => t.name === "AuctionData"
 );
-export type DutchAuctionData = (typeof dutchAuctionDataType)["type"]["fields"];
+export type AuctionData = (typeof auctionDataType)["type"]["fields"];
 
 export const defaultFeeConfig: ReducedFeeConfig = {
   protocolFee: 0,
   integratorFee: 0,
   surplusPercentage: 0,
+  minCancellationPremium: new anchor.BN(0),
+  maxCancellationMultiplier: 0,
 };
 
-export const defaultAuctionData: DutchAuctionData = {
+export const defaultAuctionData: AuctionData = {
   startTime: 0xffffffff - 32000, // default auction start in the far far future and order use default formula
   duration: 32000,
   initialRateBump: 0,
@@ -156,6 +161,8 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
       protocolFee: orderConfig.fee.protocolFee,
       integratorFee: orderConfig.fee.integratorFee,
       surplusPercentage: orderConfig.fee.surplusPercentage,
+      minCancellationPremium: orderConfig.fee.minCancellationPremium,
+      maxCancellationMultiplier: orderConfig.fee.maxCancellationMultiplier,
     },
     dutchAuctionData: {
       startTime: orderConfig.dutchAuctionData.startTime,
@@ -168,6 +175,7 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
         })
       ),
     },
+    cancellationAuctionDuration: orderConfig.cancellationAuctionDuration,
     srcMint: orderConfig.srcMint.toBuffer(),
     dstMint: orderConfig.dstMint.toBuffer(),
   };
@@ -191,6 +199,8 @@ const orderConfigSchema = {
         protocolFee: "u16",
         integratorFee: "u16",
         surplusPercentage: "u8",
+        minCancellationPremium: "u64",
+        maxCancellationMultiplier: "u16",
       },
     },
     dutchAuctionData: {
@@ -210,6 +220,7 @@ const orderConfigSchema = {
         },
       },
     },
+    cancellationAuctionDuration: "u32",
     srcMint: { array: { type: "u8", len: 32 } },
     dstMint: { array: { type: "u8", len: 32 } },
   },

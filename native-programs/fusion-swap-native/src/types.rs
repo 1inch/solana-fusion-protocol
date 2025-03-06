@@ -25,6 +25,14 @@ pub struct FeeConfig {
     /// Percentage of positive slippage taken by the protocol as an additional fee.
     /// Value in basis points where `BASE_1E2` = 100%
     pub surplus_percentage: u8,
+
+    /// Fee charged to the maker if the order is cancelled by resolver
+    /// Value in absolute token amount
+    pub min_cancellation_premium: u64,
+
+    /// Maximum cancellation premium multiplier
+    /// Value in basis points where `BASE_1E3` = 100%
+    pub max_cancellation_multiplier: u16,
 }
 
 /// Configuration for fees applied to the escrow
@@ -39,6 +47,13 @@ pub struct ReducedFeeConfig {
     /// Percentage of positive slippage taken by the protocol as an additional fee.
     /// Value in basis points where `BASE_1E2` = 100%
     pub surplus_percentage: u8,
+
+    /// Fee charged to the maker if the order is cancelled by resolver
+    /// Value in absolute token amount
+    pub min_cancellation_premium: u64,
+    /// Maximum cancellation premium multiplier
+    /// Value in basis points where `BASE_1E3` = 100%
+    pub max_cancellation_multiplier: u16,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -52,6 +67,7 @@ pub struct OrderConfig {
     pub receiver: Pubkey,
     pub fee: FeeConfig,
     pub dutch_auction_data: DutchAuctionData,
+    pub cancellation_auction_duration: u32,
     pub src_mint: Pubkey,
     pub dst_mint: Pubkey,
 }
@@ -66,6 +82,7 @@ pub struct ReducedOrderConfig {
     pub native_dst_asset: bool,
     pub fee: ReducedFeeConfig,
     pub dutch_auction_data: DutchAuctionData,
+    pub cancellation_auction_duration: u32,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
