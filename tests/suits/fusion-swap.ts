@@ -1861,23 +1861,23 @@ describe("Fusion Swap", () => {
         orderConfig.srcMint,
         escrow,
         true,
-        splToken.TOKEN_PROGRAM_ID,
+        splToken.TOKEN_PROGRAM_ID
       );
 
       const txSignature = await program.methods
-          .create(orderConfig as ReducedOrderConfig)
-          .accountsPartial({
-            maker: state.alice.keypair.publicKey,
-            makerReceiver: orderConfig.receiver,
-            srcMint: state.tokens[0],
-            dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
-            escrow,
-            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          })
-          .signers([state.alice.keypair])
-          .rpc()
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: state.tokens[0],
+          dstMint: state.tokens[1],
+          protocolDstAta: null,
+          integratorDstAta: null,
+          escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
 
       // create tx
       await printTxCosts("Create", txSignature, provider.connection);
