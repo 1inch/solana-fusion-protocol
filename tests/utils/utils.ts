@@ -36,6 +36,8 @@ type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
+  minCancellationPremium: anchor.BN;
+  maxCancellationMultiplier: number;
 };
 type OrderConfig = ReducedOrderConfig & {
   srcMint: anchor.web3.PublicKey;
@@ -388,6 +390,7 @@ export class TestState {
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
+      cancellationAuctionDuration: 0,
       srcMint: this.tokens[0],
       dstMint: this.tokens[1],
       ...params,
@@ -397,6 +400,8 @@ export class TestState {
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
+        minCancellationPremium: new anchor.BN(0),
+        maxCancellationMultiplier: 0,
         ...(params.fee ?? {}),
       },
     };

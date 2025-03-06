@@ -63,7 +63,7 @@ describe("Dutch Auction", () => {
   beforeEach(async () => {
     auction.startTime = Math.floor(new Date().getTime() / 1000);
 
-    // rollback clock to the current time after tests that move time forward when order already expired
+    // Rollback clock to the current time after tests that move time forward when order already expired
     await setCurrentTime(context, auction.startTime);
 
     state.escrows[0] = await state.createEscrow({

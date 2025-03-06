@@ -17,7 +17,7 @@ import {
   defaultAuctionData,
   defaultExpirationTime,
   defaultFeeConfig,
-  DutchAuctionData,
+  AuctionData,
   findEscrowAddress,
   getClusterUrlEnv,
   getTokenDecimals,
@@ -45,7 +45,8 @@ async function create(
   protocolDstAta: PublicKey = null,
   integratorDstAta: PublicKey = null,
   estimatedDstAmount: BN = minDstAmount,
-  dutchAuctionData: DutchAuctionData = defaultAuctionData,
+  dutchAuctionData: AuctionData = defaultAuctionData,
+  cancellationAuctionDuration: number = defaultAuctionData.duration,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
   const reducedOrderConfig: ReducedOrderConfig = {
@@ -57,6 +58,7 @@ async function create(
     nativeDstAsset,
     fee,
     dutchAuctionData,
+    cancellationAuctionDuration,
   };
 
   const orderConfig: OrderConfig = {

@@ -7,14 +7,14 @@ pub struct PointAndTimeDelta {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct DutchAuctionData {
+pub struct AuctionData {
     pub start_time: u32,
     pub duration: u32,
     pub initial_rate_bump: u16,
     pub points_and_time_deltas: Vec<PointAndTimeDelta>,
 }
 
-pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
+pub fn calculate_rate_bump(timestamp: u64, data: &AuctionData) -> u64 {
     if timestamp <= data.start_time as u64 {
         return data.initial_rate_bump as u64;
     }
@@ -51,4 +51,22 @@ pub fn calculate_rate_bump(timestamp: u64, data: &DutchAuctionData) -> u64 {
     // 3. current_point_time < auction_finish_time as we know that current_point_time < timestamp
     (auction_finish_time - timestamp) * current_rate_bump
         / (auction_finish_time - current_point_time)
+}
+
+pub fn calculate_premium_multiplier(
+    timestamp: u32,
+    auction_start_time: u32,
+    auction_duration: u32,
+    max_cancellation_multiplier: u16,
+) -> u64 {
+    if timestamp <= auction_start_time {
+        return 0;
+    }
+
+    let time_elapsed = timestamp - auction_start_time;
+    if time_elapsed >= auction_duration {
+        return max_cancellation_multiplier as u64;
+    }
+
+    (time_elapsed as u64 * max_cancellation_multiplier as u64) / auction_duration as u64
 }
