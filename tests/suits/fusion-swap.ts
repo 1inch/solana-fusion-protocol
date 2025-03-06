@@ -1844,25 +1844,51 @@ describe("Fusion Swap", () => {
 
     it("Calculate and print tx cost", async () => {
       // create new escrow
-      const escrow = await state.createEscrow({
-        escrowProgram: program,
-        payer,
-        provider,
-        orderConfig: {
-          expirationTime: 0xffffffff,
-        },
+      const orderConfig = state.orderConfig({
+        expirationTime: 0xffffffff,
       });
 
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      const escrowAta = await splToken.getAssociatedTokenAddress(
+        orderConfig.srcMint,
+        escrow,
+        true,
+        splToken.TOKEN_PROGRAM_ID,
+      );
+
+      const txSignature = await program.methods
+          .create(orderConfig as ReducedOrderConfig)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            protocolDstAta: null,
+            integratorDstAta: null,
+            escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+
       // create tx
-      await printTxCosts("Create", escrow.txSignature, provider.connection);
+      await printTxCosts("Create", txSignature, provider.connection);
 
       // fill tx
       const txFillSignature = await program.methods
-        .fill(escrow.orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
+        .fill(orderConfig as ReducedOrderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
+            escrow,
+            escrowSrcAta: escrowAta,
           })
         )
         .signers([state.bob.keypair])
@@ -1877,17 +1903,17 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         orderConfig: {
-          id: escrow.orderConfig.id,
+          id: orderConfig.id,
           expirationTime: 0xffffffff,
         },
       });
 
       const txCancelSignature = await program.methods
-        .cancel(Array.from(calculateOrderHash(escrow.orderConfig)))
+        .cancel(Array.from(calculateOrderHash(orderConfig)))
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],
-          escrow: escrow.escrow,
+          escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.alice.keypair])

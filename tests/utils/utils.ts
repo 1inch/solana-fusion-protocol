@@ -56,7 +56,6 @@ export type User = {
 };
 
 export type Escrow = {
-  txSignature: TransactionSignature;
   escrow: anchor.web3.PublicKey;
   orderConfig: OrderConfig;
   reducedOrderConfig: ReducedOrderConfig;
@@ -364,20 +363,18 @@ export class TestState {
       })
       .signers([this.alice.keypair]);
 
-    let txSignature: string;
     if (provider instanceof anchor.AnchorProvider) {
       const tx = await txBuilder.transaction();
 
-      txSignature = await sendAndConfirmTransaction(provider.connection, tx, [
+      await sendAndConfirmTransaction(provider.connection, tx, [
         payer,
         this.alice.keypair,
       ]);
     } else {
-      txSignature = await txBuilder.rpc();
+      await txBuilder.rpc();
     }
 
     return {
-      txSignature,
       escrow,
       orderConfig,
       reducedOrderConfig: orderConfig as ReducedOrderConfig,
