@@ -21,8 +21,8 @@ const reducedFeeConfigType = FusionSwapIDL.types.find(
 export type ReducedFeeConfig = (typeof reducedFeeConfigType)["type"]["fields"];
 
 export type FeeConfig = {
-  protocolDstAta: anchor.web3.PublicKey | null;
-  integratorDstAta: anchor.web3.PublicKey | null;
+  protocolDstAcc: anchor.web3.PublicKey | null;
+  integratorDstAcc: anchor.web3.PublicKey | null;
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
@@ -156,8 +156,8 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
     nativeDstAsset: orderConfig.nativeDstAsset,
     receiver: orderConfig.receiver.toBuffer(),
     fee: {
-      protocolDstAta: orderConfig.fee.protocolDstAta?.toBuffer(),
-      integratorDstAta: orderConfig.fee.integratorDstAta?.toBuffer(),
+      protocolDstAcc: orderConfig.fee.protocolDstAcc?.toBuffer(),
+      integratorDstAcc: orderConfig.fee.integratorDstAcc?.toBuffer(),
       protocolFee: orderConfig.fee.protocolFee,
       integratorFee: orderConfig.fee.integratorFee,
       surplusPercentage: orderConfig.fee.surplusPercentage,
@@ -194,8 +194,8 @@ const orderConfigSchema = {
     receiver: { array: { type: "u8", len: 32 } },
     fee: {
       struct: {
-        protocolDstAta: { option: { array: { type: "u8", len: 32 } } },
-        integratorDstAta: { option: { array: { type: "u8", len: 32 } } },
+        protocolDstAcc: { option: { array: { type: "u8", len: 32 } } },
+        integratorDstAcc: { option: { array: { type: "u8", len: 32 } } },
         protocolFee: "u16",
         integratorFee: "u16",
         surplusPercentage: "u8",

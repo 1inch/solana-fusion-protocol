@@ -90,8 +90,8 @@ describe("Cancel by Resolver", () => {
             dstMint: escrow.orderConfig.dstMint,
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
-            protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-            integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+            protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+            integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.bob.keypair])
@@ -156,8 +156,8 @@ describe("Cancel by Resolver", () => {
             dstMint: escrow.orderConfig.dstMint,
             escrow: escrow.escrow,
             escrowSrcAta: escrow.ata,
-            protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-            integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+            protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+            integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
           .signers([state.bob.keypair])
@@ -210,8 +210,8 @@ describe("Cancel by Resolver", () => {
           dstMint: escrow.orderConfig.dstMint,
           escrow: escrow.escrow,
           escrowSrcAta: escrow.ata,
-          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.bob.keypair])
@@ -260,8 +260,8 @@ describe("Cancel by Resolver", () => {
           dstMint: escrow.orderConfig.dstMint,
           escrow: escrow.escrow,
           escrowSrcAta: escrow.ata,
-          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.bob.keypair])
@@ -294,8 +294,8 @@ describe("Cancel by Resolver", () => {
           dstMint: escrow.orderConfig.dstMint,
           escrow: escrow.escrow,
           escrowSrcAta: escrow.ata,
-          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.charlie.keypair])
@@ -334,8 +334,8 @@ describe("Cancel by Resolver", () => {
           dstMint: escrow.orderConfig.dstMint,
           escrow: escrow.escrow,
           escrowSrcAta: escrow.ata,
-          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
         .signers([state.bob.keypair])

@@ -115,8 +115,8 @@ describe.skip("Fusion Swap Native", () => {
           makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
-          protocolDstAta: null,
-          integratorDstAta: null,
+          protocolDstAcc: null,
+          integratorDstAcc: null,
           escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
@@ -747,9 +747,9 @@ describe.skip("Fusion Swap Native", () => {
         orderConfig: state.orderConfig({
           fee: {
             protocolFee: 10000, // 10%
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
-            integratorDstAta: null,
+            integratorDstAcc: null,
           },
         }),
       });
@@ -761,7 +761,7 @@ describe.skip("Fusion Swap Native", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta:
+              protocolDstAcc:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -803,8 +803,8 @@ describe.skip("Fusion Swap Native", () => {
         orderConfig: state.orderConfig({
           fee: {
             integratorFee: 15000, // 15%
-            protocolDstAta: null,
-            integratorDstAta:
+            protocolDstAcc: null,
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
@@ -817,7 +817,7 @@ describe.skip("Fusion Swap Native", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta:
+              integratorDstAcc:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -997,8 +997,8 @@ describe.skip("Fusion Swap Native", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1033,8 +1033,8 @@ describe.skip("Fusion Swap Native", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1065,8 +1065,8 @@ describe.skip("Fusion Swap Native", () => {
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
-          protocolDstAta: null,
-          integratorDstAta: null,
+          protocolDstAcc: null,
+          integratorDstAcc: null,
           escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           makerReceiver: state.alice.keypair.publicKey,
@@ -1086,8 +1086,8 @@ describe.skip("Fusion Swap Native", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
             makerReceiver: state.alice.keypair.publicKey,
@@ -1197,8 +1197,8 @@ describe.skip("Fusion Swap Native", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
             makerReceiver: state.alice.keypair.publicKey,
@@ -1234,9 +1234,9 @@ describe.skip("Fusion Swap Native", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address,
-            integratorDstAta: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
             makerReceiver: state.alice.keypair.publicKey,
@@ -1272,8 +1272,8 @@ describe.skip("Fusion Swap Native", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta:
+            protocolDstAcc: null,
+            integratorDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -1297,7 +1297,7 @@ describe.skip("Fusion Swap Native", () => {
         orderConfig: state.orderConfig({
           fee: {
             protocolFee: 10000, // 10%
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
@@ -1310,7 +1310,7 @@ describe.skip("Fusion Swap Native", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta:
+              protocolDstAcc:
                 state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_ata
             })
           )
@@ -1332,7 +1332,7 @@ describe.skip("Fusion Swap Native", () => {
         orderConfig: state.orderConfig({
           fee: {
             protocolFee: 10000, // 10%
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
@@ -1365,7 +1365,7 @@ describe.skip("Fusion Swap Native", () => {
         orderConfig: state.orderConfig({
           fee: {
             integratorFee: 10000, // 10%
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
@@ -1378,7 +1378,7 @@ describe.skip("Fusion Swap Native", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta:
+              integratorDstAcc:
                 state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_ata
             })
           )
@@ -1400,7 +1400,7 @@ describe.skip("Fusion Swap Native", () => {
         orderConfig: state.orderConfig({
           fee: {
             integratorFee: 10000, // 10%
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
           },
         }),
@@ -1948,8 +1948,8 @@ describe.skip("Fusion Swap Native", () => {
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
             makerReceiver: state.alice.keypair.publicKey,

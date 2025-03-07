@@ -607,7 +607,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
@@ -621,7 +621,7 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta:
+              protocolDstAcc:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -657,7 +657,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 15000, // 15%
           },
@@ -671,7 +671,7 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta:
+              integratorDstAcc:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -836,8 +836,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -868,8 +868,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -897,8 +897,8 @@ describe("Fusion Swap", () => {
           makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
-          protocolDstAta: null,
-          integratorDstAta: null,
+          protocolDstAcc: null,
+          integratorDstAcc: null,
           escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
@@ -913,8 +913,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -999,8 +999,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1031,9 +1031,9 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address,
-            integratorDstAta: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1064,8 +1064,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta:
+            protocolDstAcc: null,
+            integratorDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -1082,7 +1082,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
@@ -1096,7 +1096,7 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta:
+              protocolDstAcc:
                 state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_ata
             })
           )
@@ -1112,7 +1112,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
@@ -1140,7 +1140,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
           },
@@ -1154,7 +1154,7 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta:
+              integratorDstAcc:
                 state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_ata
             })
           )
@@ -1170,7 +1170,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
           },
@@ -1658,8 +1658,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1871,8 +1871,8 @@ describe("Fusion Swap", () => {
           makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
-          protocolDstAta: null,
-          integratorDstAta: null,
+          protocolDstAcc: null,
+          integratorDstAcc: null,
           escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })

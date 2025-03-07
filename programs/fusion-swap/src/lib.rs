@@ -50,18 +50,40 @@ pub mod fusion_swap {
             FusionError::InvalidEstimatedTakingAmount
         );
 
-        // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
+        // Iff protocol fee or surplus is positive, protocol_dst_acc must be set
         require!(
             (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-                == ctx.accounts.protocol_dst_ata.is_some(),
+                == ctx.accounts.protocol_dst_acc.is_some(),
             FusionError::InconsistentProtocolFeeConfig
         );
 
-        // Iff integrator fee is positive, integrator_dst_ata must be set
+        // Iff integrator fee is positive, integrator_dst_acc must be set
         require!(
-            (order.fee.integrator_fee > 0) == ctx.accounts.integrator_dst_ata.is_some(),
+            (order.fee.integrator_fee > 0) == ctx.accounts.integrator_dst_acc.is_some(),
             FusionError::InconsistentIntegratorFeeConfig
         );
+
+        if (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0) && !order.native_dst_asset {
+            let protocol_dst_acc = ctx.accounts.protocol_dst_acc.as_ref().unwrap();
+            let protocol_dst_ata =
+                TokenAccount::try_deserialize(&mut &**protocol_dst_acc.data.borrow())
+                    .map_err(|_| FusionError::InvalidProtocolDstAta)?;
+            require!(
+                protocol_dst_ata.mint == ctx.accounts.dst_mint.key(),
+                FusionError::InconsistentProtocolFeeConfig
+            )
+        }
+
+        if order.fee.integrator_fee > 0 && !order.native_dst_asset {
+            let integrator_dst_acc = ctx.accounts.integrator_dst_acc.as_ref().unwrap();
+            let integrator_dst_ata =
+                TokenAccount::try_deserialize(&mut &**integrator_dst_acc.data.borrow())
+                    .map_err(|_| FusionError::InvalidProtocolDstAta)?;
+            require!(
+                integrator_dst_ata.mint == ctx.accounts.dst_mint.key(),
+                FusionError::InconsistentIntegratorFeeConfig
+            )
+        }
 
         // Maker => Escrow
         transfer_checked(
@@ -97,9 +119,9 @@ pub mod fusion_swap {
             ctx.accounts.src_mint.key(),
             ctx.accounts.dst_mint.key(),
             ctx.accounts.maker_receiver.key(),
-            ctx.accounts.protocol_dst_ata.as_ref().map(|ata| ata.key()),
+            ctx.accounts.protocol_dst_acc.as_ref().map(|ata| ata.key()),
             ctx.accounts
-                .integrator_dst_ata
+                .integrator_dst_acc
                 .as_ref()
                 .map(|ata| ata.key()),
         );
@@ -142,48 +164,73 @@ pub mod fusion_swap {
 
         // Take protocol fee
         if protocol_fee_amount > 0 {
-            let protocol_dst_ata = ctx
+            let protocol_dst_acc = ctx
                 .accounts
-                .protocol_dst_ata
+                .protocol_dst_acc
                 .as_ref()
                 .ok_or(FusionError::InconsistentProtocolFeeConfig)?;
-
-            transfer_checked(
-                CpiContext::new(
-                    ctx.accounts.dst_token_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.taker_dst_ata.to_account_info(),
-                        mint: ctx.accounts.dst_mint.to_account_info(),
-                        to: protocol_dst_ata.to_account_info(),
-                        authority: ctx.accounts.taker.to_account_info(),
-                    },
-                ),
-                protocol_fee_amount,
-                ctx.accounts.dst_mint.decimals,
-            )?;
+            if order.native_dst_asset {
+                anchor_lang::system_program::transfer(
+                    CpiContext::new(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.taker.to_account_info(),
+                            to: protocol_dst_acc.to_account_info(),
+                        },
+                    ),
+                    maker_dst_amount,
+                )?;
+            } else {
+                transfer_checked(
+                    CpiContext::new(
+                        ctx.accounts.dst_token_program.to_account_info(),
+                        TransferChecked {
+                            from: ctx.accounts.taker_dst_ata.to_account_info(),
+                            mint: ctx.accounts.dst_mint.to_account_info(),
+                            to: protocol_dst_acc.to_account_info(),
+                            authority: ctx.accounts.taker.to_account_info(),
+                        },
+                    ),
+                    protocol_fee_amount,
+                    ctx.accounts.dst_mint.decimals,
+                )?;
+            }
         }
 
         // Take integrator fee
         if integrator_fee_amount > 0 {
-            let integrator_dst_ata = ctx
+            let integrator_dst_acc = ctx
                 .accounts
-                .integrator_dst_ata
+                .integrator_dst_acc
                 .as_ref()
                 .ok_or(FusionError::InconsistentIntegratorFeeConfig)?;
 
-            transfer_checked(
-                CpiContext::new(
-                    ctx.accounts.dst_token_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.taker_dst_ata.to_account_info(),
-                        mint: ctx.accounts.dst_mint.to_account_info(),
-                        to: integrator_dst_ata.to_account_info(),
-                        authority: ctx.accounts.taker.to_account_info(),
-                    },
-                ),
-                integrator_fee_amount,
-                ctx.accounts.dst_mint.decimals,
-            )?;
+            if order.native_dst_asset {
+                anchor_lang::system_program::transfer(
+                    CpiContext::new(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.taker.to_account_info(),
+                            to: integrator_dst_acc.to_account_info(),
+                        },
+                    ),
+                    maker_dst_amount,
+                )?;
+            } else {
+                transfer_checked(
+                    CpiContext::new(
+                        ctx.accounts.dst_token_program.to_account_info(),
+                        TransferChecked {
+                            from: ctx.accounts.taker_dst_ata.to_account_info(),
+                            mint: ctx.accounts.dst_mint.to_account_info(),
+                            to: integrator_dst_acc.to_account_info(),
+                            authority: ctx.accounts.taker.to_account_info(),
+                        },
+                    ),
+                    integrator_fee_amount,
+                    ctx.accounts.dst_mint.decimals,
+                )?;
+            }
         }
 
         // Taker => Maker
@@ -318,9 +365,9 @@ pub mod fusion_swap {
             ctx.accounts.src_mint.key(),
             ctx.accounts.dst_mint.key(),
             ctx.accounts.maker_receiver.key(),
-            ctx.accounts.protocol_dst_ata.as_ref().map(|ata| ata.key()),
+            ctx.accounts.protocol_dst_acc.as_ref().map(|ata| ata.key()),
             ctx.accounts
-                .integrator_dst_ata
+                .integrator_dst_acc
                 .as_ref()
                 .map(|ata| ata.key()),
         );
@@ -405,8 +452,8 @@ pub struct Create<'info> {
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_ata.clone().map(|ata| ata.key()),
-                integrator_dst_ata.clone().map(|ata| ata.key()),
+                protocol_dst_acc.clone().map(|ata| ata.key()),
+                integrator_dst_acc.clone().map(|ata| ata.key()),
             ))?,
         ],
         bump,
@@ -450,15 +497,9 @@ pub struct Create<'info> {
 
     associated_token_program: Program<'info, AssociatedToken>,
 
-    #[account(
-        constraint = protocol_dst_ata.mint == dst_mint.key() @ FusionError::InconsistentProtocolFeeConfig
-    )]
-    protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+    protocol_dst_acc: Option<UncheckedAccount<'info>>,
 
-    #[account(
-        constraint = integrator_dst_ata.mint == dst_mint.key() @ FusionError::InconsistentIntegratorFeeConfig
-    )]
-    integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+    integrator_dst_acc: Option<UncheckedAccount<'info>>,
 }
 
 #[derive(Accounts)]
@@ -497,8 +538,8 @@ pub struct Fill<'info> {
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_ata.clone().map(|ata| ata.key()),
-                integrator_dst_ata.clone().map(|ata| ata.key()),
+                protocol_dst_acc.clone().map(|ata| ata.key()),
+                integrator_dst_acc.clone().map(|ata| ata.key()),
             ))?,
         ],
         bump,
@@ -526,10 +567,10 @@ pub struct Fill<'info> {
     maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(mut)]
-    protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+    protocol_dst_acc: Option<UncheckedAccount<'info>>,
 
     #[account(mut)]
-    integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+    integrator_dst_acc: Option<UncheckedAccount<'info>>,
 
     /// Taker's ATA of src_mint
     #[account(
@@ -634,8 +675,8 @@ pub struct CancelByResolver<'info> {
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_ata.clone().map(|ata| ata.key()),
-                integrator_dst_ata.clone().map(|ata| ata.key()),
+                protocol_dst_acc.clone().map(|ata| ata.key()),
+                integrator_dst_acc.clone().map(|ata| ata.key()),
             ))?,
         ],
         bump,
@@ -661,9 +702,9 @@ pub struct CancelByResolver<'info> {
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
-    protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+    protocol_dst_acc: Option<UncheckedAccount<'info>>,
 
-    integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+    integrator_dst_acc: Option<UncheckedAccount<'info>>,
 
     /// Resolver's ATA of src_mint
     #[account(
@@ -680,8 +721,8 @@ pub struct CancelByResolver<'info> {
 /// Configuration for fees applied to the escrow
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct FeeConfig {
-    protocol_dst_ata: Option<Pubkey>,
-    integrator_dst_ata: Option<Pubkey>,
+    protocol_dst_acc: Option<Pubkey>,
+    integrator_dst_acc: Option<Pubkey>,
 
     /// Protocol fee in basis points where `BASE_1E5` = 100%
     protocol_fee: u16,
@@ -813,8 +854,8 @@ fn build_order_from_reduced(
     src_mint: Pubkey,
     dst_mint: Pubkey,
     receiver: Pubkey,
-    protocol_dst_ata: Option<Pubkey>,
-    integrator_dst_ata: Option<Pubkey>,
+    protocol_dst_acc: Option<Pubkey>,
+    integrator_dst_acc: Option<Pubkey>,
 ) -> OrderConfig {
     OrderConfig {
         id: order.id,
@@ -825,8 +866,8 @@ fn build_order_from_reduced(
         native_dst_asset: order.native_dst_asset,
         receiver,
         fee: FeeConfig {
-            protocol_dst_ata,
-            integrator_dst_ata,
+            protocol_dst_acc,
+            integrator_dst_acc,
             protocol_fee: order.fee.protocol_fee,
             integrator_fee: order.fee.integrator_fee,
             surplus_percentage: order.fee.surplus_percentage,
