@@ -63,7 +63,9 @@ pub mod fusion_swap {
             FusionError::InconsistentIntegratorFeeConfig
         );
 
-        if (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0) && !order.native_dst_asset {
+        if (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
+            && !order.native_dst_asset
+        {
             let protocol_dst_acc = ctx.accounts.protocol_dst_acc.as_ref().unwrap();
             let protocol_dst_ata =
                 TokenAccount::try_deserialize(&mut &**protocol_dst_acc.data.borrow())
