@@ -26,6 +26,4 @@ pub enum FusionError {
     InvalidCancellationFee,
     #[msg("Cancel order by resolver is forbidden")]
     CancelOrderByResolverIsForbidden,
-    #[msg("Invalid protocol dst ata")]
-    InvalidProtocolDstAta,
 }

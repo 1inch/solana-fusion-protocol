@@ -63,30 +63,6 @@ pub mod fusion_swap {
             FusionError::InconsistentIntegratorFeeConfig
         );
 
-        if (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-            && !order.native_dst_asset
-        {
-            let protocol_dst_acc = ctx.accounts.protocol_dst_acc.as_ref().unwrap();
-            let protocol_dst_ata =
-                TokenAccount::try_deserialize(&mut &**protocol_dst_acc.data.borrow())
-                    .map_err(|_| FusionError::InvalidProtocolDstAta)?;
-            require!(
-                protocol_dst_ata.mint == ctx.accounts.dst_mint.key(),
-                FusionError::InconsistentProtocolFeeConfig
-            )
-        }
-
-        if order.fee.integrator_fee > 0 && !order.native_dst_asset {
-            let integrator_dst_acc = ctx.accounts.integrator_dst_acc.as_ref().unwrap();
-            let integrator_dst_ata =
-                TokenAccount::try_deserialize(&mut &**integrator_dst_acc.data.borrow())
-                    .map_err(|_| FusionError::InvalidProtocolDstAta)?;
-            require!(
-                integrator_dst_ata.mint == ctx.accounts.dst_mint.key(),
-                FusionError::InconsistentIntegratorFeeConfig
-            )
-        }
-
         // Maker => Escrow
         transfer_checked(
             CpiContext::new(
