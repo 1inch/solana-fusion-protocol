@@ -1213,7 +1213,7 @@ describe.skip("Fusion Swap Native", () => {
       ).to.be.rejectedWith(errorCodeHex("InvalidProtocolSurplusFee"));
     });
 
-    it("Doesn't create escrow with protocol_dst_ata from different mint", async () => {
+    it("Doesn't create escrow with protocol_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
         fee: { protocolFee: 10000 }, // 10%
       });
@@ -1251,7 +1251,7 @@ describe.skip("Fusion Swap Native", () => {
       ).to.be.rejectedWith(errorCodeHex("ConstraintSeeds"));
     });
 
-    it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
+    it("Doesn't create escrow with intergrator_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
         fee: { integratorFee: 10000 }, // 10%
       });
@@ -1289,7 +1289,7 @@ describe.skip("Fusion Swap Native", () => {
       ).to.be.rejectedWith(errorCodeHex("ConstraintSeeds"));
     });
 
-    it.skip("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
+    it.skip("Doesn't execute the trade with the wrong protocol_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1311,7 +1311,7 @@ describe.skip("Fusion Swap Native", () => {
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               protocolDstAcc:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_ata
+                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_acc
             })
           )
           .signers([state.bob.keypair])
@@ -1324,7 +1324,7 @@ describe.skip("Fusion Swap Native", () => {
       ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
-    it.skip("Doesn't execute the trade without protocol_dst_ata", async () => {
+    it.skip("Doesn't execute the trade without protocol_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1357,7 +1357,7 @@ describe.skip("Fusion Swap Native", () => {
       ).to.be.rejectedWith("Error Code: InconsistentProtocolFeeConfig");
     });
 
-    it.skip("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
+    it.skip("Doesn't execute the trade with the wrong integrator_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1379,7 +1379,7 @@ describe.skip("Fusion Swap Native", () => {
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               integratorDstAcc:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_ata
+                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_acc
             })
           )
           .signers([state.bob.keypair])
@@ -1392,7 +1392,7 @@ describe.skip("Fusion Swap Native", () => {
       ).to.be.rejectedWith("Error Code: InconsistentIntegratorFeeConfig");
     });
 
-    it.skip("Doesn't execute the trade without integrator_dst_ata", async () => {
+    it.skip("Doesn't execute the trade without integrator_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,

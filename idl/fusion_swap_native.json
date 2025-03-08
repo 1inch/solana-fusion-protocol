@@ -437,11 +437,11 @@
           }
         },
         {
-          "name": "protocol_dst_ata",
+          "name": "protocol_dst_acc",
           "optional": true
         },
         {
-          "name": "integrator_dst_ata",
+          "name": "integrator_dst_acc",
           "optional": true
         },
         {
@@ -693,11 +693,11 @@
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "protocol_dst_ata",
+          "name": "protocol_dst_acc",
           "optional": true
         },
         {
-          "name": "integrator_dst_ata",
+          "name": "integrator_dst_acc",
           "optional": true
         }
       ],
@@ -951,12 +951,12 @@
           }
         },
         {
-          "name": "protocol_dst_ata",
+          "name": "protocol_dst_acc",
           "writable": true,
           "optional": true
         },
         {
-          "name": "integrator_dst_ata",
+          "name": "integrator_dst_acc",
           "writable": true,
           "optional": true
         },

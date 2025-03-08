@@ -13,8 +13,8 @@ use solana_program::pubkey::Pubkey;
 /// Configuration for fees applied to the escrow
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct FeeConfig {
-    pub protocol_dst_ata: Option<Pubkey>,
-    pub integrator_dst_ata: Option<Pubkey>,
+    pub protocol_dst_acc: Option<Pubkey>,
+    pub integrator_dst_acc: Option<Pubkey>,
 
     /// Protocol fee in basis points where `BASE_1E5` = 100%
     pub protocol_fee: u16,

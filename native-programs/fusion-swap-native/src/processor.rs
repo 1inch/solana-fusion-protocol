@@ -75,24 +75,24 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     let dst_mint = next_account_info(account_info_iter)?;
     let maker_receiver = next_account_info(account_info_iter)?;
     let associated_token_program = next_account_info(account_info_iter)?;
-    let protocol_dst_ata = next_account_info(account_info_iter)?;
-    let integrator_dst_ata = next_account_info(account_info_iter)?;
+    let protocol_dst_acc = next_account_info(account_info_iter)?;
+    let integrator_dst_acc = next_account_info(account_info_iter)?;
 
     // This is a temporary workaround of how Anchor handles optional accounts:
     // if the optional account is not provided, then 'program_id' of the calling
     // program is provided instead, which indicates 'None' value
     //
     // This should be removed after SOL-65 is completed.
-    let protocol_dst_ata = if protocol_dst_ata.key == program_id {
+    let protocol_dst_acc = if protocol_dst_acc.key == program_id {
         None
     } else {
-        Some(protocol_dst_ata)
+        Some(protocol_dst_acc)
     };
 
-    let integrator_dst_ata: Option<_> = if integrator_dst_ata.key == program_id {
+    let integrator_dst_acc: Option<_> = if integrator_dst_acc.key == program_id {
         None
     } else {
-        Some(integrator_dst_ata)
+        Some(integrator_dst_acc)
     };
 
     let order = ReducedOrderConfig::try_from_slice(input)?;
@@ -101,8 +101,8 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
         *src_mint.key,
         *dst_mint.key,
         *maker_receiver.key,
-        protocol_dst_ata.map(|a| *a.key),
-        integrator_dst_ata.map(|a| *a.key),
+        protocol_dst_acc.map(|a| *a.key),
+        integrator_dst_acc.map(|a| *a.key),
     );
     let order_hash = order_hash(&order_full)?;
 
@@ -133,13 +133,13 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
     )?;
 
     // Protocol dst ata validations
-    if let Some(protocol_dst_ata) = protocol_dst_ata {
-        assert_token_account(protocol_dst_ata, dst_mint.key, None, None)?;
+    if let Some(protocol_dst_acc) = protocol_dst_acc {
+        assert_token_account(protocol_dst_acc, dst_mint.key, None, None)?;
     }
 
     // Integrator dst ata validations
-    if let Some(integrator_dst_ata) = integrator_dst_ata {
-        assert_token_account(integrator_dst_ata, dst_mint.key, None, None)?;
+    if let Some(integrator_dst_acc) = integrator_dst_acc {
+        assert_token_account(integrator_dst_acc, dst_mint.key, None, None)?;
     }
 
     // Associated token program validations
@@ -187,16 +187,16 @@ fn process_create(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -
         FusionError::InvalidEstimatedTakingAmount.into()
     );
 
-    // Iff protocol fee or surplus is positive, protocol_dst_ata must be set
+    // Iff protocol fee or surplus is positive, protocol_dst_acc must be set
     require!(
         (order.fee.protocol_fee > 0 || order.fee.surplus_percentage > 0)
-            == protocol_dst_ata.is_some(),
+            == protocol_dst_acc.is_some(),
         FusionError::InconsistentProtocolFeeConfig.into()
     );
 
-    // Iff integrator fee is positive, integrator_dst_ata must be set
+    // Iff integrator fee is positive, integrator_dst_acc must be set
     require!(
-        (order.fee.integrator_fee > 0) == integrator_dst_ata.is_some(),
+        (order.fee.integrator_fee > 0) == integrator_dst_acc.is_some(),
         FusionError::InconsistentIntegratorFeeConfig.into()
     );
 

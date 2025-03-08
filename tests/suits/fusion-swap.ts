@@ -1201,7 +1201,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: InvalidProtocolSurplusFee");
     });
 
-    it("Doesn't create escrow with protocol_dst_ata from different mint", async () => {
+    it("Doesn't create escrow with protocol_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
         fee: { protocolFee: 10000 }, // 10%
       });
@@ -1234,7 +1234,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
+    it("Doesn't create escrow with intergrator_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
         fee: { integratorFee: 10000 }, // 10%
       });
@@ -1267,7 +1267,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
+    it("Doesn't execute the trade with the wrong protocol_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1289,7 +1289,7 @@ describe("Fusion Swap", () => {
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               protocolDstAcc:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_ata
+                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_acc
             })
           )
           .signers([state.bob.keypair])
@@ -1297,7 +1297,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade without protocol_dst_ata", async () => {
+    it("Doesn't execute the trade without protocol_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1325,7 +1325,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
+    it("Doesn't execute the trade with the wrong integrator_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1347,7 +1347,7 @@ describe("Fusion Swap", () => {
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               integratorDstAcc:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_ata
+                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_acc
             })
           )
           .signers([state.bob.keypair])
@@ -1355,7 +1355,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade without integrator_dst_ata", async () => {
+    it("Doesn't execute the trade without integrator_dst_acc", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1800,7 +1800,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
-    it("Fails to execute the trade if maker_dst_ata is missing", async () => {
+    it("Fails to execute the trade if maker_dst_acc is missing", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
