@@ -650,6 +650,67 @@ describe("Fusion Swap", () => {
       ]);
     });
 
+    it("Execute the trade with native tokens (SOL) as destination + protocol fee", async () => {
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+      const feeReciverNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.charlie.atas[splToken.NATIVE_MINT.toString()].address);
+
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          nativeDstAsset: true,
+          dstMint: splToken.NATIVE_MINT,
+          fee: {
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            protocolFee: 10000, // 10%
+          },
+        },
+      });
+      const fee = Math.floor(state.defaultDstAmount.toNumber() / 10);
+
+      await program.methods
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta: null,
+            takerDstAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.alice.keypair.publicKey
+      );
+      const feeReciverNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.charlie.atas[splToken.NATIVE_MINT.toString()].address
+      );
+
+      // check that native tokens were sent to maker
+      expect(makerNativeTokenBalanceAfter).to.be.eq(
+        makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber() - fee
+      );
+      // check that protocol fee was sent to the protocol fee receiver
+      expect(feeReciverNativeTokenBalanceAfter).to.be.gte(
+        feeReciverNativeTokenBalanceBefore + fee
+      );
+
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
     it("Execute the trade with integrator fee", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
@@ -696,6 +757,129 @@ describe("Fusion Swap", () => {
         BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 85) / 100)),
         BigInt(state.defaultSrcAmount.toNumber()),
         -BigInt(state.defaultDstAmount.toNumber()),
+        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 15) / 100)),
+      ]);
+    });
+
+    it("Execute the trade with native tokens (SOL) as destination + integrator fee", async () => {
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+      const feeReciverNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.charlie.atas[splToken.NATIVE_MINT.toString()].address);
+
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          nativeDstAsset: true,
+          dstMint: splToken.NATIVE_MINT,
+          fee: {
+            integratorDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            integratorFee: 15000, // 15%
+          },
+        },
+      });
+      const fee = Math.floor(state.defaultDstAmount.toNumber() * 15 / 100);
+
+      await program.methods
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta: null,
+            takerDstAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            integratorDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.alice.keypair.publicKey
+      );
+      const feeReciverNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.charlie.atas[splToken.NATIVE_MINT.toString()].address
+      );
+
+      // check that native tokens were sent to maker
+      expect(makerNativeTokenBalanceAfter).to.be.eq(
+        makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber() - fee
+      );
+      // check that protocol fee was sent to the protocol fee receiver
+      expect(feeReciverNativeTokenBalanceAfter).to.be.gte(
+        feeReciverNativeTokenBalanceBefore + fee
+      );
+
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
+    it("Execute the trade with wrapped native tokens (wSOL) as destination + protocol & integrator fee", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          dstMint: splToken.NATIVE_MINT,
+          fee: {
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            protocolFee: 10000, // 10%
+            integratorDstAcc:
+              state.dave.atas[splToken.NATIVE_MINT.toString()].address,
+            integratorFee: 15000, // 15%
+          },
+        },
+      });
+
+      const transactionPromise = () => program.methods
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta: state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+            takerDstAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            integratorDstAcc:
+              state.dave.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+          state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+          state.dave.atas[splToken.NATIVE_MINT.toString()].address,
+        ],
+        transactionPromise
+      );
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+
+      expect(results).to.be.deep.eq([
+        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 75) / 100)),
+        BigInt(state.defaultSrcAmount.toNumber()),
+        -BigInt(state.defaultDstAmount.toNumber()),
+        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 10) / 100)),
         BigInt(Math.floor((state.defaultDstAmount.toNumber() * 15) / 100)),
       ]);
     });
