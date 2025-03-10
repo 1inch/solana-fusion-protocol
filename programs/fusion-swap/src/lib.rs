@@ -499,22 +499,6 @@ pub struct Fill<'info> {
     )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// Maker's ATA of dst_mint
-    #[account(
-        init_if_needed,
-        payer = taker,
-        associated_token::mint = dst_mint,
-        associated_token::authority = maker_receiver,
-        associated_token::token_program = dst_token_program,
-    )]
-    maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
-
-    #[account(mut)]
-    protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
-
-    #[account(mut)]
-    integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
-
     /// Taker's ATA of src_mint
     #[account(
         mut,
@@ -535,6 +519,22 @@ pub struct Fill<'info> {
     dst_token_program: Interface<'info, TokenInterface>,
     system_program: Program<'info, System>,
     associated_token_program: Program<'info, AssociatedToken>,
+
+    /// Maker's ATA of dst_mint
+    #[account(
+        init_if_needed,
+        payer = taker,
+        associated_token::mint = dst_mint,
+        associated_token::authority = maker_receiver,
+        associated_token::token_program = dst_token_program,
+    )]
+    maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+
+    #[account(mut)]
+    protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
+
+    #[account(mut)]
+    integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 }
 
 #[derive(Accounts)]
