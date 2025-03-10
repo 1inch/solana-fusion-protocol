@@ -8,7 +8,7 @@ inputs:
   rustc-version:
     description: "Rust version"
     required: true
-    default: "1.85.0"
+    default: "1.82.0"
   solana-version:
     description: "Solana version"
     required: true
@@ -64,7 +64,7 @@ runs:
     # Anchor
     - name: Install Anchor CLI
       shell: bash
-      run: cargo install anchor-cli
+      run: cargo install anchor-cli --version 0.30.1
 
     # Verifications
     - name: Verify Yarn installation
