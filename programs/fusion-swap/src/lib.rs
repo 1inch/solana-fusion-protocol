@@ -680,10 +680,6 @@ pub struct CancelByResolver<'info> {
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
-    protocol_dst_acc: Option<UncheckedAccount<'info>>,
-
-    integrator_dst_acc: Option<UncheckedAccount<'info>>,
-
     /// Resolver's ATA of src_mint
     #[account(
         mut,
@@ -694,6 +690,10 @@ pub struct CancelByResolver<'info> {
     resolver_src_ata: InterfaceAccount<'info, TokenAccount>,
 
     src_token_program: Interface<'info, TokenInterface>,
+
+    protocol_dst_acc: Option<UncheckedAccount<'info>>,
+
+    integrator_dst_acc: Option<UncheckedAccount<'info>>,
 }
 
 /// Configuration for fees applied to the escrow
