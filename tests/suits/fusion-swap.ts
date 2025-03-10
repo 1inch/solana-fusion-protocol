@@ -1267,7 +1267,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade with the wrong protocol_dst_acc", async () => {
+    it("Doesn't execute the trade with wrong protocol_dst_acc authority", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1289,12 +1289,42 @@ describe("Fusion Swap", () => {
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               protocolDstAcc:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_acc
+                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_acc authority
             })
           )
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
+    });
+
+    it("Doesn't execute the trade with the wrong protocol_dst_acc mint", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          fee: {
+            protocolDstAcc:
+              state.charlie.atas[state.tokens[0].toString()].address, // wrong protocol_dst_acc mint
+            protocolFee: 10000, // 10%
+          },
+        },
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              protocolDstAcc:
+                state.charlie.atas[state.tokens[0].toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error: Account not associated with this Mint");
     });
 
     it("Doesn't execute the trade without protocol_dst_acc", async () => {
@@ -1325,7 +1355,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade with the wrong integrator_dst_acc", async () => {
+    it("Doesn't execute the trade with the wrong integrator_dst_acc authority", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1347,12 +1377,42 @@ describe("Fusion Swap", () => {
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
               integratorDstAcc:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_acc
+                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_acc authority
             })
           )
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
+    });
+
+    it("Doesn't execute the trade with the wrong integrator_dst_acc mint", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          fee: {
+            integratorDstAcc:
+              state.charlie.atas[state.tokens[0].toString()].address, // wrong integrator_dst_acc mint
+            integratorFee: 10000, // 10%
+          },
+        },
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              integratorDstAcc:
+                state.charlie.atas[state.tokens[0].toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error: Account not associated with this Mint");
     });
 
     it("Doesn't execute the trade without integrator_dst_acc", async () => {
