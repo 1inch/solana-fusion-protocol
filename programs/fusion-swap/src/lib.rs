@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use anchor_lang::solana_program::hash::hash;
+use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::spl_token::native_mint,
@@ -852,10 +852,10 @@ fn uni_transfer(params: &UniTransferParams<'_>) -> Result<()> {
             to,
             amount,
             program,
-        } => anchor_lang::system_program::transfer(
+        } => system_program::transfer(
             CpiContext::new(
                 program.to_account_info(),
-                anchor_lang::system_program::Transfer {
+                system_program::Transfer {
                     from: from.to_account_info(),
                     to: to.to_account_info(),
                 },
