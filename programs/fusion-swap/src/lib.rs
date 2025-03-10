@@ -645,12 +645,12 @@ pub struct CancelByResolver<'info> {
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
+    src_token_program: Interface<'info, TokenInterface>,
+    system_program: Program<'info, System>,
+
     protocol_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
-
-    src_token_program: Interface<'info, TokenInterface>,
-    system_program: Program<'info, System>,
 }
 
 /// Configuration for fees applied to the escrow
