@@ -139,11 +139,11 @@ pub mod fusion_swap {
             ctx.accounts.src_mint.key(),
             ctx.accounts.dst_mint.key(),
             ctx.accounts.maker_receiver.key(),
-            ctx.accounts.protocol_dst_acc.as_ref().map(|ata| ata.key()),
+            ctx.accounts.protocol_dst_acc.as_ref().map(|acc| acc.key()),
             ctx.accounts
                 .integrator_dst_acc
                 .as_ref()
-                .map(|ata| ata.key()),
+                .map(|acc| acc.key()),
         );
 
         // Escrow => Taker
@@ -329,11 +329,11 @@ pub mod fusion_swap {
             ctx.accounts.src_mint.key(),
             ctx.accounts.dst_mint.key(),
             ctx.accounts.maker_receiver.key(),
-            ctx.accounts.protocol_dst_acc.as_ref().map(|ata| ata.key()),
+            ctx.accounts.protocol_dst_acc.as_ref().map(|acc| acc.key()),
             ctx.accounts
                 .integrator_dst_acc
                 .as_ref()
-                .map(|ata| ata.key()),
+                .map(|acc| acc.key()),
         );
 
         let order_hash = order_hash(&order)?;
@@ -416,8 +416,8 @@ pub struct Create<'info> {
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_acc.clone().map(|ata| ata.key()),
-                integrator_dst_acc.clone().map(|ata| ata.key()),
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
             ))?,
         ],
         bump,
@@ -502,8 +502,8 @@ pub struct Fill<'info> {
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_acc.clone().map(|ata| ata.key()),
-                integrator_dst_acc.clone().map(|ata| ata.key()),
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
             ))?,
         ],
         bump,
@@ -639,8 +639,8 @@ pub struct CancelByResolver<'info> {
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_acc.clone().map(|ata| ata.key()),
-                integrator_dst_acc.clone().map(|ata| ata.key()),
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
             ))?,
         ],
         bump,
