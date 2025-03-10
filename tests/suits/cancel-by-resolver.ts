@@ -16,16 +16,16 @@ chai.use(chaiAsPromised);
 
 describe("Cancel by Resolver", () => {
   const defaultSrcAmount = new anchor.BN(1000000);
-  const defaultCancellationPremium = defaultSrcAmount
-    .muln(5 * 100)
-    .divn(100 * 100); // 5%
-  const defaultMaxCancellationMultiplier = 500; // 50%
+  const defaultMaxCancellationPremium = defaultSrcAmount
+    .muln(50 * 100)
+    .divn(100 * 100); // 50% from the srcAmount
   let provider: BankrunProvider;
   let banksClient: BanksClient;
   let context: ProgramTestContext;
   let state: TestState;
   let program: anchor.Program<FusionSwap>;
   let payer: anchor.web3.Keypair;
+  let tokenAccountRent: number;
 
   const order = {
     createTime: 0, // We update it before each test
@@ -48,6 +48,10 @@ describe("Cancel by Resolver", () => {
     state = await TestState.bankrunCreate(context, payer, usersKeypairs, {
       tokensNums: 3,
     });
+    tokenAccountRent =
+      await provider.connection.getMinimumBalanceForRentExemption(
+        splToken.AccountLayout.span
+      );
   });
 
   beforeEach(async () => {
@@ -56,61 +60,70 @@ describe("Cancel by Resolver", () => {
     await setCurrentTime(context, order.createTime);
   });
 
-  it("Resolver can cancel the order and receive a portion of the remaining tokens", async () => {
-    const cancellationPremiums = [1, 2.5, 7.5].map((percentage) =>
-      defaultSrcAmount.muln(percentage * 100).divn(100 * 100)
+  it("Resolver can cancel the order for free at the beginning of the auction", async () => {
+    const escrow = await state.createEscrow({
+      escrowProgram: program,
+      payer,
+      provider: banksClient,
+      orderConfig: state.orderConfig({
+        srcAmount: defaultSrcAmount,
+        fee: {
+          maxCancellationPremium: defaultMaxCancellationPremium,
+        },
+        cancellationAuctionDuration: order.auctionDuration,
+      }),
+    });
+
+    const makerNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.alice.keypair.publicKey)
+    ).lamports;
+    const resolverNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.bob.keypair.publicKey)
+    ).lamports;
+
+    // Rewind time to expire the order
+    await setCurrentTime(context, state.defaultExpirationTime);
+
+    const transactionPromise = () =>
+      program.methods
+        .cancelByResolver(escrow.reducedOrderConfig)
+        .accountsPartial({
+          resolver: state.bob.keypair.publicKey,
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([payer, state.bob.keypair])
+        .rpc();
+
+    const results = await trackReceivedTokenAndTx(
+      provider.connection,
+      [
+        state.alice.atas[state.tokens[0].toString()].address,
+        state.bob.atas[state.tokens[0].toString()].address,
+      ],
+      transactionPromise
     );
-    for (const minCancellationPremium of cancellationPremiums) {
-      await setCurrentTime(context, order.createTime);
-      const escrow = await state.createEscrow({
-        escrowProgram: program,
-        payer,
-        provider: banksClient,
-        orderConfig: state.orderConfig({
-          srcAmount: defaultSrcAmount,
-          fee: {
-            minCancellationPremium,
-            maxCancellationMultiplier: defaultMaxCancellationMultiplier,
-          },
-          cancellationAuctionDuration: order.auctionDuration,
-        }),
-      });
 
-      // Rewind time to expire the order
-      await setCurrentTime(context, state.defaultExpirationTime + 1);
+    expect(
+      (await provider.connection.getAccountInfo(state.alice.keypair.publicKey))
+        .lamports
+    ).to.be.eq(makerNativeBalanceBefore + tokenAccountRent);
+    expect(
+      (await provider.connection.getAccountInfo(state.bob.keypair.publicKey))
+        .lamports
+    ).to.be.eq(resolverNativeBalanceBefore);
 
-      const transactionPromise = () =>
-        program.methods
-          .cancelByResolver(escrow.reducedOrderConfig)
-          .accountsPartial({
-            resolver: state.bob.keypair.publicKey,
-            maker: state.alice.keypair.publicKey,
-            makerReceiver: escrow.orderConfig.receiver,
-            srcMint: escrow.orderConfig.srcMint,
-            dstMint: escrow.orderConfig.dstMint,
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
-            protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-            integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
-            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          })
-          .signers([state.bob.keypair])
-          .rpc();
-
-      const results = await trackReceivedTokenAndTx(
-        provider.connection,
-        [
-          state.alice.atas[state.tokens[0].toString()].address,
-          state.bob.atas[state.tokens[0].toString()].address,
-        ],
-        transactionPromise
-      );
-
-      expect(results).to.be.deep.eq([
-        BigInt(defaultSrcAmount.sub(minCancellationPremium).toNumber()),
-        BigInt(minCancellationPremium.toNumber()),
-      ]);
-    }
+    expect(results).to.be.deep.eq([
+      BigInt(defaultSrcAmount.toNumber()),
+      BigInt(0),
+    ]);
   });
 
   it("Resolver can cancel the order at different points in the order time frame", async () => {
@@ -120,62 +133,89 @@ describe("Cancel by Resolver", () => {
         (order.auctionDuration * (percentage * 100)) / (100 * 100)
     );
     for (const cancellationPoint of cancellationPoints) {
-      await setCurrentTime(context, order.createTime);
-      const escrow = await state.createEscrow({
-        escrowProgram: program,
-        payer,
-        provider: banksClient,
-        orderConfig: state.orderConfig({
-          srcAmount: defaultSrcAmount,
-          fee: {
-            minCancellationPremium: defaultCancellationPremium,
-            maxCancellationMultiplier: defaultMaxCancellationMultiplier,
-          },
-          cancellationAuctionDuration: order.auctionDuration,
-        }),
-      });
-
-      await setCurrentTime(context, cancellationPoint);
-
-      const timeElapsed = cancellationPoint - state.defaultExpirationTime;
-      const rateBump = Math.floor(
-        (timeElapsed * defaultMaxCancellationMultiplier) / order.auctionDuration
+      const maxCancellationPremiums = [1, 2.5, 7.5].map(
+        (percentage) => (tokenAccountRent * (percentage * 100)) / (100 * 100)
       );
-      const resolverPremium = defaultCancellationPremium
-        .muln(1e3 + rateBump)
-        .divn(1e3);
+      for (const maxCancellationPremium of maxCancellationPremiums) {
+        await setCurrentTime(context, order.createTime);
+        const escrow = await state.createEscrow({
+          escrowProgram: program,
+          payer,
+          provider: banksClient,
+          orderConfig: state.orderConfig({
+            srcAmount: defaultSrcAmount,
+            fee: {
+              maxCancellationPremium: new anchor.BN(maxCancellationPremium),
+            },
+            cancellationAuctionDuration: order.auctionDuration,
+          }),
+        });
 
-      const transactionPromise = () =>
-        program.methods
-          .cancelByResolver(escrow.reducedOrderConfig)
-          .accountsPartial({
-            resolver: state.bob.keypair.publicKey,
-            maker: state.alice.keypair.publicKey,
-            makerReceiver: escrow.orderConfig.receiver,
-            srcMint: escrow.orderConfig.srcMint,
-            dstMint: escrow.orderConfig.dstMint,
-            escrow: escrow.escrow,
-            escrowSrcAta: escrow.ata,
-            protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-            integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
-            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          })
-          .signers([state.bob.keypair])
-          .rpc();
+        const makerNativeBalanceBefore = (
+          await provider.connection.getAccountInfo(
+            state.alice.keypair.publicKey
+          )
+        ).lamports;
+        const resolverNativeBalanceBefore = (
+          await provider.connection.getAccountInfo(state.bob.keypair.publicKey)
+        ).lamports;
 
-      const results = await trackReceivedTokenAndTx(
-        provider.connection,
-        [
-          state.alice.atas[state.tokens[0].toString()].address,
-          state.bob.atas[state.tokens[0].toString()].address,
-        ],
-        transactionPromise
-      );
+        await setCurrentTime(context, cancellationPoint);
 
-      expect(results).to.be.deep.eq([
-        BigInt(defaultSrcAmount.sub(resolverPremium).toNumber()),
-        BigInt(resolverPremium.toNumber()),
-      ]);
+        const timeElapsed = cancellationPoint - state.defaultExpirationTime;
+        const resolverPremium = Math.floor(
+          (maxCancellationPremium * timeElapsed) / order.auctionDuration
+        );
+
+        const transactionPromise = () =>
+          program.methods
+            .cancelByResolver(escrow.reducedOrderConfig)
+            .accountsPartial({
+              resolver: state.bob.keypair.publicKey,
+              maker: state.alice.keypair.publicKey,
+              makerReceiver: escrow.orderConfig.receiver,
+              srcMint: escrow.orderConfig.srcMint,
+              dstMint: escrow.orderConfig.dstMint,
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
+              integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
+              srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+            })
+            .signers([payer, state.bob.keypair])
+            .rpc();
+
+        const results = await trackReceivedTokenAndTx(
+          provider.connection,
+          [
+            state.alice.atas[state.tokens[0].toString()].address,
+            state.bob.atas[state.tokens[0].toString()].address,
+          ],
+          transactionPromise
+        );
+
+        expect(
+          (
+            await provider.connection.getAccountInfo(
+              state.alice.keypair.publicKey
+            )
+          ).lamports
+        ).to.be.eq(
+          makerNativeBalanceBefore + tokenAccountRent - resolverPremium
+        );
+        expect(
+          (
+            await provider.connection.getAccountInfo(
+              state.bob.keypair.publicKey
+            )
+          ).lamports
+        ).to.be.eq(resolverNativeBalanceBefore + resolverPremium);
+
+        expect(results).to.be.deep.eq([
+          BigInt(defaultSrcAmount.toNumber()),
+          BigInt(0),
+        ]);
+      }
     }
   });
 
@@ -187,12 +227,18 @@ describe("Cancel by Resolver", () => {
       orderConfig: state.orderConfig({
         srcAmount: defaultSrcAmount,
         fee: {
-          minCancellationPremium: defaultCancellationPremium,
-          maxCancellationMultiplier: defaultMaxCancellationMultiplier,
+          maxCancellationPremium: defaultMaxCancellationPremium,
         },
         cancellationAuctionDuration: order.auctionDuration,
       }),
     });
+
+    const makerNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.alice.keypair.publicKey)
+    ).lamports;
+    const resolverNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.bob.keypair.publicKey)
+    ).lamports;
 
     await setCurrentTime(
       context,
@@ -214,7 +260,7 @@ describe("Cancel by Resolver", () => {
           integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
-        .signers([state.bob.keypair])
+        .signers([payer, state.bob.keypair])
         .rpc({ skipPreflight: true });
 
     const results = await trackReceivedTokenAndTx(
@@ -226,13 +272,20 @@ describe("Cancel by Resolver", () => {
       transactionPromise
     );
 
-    const resolverPremium = defaultCancellationPremium
-      .muln(1e3 + defaultMaxCancellationMultiplier)
-      .divn(1e3);
+    const resolverPremium = defaultMaxCancellationPremium.toNumber();
+
+    expect(
+      (await provider.connection.getAccountInfo(state.alice.keypair.publicKey))
+        .lamports
+    ).to.be.eq(makerNativeBalanceBefore + tokenAccountRent - resolverPremium);
+    expect(
+      (await provider.connection.getAccountInfo(state.bob.keypair.publicKey))
+        .lamports
+    ).to.be.eq(resolverNativeBalanceBefore + resolverPremium);
 
     expect(results).to.be.deep.eq([
-      BigInt(defaultSrcAmount.sub(resolverPremium).toNumber()),
-      BigInt(resolverPremium.toNumber()),
+      BigInt(defaultSrcAmount.toNumber()),
+      BigInt(0),
     ]);
   });
 
@@ -243,7 +296,7 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         fee: {
-          minCancellationPremium: defaultCancellationPremium,
+          maxCancellationPremium: defaultMaxCancellationPremium,
         },
         cancellationAuctionDuration: order.auctionDuration,
       }),
@@ -276,7 +329,7 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         fee: {
-          minCancellationPremium: defaultCancellationPremium,
+          maxCancellationPremium: defaultMaxCancellationPremium,
         },
         cancellationAuctionDuration: order.auctionDuration,
       }),
@@ -305,41 +358,19 @@ describe("Cancel by Resolver", () => {
     );
   });
 
-  it("Resolver can't cancel if the fee is greater than remaining balance", async () => {
-    const escrow = await state.createEscrow({
-      escrowProgram: program,
-      payer,
-      provider: banksClient,
-      orderConfig: state.orderConfig({
-        fee: {
-          minCancellationPremium: defaultSrcAmount,
-          maxCancellationMultiplier: defaultMaxCancellationMultiplier,
-        },
-        cancellationAuctionDuration: order.auctionDuration,
-      }),
-    });
-
-    await setCurrentTime(
-      context,
-      state.defaultExpirationTime + order.auctionDuration + 1
-    );
+  it("Maker can't create an escrow if the fee is greater than lamports balance", async () => {
     await expect(
-      program.methods
-        .cancelByResolver(escrow.reducedOrderConfig)
-        .accountsPartial({
-          resolver: state.bob.keypair.publicKey,
-          maker: state.alice.keypair.publicKey,
-          makerReceiver: escrow.orderConfig.receiver,
-          srcMint: escrow.orderConfig.srcMint,
-          dstMint: escrow.orderConfig.dstMint,
-          escrow: escrow.escrow,
-          escrowSrcAta: escrow.ata,
-          protocolDstAta: escrow.orderConfig.fee.protocolDstAta,
-          integratorDstAta: escrow.orderConfig.fee.integratorDstAta,
-          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-        })
-        .signers([state.bob.keypair])
-        .rpc()
+      state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider: banksClient,
+        orderConfig: state.orderConfig({
+          fee: {
+            maxCancellationPremium: new anchor.BN(tokenAccountRent + 1),
+          },
+          cancellationAuctionDuration: order.auctionDuration,
+        }),
+      })
     ).to.be.rejectedWith("Error Code: InvalidCancellationFee");
   });
 });

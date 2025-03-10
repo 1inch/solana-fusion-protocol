@@ -40,7 +40,7 @@ type FeeConfig = {
   integratorFee: number;
   surplusPercentage: number;
   minCancellationPremium: anchor.BN;
-  maxCancellationMultiplier: number;
+  maxCancellationPremium: anchor.BN;
 };
 
 type OrderConfig = ReducedOrderConfig & {
@@ -405,7 +405,7 @@ export class TestState {
         integratorFee: 0,
         surplusPercentage: 0,
         minCancellationPremium: new anchor.BN(0),
-        maxCancellationMultiplier: 0,
+        maxCancellationPremium: new anchor.BN(0),
         ...(params.fee ?? {}),
       },
     };
