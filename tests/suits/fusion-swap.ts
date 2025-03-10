@@ -704,7 +704,7 @@ describe("Fusion Swap", () => {
         makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber() - fee
       );
       // check that protocol fee was sent to the protocol fee receiver
-      expect(feeReciverNativeTokenBalanceAfter).to.be.gte(
+      expect(feeReciverNativeTokenBalanceAfter).to.be.eq(
         feeReciverNativeTokenBalanceBefore + fee
       );
 
@@ -818,7 +818,7 @@ describe("Fusion Swap", () => {
         makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber() - fee
       );
       // check that protocol fee was sent to the protocol fee receiver
-      expect(feeReciverNativeTokenBalanceAfter).to.be.gte(
+      expect(feeReciverNativeTokenBalanceAfter).to.be.eq(
         feeReciverNativeTokenBalanceBefore + fee
       );
 

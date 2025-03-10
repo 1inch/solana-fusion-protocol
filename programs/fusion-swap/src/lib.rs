@@ -156,7 +156,7 @@ pub mod fusion_swap {
                             to: protocol_dst_acc.to_account_info(),
                         },
                     ),
-                    maker_dst_amount,
+                    protocol_fee_amount,
                 )?;
             } else {
                 transfer_checked(
@@ -192,7 +192,7 @@ pub mod fusion_swap {
                             to: integrator_dst_acc.to_account_info(),
                         },
                     ),
-                    maker_dst_amount,
+                    integrator_fee_amount,
                 )?;
             } else {
                 transfer_checked(
