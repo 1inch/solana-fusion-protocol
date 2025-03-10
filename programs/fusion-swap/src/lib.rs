@@ -649,15 +649,6 @@ pub struct CancelByResolver<'info> {
 
     integrator_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    /// Resolver's ATA of src_mint
-    #[account(
-        mut,
-        associated_token::mint = src_mint,
-        associated_token::authority = resolver,
-        associated_token::token_program = src_token_program,
-    )]
-    resolver_src_ata: InterfaceAccount<'info, TokenAccount>,
-
     src_token_program: Interface<'info, TokenInterface>,
     system_program: Program<'info, System>,
 }
