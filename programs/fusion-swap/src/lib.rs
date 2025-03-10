@@ -8,7 +8,7 @@ use anchor_spl::{
         TransferChecked,
     },
 };
-use auction::{calculate_premium_multiplier, calculate_rate_bump, AuctionData};
+use auction::{calculate_premium, calculate_rate_bump, AuctionData};
 use common::constants::*;
 use muldiv::MulDiv;
 
@@ -103,6 +103,12 @@ pub mod fusion_swap {
         require!(
             (order.fee.integrator_fee > 0) == ctx.accounts.integrator_dst_acc.is_some(),
             FusionError::InconsistentIntegratorFeeConfig
+        );
+
+        require!(
+            ctx.accounts.escrow_src_ata.to_account_info().lamports()
+                >= order.fee.max_cancellation_premium,
+            FusionError::InvalidCancellationFee
         );
 
         // Maker => Escrow
@@ -255,7 +261,7 @@ pub mod fusion_swap {
     }
 
     pub fn cancel(ctx: Context<Cancel>, order_hash: [u8; 32]) -> Result<()> {
-        // return remaining src tokens back to maker
+        // Return remaining src tokens back to maker
         transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.src_token_program.to_account_info(),
@@ -297,31 +303,13 @@ pub mod fusion_swap {
         reduced_order: ReducedOrderConfig,
     ) -> Result<()> {
         require!(
-            reduced_order.fee.min_cancellation_premium > 0,
+            reduced_order.fee.max_cancellation_premium > 0,
             FusionError::CancelOrderByResolverIsForbidden
         );
         let current_timestamp = Clock::get()?.unix_timestamp;
         require!(
             current_timestamp >= reduced_order.expiration_time as i64,
             FusionError::OrderNotExpired
-        );
-
-        // Calculate the total cancellation premium (base + auction premium)
-        let premium_bump = calculate_premium_multiplier(
-            current_timestamp as u32,
-            reduced_order.expiration_time,
-            reduced_order.cancellation_auction_duration,
-            reduced_order.fee.max_cancellation_multiplier,
-        );
-
-        let total_cancellation_premium = reduced_order
-            .fee
-            .min_cancellation_premium
-            .mul_div_ceil(BASE_1E3 + premium_bump, BASE_1E3)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        require!(
-            total_cancellation_premium <= ctx.accounts.escrow_src_ata.amount,
-            FusionError::InvalidCancellationFee
         );
 
         let order = build_order_from_reduced(
@@ -345,7 +333,7 @@ pub mod fusion_swap {
                 TransferChecked {
                     from: ctx.accounts.escrow_src_ata.to_account_info(),
                     mint: ctx.accounts.src_mint.to_account_info(),
-                    to: ctx.accounts.resolver_src_ata.to_account_info(),
+                    to: ctx.accounts.maker_src_ata.to_account_info(),
                     authority: ctx.accounts.escrow.to_account_info(),
                 },
                 &[&[
@@ -355,40 +343,24 @@ pub mod fusion_swap {
                     &[ctx.bumps.escrow],
                 ]],
             ),
-            total_cancellation_premium,
+            ctx.accounts.escrow_src_ata.amount,
             ctx.accounts.src_mint.decimals,
         )?;
 
-        let remaining_src_amount = ctx.accounts.escrow_src_ata.amount - total_cancellation_premium;
-
-        // Return the remaining src tokens back to the maker if any
-        if remaining_src_amount > 0 {
-            transfer_checked(
-                CpiContext::new_with_signer(
-                    ctx.accounts.src_token_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.escrow_src_ata.to_account_info(),
-                        mint: ctx.accounts.src_mint.to_account_info(),
-                        to: ctx.accounts.maker_src_ata.to_account_info(),
-                        authority: ctx.accounts.escrow.to_account_info(),
-                    },
-                    &[&[
-                        "escrow".as_bytes(),
-                        ctx.accounts.maker.key().as_ref(),
-                        &order_hash,
-                        &[ctx.bumps.escrow],
-                    ]],
-                ),
-                remaining_src_amount,
-                ctx.accounts.src_mint.decimals,
-            )?;
-        }
-
+        let cancellation_premium = calculate_premium(
+            current_timestamp as u32,
+            reduced_order.expiration_time,
+            reduced_order.cancellation_auction_duration,
+            reduced_order.fee.max_cancellation_premium,
+        );
+        let maker_refund =
+            ctx.accounts.escrow_src_ata.to_account_info().lamports() - cancellation_premium;
+        // Transfer all the remaining lamports to the resolver first
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
             CloseAccount {
                 account: ctx.accounts.escrow_src_ata.to_account_info(),
-                destination: ctx.accounts.maker.to_account_info(),
+                destination: ctx.accounts.resolver.to_account_info(),
                 authority: ctx.accounts.escrow.to_account_info(),
             },
             &[&[
@@ -397,7 +369,19 @@ pub mod fusion_swap {
                 &order_hash,
                 &[ctx.bumps.escrow],
             ]],
-        ))
+        ))?;
+
+        // Transfer all lamports from the closed account, minus the cancellation premium, to the maker
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.resolver.to_account_info(),
+                    to: ctx.accounts.maker.to_account_info(),
+                },
+            ),
+            maker_refund,
+        )
     }
 }
 
@@ -666,16 +650,8 @@ pub struct CancelByResolver<'info> {
     )]
     maker_src_ata: InterfaceAccount<'info, TokenAccount>,
 
-    /// Resolver's ATA of src_mint
-    #[account(
-        mut,
-        associated_token::mint = src_mint,
-        associated_token::authority = resolver,
-        associated_token::token_program = src_token_program,
-    )]
-    resolver_src_ata: InterfaceAccount<'info, TokenAccount>,
-
     src_token_program: Interface<'info, TokenInterface>,
+    system_program: Program<'info, System>,
 
     protocol_dst_acc: Option<UncheckedAccount<'info>>,
 
@@ -698,13 +674,9 @@ pub struct FeeConfig {
     /// Value in basis points where `BASE_1E2` = 100%
     surplus_percentage: u8,
 
-    /// Fee charged to the maker if the order is cancelled by resolver
-    /// Value in absolute token amount
-    min_cancellation_premium: u64,
-
-    /// Maximum cancellation premium multiplier
-    /// Value in basis points where `BASE_1E3` = 100%
-    max_cancellation_multiplier: u16,
+    /// Maximum cancellation premium
+    /// Value in absolute lamports amount
+    max_cancellation_premium: u64,
 }
 
 /// Configuration for fees applied to the escrow
@@ -720,12 +692,9 @@ pub struct ReducedFeeConfig {
     /// Value in basis points where `BASE_1E2` = 100%
     surplus_percentage: u8,
 
-    /// Fee charged to the maker if the order is cancelled by resolver
-    /// Value in absolute token amount
-    min_cancellation_premium: u64,
-    /// Maximum cancellation premium multiplier
-    /// Value in basis points where `BASE_1E3` = 100%
-    max_cancellation_multiplier: u16,
+    /// Maximum cancellation premium
+    /// Value in absolute lamports amount
+    max_cancellation_premium: u64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -835,8 +804,7 @@ fn build_order_from_reduced(
             protocol_fee: order.fee.protocol_fee,
             integrator_fee: order.fee.integrator_fee,
             surplus_percentage: order.fee.surplus_percentage,
-            min_cancellation_premium: order.fee.min_cancellation_premium,
-            max_cancellation_multiplier: order.fee.max_cancellation_multiplier,
+            max_cancellation_premium: order.fee.max_cancellation_premium,
         },
         dutch_auction_data: order.dutch_auction_data.clone(),
         cancellation_auction_duration: order.cancellation_auction_duration,

@@ -26,8 +26,7 @@ export type FeeConfig = {
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
-  minCancellationPremium: anchor.BN;
-  maxCancellationMultiplier: number;
+  maxCancellationPremium: anchor.BN;
 };
 export type OrderConfig = ReducedOrderConfig & {
   srcMint: anchor.web3.PublicKey;
@@ -49,8 +48,7 @@ export const defaultFeeConfig: ReducedFeeConfig = {
   protocolFee: 0,
   integratorFee: 0,
   surplusPercentage: 0,
-  minCancellationPremium: new anchor.BN(0),
-  maxCancellationMultiplier: 0,
+  maxCancellationPremium: new anchor.BN(0),
 };
 
 export const defaultAuctionData: AuctionData = {
@@ -161,8 +159,7 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
       protocolFee: orderConfig.fee.protocolFee,
       integratorFee: orderConfig.fee.integratorFee,
       surplusPercentage: orderConfig.fee.surplusPercentage,
-      minCancellationPremium: orderConfig.fee.minCancellationPremium,
-      maxCancellationMultiplier: orderConfig.fee.maxCancellationMultiplier,
+      maxCancellationPremium: orderConfig.fee.maxCancellationPremium,
     },
     dutchAuctionData: {
       startTime: orderConfig.dutchAuctionData.startTime,
@@ -199,8 +196,7 @@ const orderConfigSchema = {
         protocolFee: "u16",
         integratorFee: "u16",
         surplusPercentage: "u8",
-        minCancellationPremium: "u64",
-        maxCancellationMultiplier: "u16",
+        maxCancellationPremium: "u64",
       },
     },
     dutchAuctionData: {

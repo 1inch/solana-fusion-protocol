@@ -53,11 +53,11 @@ pub fn calculate_rate_bump(timestamp: u64, data: &AuctionData) -> u64 {
         / (auction_finish_time - current_point_time)
 }
 
-pub fn calculate_premium_multiplier(
+pub fn calculate_premium(
     timestamp: u32,
     auction_start_time: u32,
     auction_duration: u32,
-    max_cancellation_multiplier: u16,
+    max_cancellation_premium: u64,
 ) -> u64 {
     if timestamp <= auction_start_time {
         return 0;
@@ -65,8 +65,8 @@ pub fn calculate_premium_multiplier(
 
     let time_elapsed = timestamp - auction_start_time;
     if time_elapsed >= auction_duration {
-        return max_cancellation_multiplier as u64;
+        return max_cancellation_premium;
     }
 
-    (time_elapsed as u64 * max_cancellation_multiplier as u64) / auction_duration as u64
+    (time_elapsed as u64 * max_cancellation_premium) / auction_duration as u64
 }
