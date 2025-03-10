@@ -19,6 +19,24 @@ use error::FusionError;
 
 declare_id!("9CnwB8RDNtRzRcxvkNqwgatRDENBCh2f56HgJLPStn8S");
 
+enum UniTransferParams<'info> {
+    NativeTransfer {
+        from: AccountInfo<'info>,
+        to: AccountInfo<'info>,
+        amount: u64,
+        program: Program<'info, System>,
+    },
+
+    TokenTransfer {
+        from: AccountInfo<'info>,
+        taker: AccountInfo<'info>,
+        to: AccountInfo<'info>,
+        mint: InterfaceAccount<'info, Mint>,
+        amount: u64,
+        program: Interface<'info, TokenInterface>,
+    },
+}
+
 #[program]
 pub mod fusion_swap {
     use super::*;
@@ -140,111 +158,57 @@ pub mod fusion_swap {
             get_dst_amount(order.src_amount, order.estimated_dst_amount, amount, None)?,
         )?;
 
+        // Taker => Maker
+        let mut params = if order.native_dst_asset {
+            UniTransferParams::NativeTransfer {
+                from: ctx.accounts.taker.to_account_info(),
+                to: ctx.accounts.maker_receiver.to_account_info(),
+                amount: maker_dst_amount,
+                program: ctx.accounts.system_program.clone(),
+            }
+        } else {
+            UniTransferParams::TokenTransfer {
+                from: ctx.accounts.taker_dst_ata.to_account_info(),
+                taker: ctx.accounts.taker.to_account_info(),
+                to: ctx
+                    .accounts
+                    .maker_dst_ata
+                    .as_ref()
+                    .ok_or(FusionError::MissingMakerDstAta)?
+                    .to_account_info(),
+                mint: *ctx.accounts.dst_mint.clone(),
+                amount: maker_dst_amount,
+                program: ctx.accounts.dst_token_program.clone(),
+            }
+        };
+        uni_transfer(&params)?;
+
         // Take protocol fee
         if protocol_fee_amount > 0 {
-            let protocol_dst_acc = ctx
-                .accounts
-                .protocol_dst_acc
-                .as_ref()
-                .ok_or(FusionError::InconsistentProtocolFeeConfig)?;
-            if order.native_dst_asset {
-                anchor_lang::system_program::transfer(
-                    CpiContext::new(
-                        ctx.accounts.system_program.to_account_info(),
-                        anchor_lang::system_program::Transfer {
-                            from: ctx.accounts.taker.to_account_info(),
-                            to: protocol_dst_acc.to_account_info(),
-                        },
-                    ),
-                    protocol_fee_amount,
-                )?;
-            } else {
-                transfer_checked(
-                    CpiContext::new(
-                        ctx.accounts.dst_token_program.to_account_info(),
-                        TransferChecked {
-                            from: ctx.accounts.taker_dst_ata.to_account_info(),
-                            mint: ctx.accounts.dst_mint.to_account_info(),
-                            to: protocol_dst_acc.to_account_info(),
-                            authority: ctx.accounts.taker.to_account_info(),
-                        },
-                    ),
-                    protocol_fee_amount,
-                    ctx.accounts.dst_mint.decimals,
-                )?;
-            }
+            params = update_to_and_amount(
+                params,
+                protocol_fee_amount,
+                ctx.accounts
+                    .protocol_dst_acc
+                    .as_ref()
+                    .ok_or(FusionError::InconsistentProtocolFeeConfig)?
+                    .to_account_info(),
+            );
+            uni_transfer(&params)?;
         }
 
         // Take integrator fee
         if integrator_fee_amount > 0 {
-            let integrator_dst_acc = ctx
-                .accounts
-                .integrator_dst_acc
-                .as_ref()
-                .ok_or(FusionError::InconsistentIntegratorFeeConfig)?;
-
-            if order.native_dst_asset {
-                anchor_lang::system_program::transfer(
-                    CpiContext::new(
-                        ctx.accounts.system_program.to_account_info(),
-                        anchor_lang::system_program::Transfer {
-                            from: ctx.accounts.taker.to_account_info(),
-                            to: integrator_dst_acc.to_account_info(),
-                        },
-                    ),
-                    integrator_fee_amount,
-                )?;
-            } else {
-                transfer_checked(
-                    CpiContext::new(
-                        ctx.accounts.dst_token_program.to_account_info(),
-                        TransferChecked {
-                            from: ctx.accounts.taker_dst_ata.to_account_info(),
-                            mint: ctx.accounts.dst_mint.to_account_info(),
-                            to: integrator_dst_acc.to_account_info(),
-                            authority: ctx.accounts.taker.to_account_info(),
-                        },
-                    ),
-                    integrator_fee_amount,
-                    ctx.accounts.dst_mint.decimals,
-                )?;
-            }
-        }
-
-        // Taker => Maker
-        if order.native_dst_asset {
-            // Transfer native SOL
-            anchor_lang::system_program::transfer(
-                CpiContext::new(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.taker.to_account_info(),
-                        to: ctx.accounts.maker_receiver.to_account_info(),
-                    },
-                ),
-                maker_dst_amount,
-            )?;
-        } else {
-            let maker_dst_ata = ctx
-                .accounts
-                .maker_dst_ata
-                .as_ref()
-                .ok_or(FusionError::MissingMakerDstAta)?;
-
-            // Transfer SPL tokens
-            transfer_checked(
-                CpiContext::new(
-                    ctx.accounts.dst_token_program.to_account_info(),
-                    TransferChecked {
-                        from: ctx.accounts.taker_dst_ata.to_account_info(),
-                        mint: ctx.accounts.dst_mint.to_account_info(),
-                        to: maker_dst_ata.to_account_info(),
-                        authority: ctx.accounts.taker.to_account_info(),
-                    },
-                ),
-                maker_dst_amount,
-                ctx.accounts.dst_mint.decimals,
-            )?;
+            params = update_to_and_amount(
+                params,
+                integrator_fee_amount,
+                ctx.accounts
+                    .integrator_dst_acc
+                    .as_ref()
+                    .ok_or(FusionError::InconsistentIntegratorFeeConfig)?
+                    .to_account_info(),
+            );
+            uni_transfer(&params)?;
         }
 
         // Close escrow if all tokens are filled
@@ -856,5 +820,80 @@ fn build_order_from_reduced(
         cancellation_auction_duration: order.cancellation_auction_duration,
         src_mint,
         dst_mint,
+    }
+}
+
+fn update_to_and_amount<'info>(
+    params: UniTransferParams<'info>,
+    amount: u64,
+    to: AccountInfo<'info>,
+) -> UniTransferParams<'info> {
+    match params {
+        UniTransferParams::NativeTransfer {
+            from,
+            to: _,
+            amount: _,
+            program,
+        } => UniTransferParams::NativeTransfer {
+            from,
+            to,
+            amount,
+            program,
+        },
+        UniTransferParams::TokenTransfer {
+            from,
+            taker,
+            to: _,
+            mint,
+            amount: _,
+            program,
+        } => UniTransferParams::TokenTransfer {
+            from,
+            taker,
+            to,
+            mint,
+            amount,
+            program,
+        },
+    }
+}
+
+fn uni_transfer(params: &UniTransferParams<'_>) -> Result<()> {
+    match params {
+        UniTransferParams::NativeTransfer {
+            from,
+            to,
+            amount,
+            program,
+        } => anchor_lang::system_program::transfer(
+            CpiContext::new(
+                program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: from.to_account_info(),
+                    to: to.to_account_info(),
+                },
+            ),
+            *amount,
+        ),
+        UniTransferParams::TokenTransfer {
+            from,
+            taker,
+            to,
+            mint,
+            amount,
+            program,
+        } => transfer_checked(
+            CpiContext::new(
+                program.to_account_info(),
+                TransferChecked {
+                    from: from.to_account_info(),
+                    mint: mint.to_account_info(),
+                    to: to.to_account_info(),
+                    authority: taker.to_account_info(),
+                },
+            ),
+            *amount,
+            mint.decimals,
+        ),
     }
 }
