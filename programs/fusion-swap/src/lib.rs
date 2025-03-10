@@ -37,6 +37,30 @@ enum UniTransferParams<'info> {
     },
 }
 
+impl<'info> UniTransferParams<'info> {
+    fn update_to(&mut self, new_to: AccountInfo<'info>) {
+        match self {
+            UniTransferParams::NativeTransfer { to, .. } => {
+                *to = new_to;
+            }
+            UniTransferParams::TokenTransfer { to, .. } => {
+                *to = new_to;
+            }
+        }
+    }
+
+    fn update_amount(&mut self, new_amount: u64) {
+        match self {
+            UniTransferParams::NativeTransfer { amount, .. } => {
+                *amount = new_amount;
+            }
+            UniTransferParams::TokenTransfer { amount, .. } => {
+                *amount = new_amount;
+            }
+        }
+    }
+}
+
 #[program]
 pub mod fusion_swap {
     use super::*;
@@ -185,9 +209,8 @@ pub mod fusion_swap {
 
         // Take protocol fee
         if protocol_fee_amount > 0 {
-            params = update_to_and_amount(
-                params,
-                protocol_fee_amount,
+            params.update_amount(protocol_fee_amount);
+            params.update_to(
                 ctx.accounts
                     .protocol_dst_acc
                     .as_ref()
@@ -199,9 +222,8 @@ pub mod fusion_swap {
 
         // Take integrator fee
         if integrator_fee_amount > 0 {
-            params = update_to_and_amount(
-                params,
-                integrator_fee_amount,
+            params.update_amount(integrator_fee_amount);
+            params.update_to(
                 ctx.accounts
                     .integrator_dst_acc
                     .as_ref()
@@ -820,41 +842,6 @@ fn build_order_from_reduced(
         cancellation_auction_duration: order.cancellation_auction_duration,
         src_mint,
         dst_mint,
-    }
-}
-
-fn update_to_and_amount<'info>(
-    params: UniTransferParams<'info>,
-    amount: u64,
-    to: AccountInfo<'info>,
-) -> UniTransferParams<'info> {
-    match params {
-        UniTransferParams::NativeTransfer {
-            from,
-            to: _,
-            amount: _,
-            program,
-        } => UniTransferParams::NativeTransfer {
-            from,
-            to,
-            amount,
-            program,
-        },
-        UniTransferParams::TokenTransfer {
-            from,
-            taker,
-            to: _,
-            mint,
-            amount: _,
-            program,
-        } => UniTransferParams::TokenTransfer {
-            from,
-            taker,
-            to,
-            mint,
-            amount,
-            program,
-        },
     }
 }
 
