@@ -40,9 +40,7 @@ enum UniTransferParams<'info> {
 impl<'info> UniTransferParams<'info> {
     fn update_to(&mut self, new_to: AccountInfo<'info>) {
         match self {
-            UniTransferParams::NativeTransfer { to, .. } => {
-                *to = new_to;
-            }
+            UniTransferParams::NativeTransfer { to, .. } |
             UniTransferParams::TokenTransfer { to, .. } => {
                 *to = new_to;
             }
@@ -51,9 +49,7 @@ impl<'info> UniTransferParams<'info> {
 
     fn update_amount(&mut self, new_amount: u64) {
         match self {
-            UniTransferParams::NativeTransfer { amount, .. } => {
-                *amount = new_amount;
-            }
+            UniTransferParams::NativeTransfer { amount, .. } |
             UniTransferParams::TokenTransfer { amount, .. } => {
                 *amount = new_amount;
             }
