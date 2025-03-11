@@ -34,8 +34,8 @@ export type ReducedOrderConfig =
   (typeof reducedOrderConfigType)["type"]["fields"];
 
 type FeeConfig = {
-  protocolDstAta: anchor.web3.PublicKey | null;
-  integratorDstAta: anchor.web3.PublicKey | null;
+  protocolDstAcc: anchor.web3.PublicKey | null;
+  integratorDstAcc: anchor.web3.PublicKey | null;
   protocolFee: number;
   integratorFee: number;
   surplusPercentage: number;
@@ -274,8 +274,8 @@ export class TestState {
     makerDstAta = this.alice.atas[this.tokens[1].toString()].address,
     takerSrcAta = this.bob.atas[this.tokens[0].toString()].address,
     takerDstAta = this.bob.atas[this.tokens[1].toString()].address,
-    protocolDstAta = null,
-    integratorDstAta = null,
+    protocolDstAcc = null,
+    integratorDstAcc = null,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
     dstTokenProgram = splToken.TOKEN_PROGRAM_ID,
   }): any {
@@ -290,8 +290,8 @@ export class TestState {
       makerDstAta,
       takerSrcAta,
       takerDstAta,
-      protocolDstAta,
-      integratorDstAta,
+      protocolDstAcc,
+      integratorDstAcc,
       srcTokenProgram,
       dstTokenProgram,
     };
@@ -358,8 +358,8 @@ export class TestState {
         makerReceiver: orderConfig.receiver,
         srcMint: orderConfig.srcMint,
         dstMint: orderConfig.dstMint,
-        protocolDstAta: orderConfig.fee.protocolDstAta,
-        integratorDstAta: orderConfig.fee.integratorDstAta,
+        protocolDstAcc: orderConfig.fee.protocolDstAcc,
+        integratorDstAcc: orderConfig.fee.integratorDstAcc,
         escrow,
         srcTokenProgram,
       })
@@ -399,8 +399,8 @@ export class TestState {
       dstMint: this.tokens[1],
       ...params,
       fee: {
-        protocolDstAta: null,
-        integratorDstAta: null,
+        protocolDstAcc: null,
+        integratorDstAcc: null,
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,

@@ -607,7 +607,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
@@ -621,7 +621,7 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta:
+              protocolDstAcc:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -650,6 +650,69 @@ describe("Fusion Swap", () => {
       ]);
     });
 
+    it("Execute the trade with native tokens (SOL) as destination + protocol fee", async () => {
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+      const feeReciverNativeTokenBalanceBefore =
+        await provider.connection.getBalance(
+          state.charlie.atas[splToken.NATIVE_MINT.toString()].address
+        );
+
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          nativeDstAsset: true,
+          dstMint: splToken.NATIVE_MINT,
+          fee: {
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            protocolFee: 10000, // 10%
+          },
+        },
+      });
+      const fee = Math.floor(state.defaultDstAmount.toNumber() / 10);
+
+      await program.methods
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta: null,
+            takerDstAta: null,
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.alice.keypair.publicKey
+      );
+      const feeReciverNativeTokenBalanceAfter =
+        await provider.connection.getBalance(
+          state.charlie.atas[splToken.NATIVE_MINT.toString()].address
+        );
+
+      // check that native tokens were sent to maker
+      expect(makerNativeTokenBalanceAfter).to.be.eq(
+        makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber() - fee
+      );
+      // check that protocol fee was sent to the protocol fee receiver
+      expect(feeReciverNativeTokenBalanceAfter).to.be.eq(
+        feeReciverNativeTokenBalanceBefore + fee
+      );
+
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
     it("Execute the trade with integrator fee", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
@@ -657,7 +720,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           fee: {
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 15000, // 15%
           },
@@ -671,7 +734,7 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta:
+              integratorDstAcc:
                 state.charlie.atas[state.tokens[1].toString()].address,
             })
           )
@@ -700,7 +763,134 @@ describe("Fusion Swap", () => {
       ]);
     });
 
-    it("Doesn't execute the trade with exchange amount more than escow has (x_token)", async () => {
+    it("Execute the trade with native tokens (SOL) as destination + integrator fee", async () => {
+      const makerNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.alice.keypair.publicKey);
+      const feeReciverNativeTokenBalanceBefore =
+        await provider.connection.getBalance(
+          state.charlie.atas[splToken.NATIVE_MINT.toString()].address
+        );
+
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          nativeDstAsset: true,
+          dstMint: splToken.NATIVE_MINT,
+          fee: {
+            integratorDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            integratorFee: 15000, // 15%
+          },
+        },
+      });
+      const fee = Math.floor((state.defaultDstAmount.toNumber() * 15) / 100);
+
+      await program.methods
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerDstAta: null,
+            takerDstAta: null,
+            integratorDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerNativeTokenBalanceAfter = await provider.connection.getBalance(
+        state.alice.keypair.publicKey
+      );
+      const feeReciverNativeTokenBalanceAfter =
+        await provider.connection.getBalance(
+          state.charlie.atas[splToken.NATIVE_MINT.toString()].address
+        );
+
+      // check that native tokens were sent to maker
+      expect(makerNativeTokenBalanceAfter).to.be.eq(
+        makerNativeTokenBalanceBefore + state.defaultDstAmount.toNumber() - fee
+      );
+      // check that protocol fee was sent to the protocol fee receiver
+      expect(feeReciverNativeTokenBalanceAfter).to.be.eq(
+        feeReciverNativeTokenBalanceBefore + fee
+      );
+
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
+    it("Execute the trade with wrapped native tokens (wSOL) as destination + protocol & integrator fee", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          dstMint: splToken.NATIVE_MINT,
+          fee: {
+            protocolDstAcc:
+              state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+            protocolFee: 10000, // 10%
+            integratorDstAcc:
+              state.dave.atas[splToken.NATIVE_MINT.toString()].address,
+            integratorFee: 15000, // 15%
+          },
+        },
+      });
+
+      const transactionPromise = () =>
+        program.methods
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              dstMint: splToken.NATIVE_MINT,
+              makerDstAta:
+                state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+              takerDstAta:
+                state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+              protocolDstAcc:
+                state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+              integratorDstAcc:
+                state.dave.atas[splToken.NATIVE_MINT.toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc();
+
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [
+          state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+          state.bob.atas[state.tokens[0].toString()].address,
+          state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+          state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
+          state.dave.atas[splToken.NATIVE_MINT.toString()].address,
+        ],
+        transactionPromise
+      );
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+
+      expect(results).to.be.deep.eq([
+        BigInt(Math.ceil((state.defaultDstAmount.toNumber() * 75) / 100)),
+        BigInt(state.defaultSrcAmount.toNumber()),
+        -BigInt(state.defaultDstAmount.toNumber()),
+        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 10) / 100)),
+        BigInt(Math.floor((state.defaultDstAmount.toNumber() * 15) / 100)),
+      ]);
+    });
+
+    it("Doesn't execute the trade with exchange amount more than escow has (src token)", async () => {
       await expect(
         program.methods
           .fill(
@@ -711,6 +901,20 @@ describe("Fusion Swap", () => {
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
+    });
+
+    it("Doesn't execute the trade without taking dst ata", async () => {
+      await expect(
+        program.methods
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              takerDstAta: null,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: MissingTakerDstAta");
     });
 
     it("Check that maker's yToken account is created automatically if it wasn't initialized before", async () => {
@@ -836,8 +1040,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -868,8 +1072,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -897,8 +1101,8 @@ describe("Fusion Swap", () => {
           makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
-          protocolDstAta: null,
-          integratorDstAta: null,
+          protocolDstAcc: null,
+          integratorDstAcc: null,
           escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })
@@ -913,8 +1117,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -999,8 +1203,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1009,7 +1213,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: InvalidProtocolSurplusFee");
     });
 
-    it("Doesn't create escrow with protocol_dst_ata from different mint", async () => {
+    it("Doesn't create escrow with protocol_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
         fee: { protocolFee: 10000 }, // 10%
       });
@@ -1031,9 +1235,9 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address,
-            integratorDstAta: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1042,7 +1246,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't create escrow with intergrator_dst_ata from different mint", async () => {
+    it("Doesn't create escrow with intergrator_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
         fee: { integratorFee: 10000 }, // 10%
       });
@@ -1064,8 +1268,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta:
+            protocolDstAcc: null,
+            integratorDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
@@ -1075,14 +1279,14 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade with the wrong protocol_dst_ata", async () => {
+    it("Doesn't execute the trade with wrong protocol_dst_acc authority", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
@@ -1096,8 +1300,8 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              protocolDstAta:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_ata
+              protocolDstAcc:
+                state.bob.atas[state.tokens[1].toString()].address, // wrong protocol_dst_acc authority
             })
           )
           .signers([state.bob.keypair])
@@ -1105,14 +1309,44 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade without protocol_dst_ata", async () => {
+    it("Doesn't execute the trade with the wrong protocol_dst_acc mint", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
         orderConfig: {
           fee: {
-            protocolDstAta:
+            protocolDstAcc:
+              state.charlie.atas[state.tokens[0].toString()].address, // wrong protocol_dst_acc mint
+            protocolFee: 10000, // 10%
+          },
+        },
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              protocolDstAcc:
+                state.charlie.atas[state.tokens[0].toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error: Account not associated with this Mint");
+    });
+
+    it("Doesn't execute the trade without protocol_dst_acc", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          fee: {
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
           },
@@ -1133,14 +1367,14 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade with the wrong integrator_dst_ata", async () => {
+    it("Doesn't execute the trade with the wrong integrator_dst_acc authority", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
         orderConfig: {
           fee: {
-            integratorDstAta:
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
           },
@@ -1154,8 +1388,8 @@ describe("Fusion Swap", () => {
             state.buildAccountsDataForFill({
               escrow: escrow.escrow,
               escrowSrcAta: escrow.ata,
-              integratorDstAta:
-                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_ata
+              integratorDstAcc:
+                state.bob.atas[state.tokens[1].toString()].address, // wrong integrator_dst_acc authority
             })
           )
           .signers([state.bob.keypair])
@@ -1163,14 +1397,44 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: ConstraintSeeds");
     });
 
-    it("Doesn't execute the trade without integrator_dst_ata", async () => {
+    it("Doesn't execute the trade with the wrong integrator_dst_acc mint", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
         orderConfig: {
           fee: {
-            integratorDstAta:
+            integratorDstAcc:
+              state.charlie.atas[state.tokens[0].toString()].address, // wrong integrator_dst_acc mint
+            integratorFee: 10000, // 10%
+          },
+        },
+      });
+
+      await expect(
+        program.methods
+          .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              escrow: escrow.escrow,
+              escrowSrcAta: escrow.ata,
+              integratorDstAcc:
+                state.charlie.atas[state.tokens[0].toString()].address,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error: Account not associated with this Mint");
+    });
+
+    it("Doesn't execute the trade without integrator_dst_acc", async () => {
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          fee: {
+            integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
           },
@@ -1608,7 +1872,7 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
-    it("Fails to execute the trade if maker_dst_ata is missing", async () => {
+    it("Fails to execute the trade if maker_dst_acc is missing", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
@@ -1658,8 +1922,8 @@ describe("Fusion Swap", () => {
             makerReceiver: orderConfig.receiver,
             srcMint: state.tokens[0],
             dstMint: state.tokens[1],
-            protocolDstAta: null,
-            integratorDstAta: null,
+            protocolDstAcc: null,
+            integratorDstAcc: null,
             escrow: escrow,
             srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
           })
@@ -1871,8 +2135,8 @@ describe("Fusion Swap", () => {
           makerReceiver: orderConfig.receiver,
           srcMint: state.tokens[0],
           dstMint: state.tokens[1],
-          protocolDstAta: null,
-          integratorDstAta: null,
+          protocolDstAcc: null,
+          integratorDstAcc: null,
           escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
         })

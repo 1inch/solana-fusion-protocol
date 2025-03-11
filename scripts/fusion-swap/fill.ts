@@ -76,8 +76,8 @@ async function fill(
       escrow,
       escrowSrcAta,
       takerSrcAta,
-      protocolDstAta: orderConfig.fee.protocolDstAta,
-      integratorDstAta: orderConfig.fee.integratorDstAta,
+      protocolDstAcc: orderConfig.fee.protocolDstAcc,
+      integratorDstAcc: orderConfig.fee.integratorDstAcc,
       srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
       dstTokenProgram: splToken.TOKEN_PROGRAM_ID,
     })

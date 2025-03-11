@@ -26,4 +26,6 @@ pub enum FusionError {
     InvalidCancellationFee,
     #[msg("Cancel order by resolver is forbidden")]
     CancelOrderByResolverIsForbidden,
+    #[msg("Missing taker dst ata")]
+    MissingTakerDstAta,
 }

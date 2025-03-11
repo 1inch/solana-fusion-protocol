@@ -7,8 +7,8 @@ pub fn build_order_from_reduced(
     src_mint: Pubkey,
     dst_mint: Pubkey,
     receiver: Pubkey,
-    protocol_dst_ata: Option<Pubkey>,
-    integrator_dst_ata: Option<Pubkey>,
+    protocol_dst_acc: Option<Pubkey>,
+    integrator_dst_acc: Option<Pubkey>,
 ) -> OrderConfig {
     OrderConfig {
         id: order.id,
@@ -19,8 +19,8 @@ pub fn build_order_from_reduced(
         native_dst_asset: order.native_dst_asset,
         receiver,
         fee: FeeConfig {
-            protocol_dst_ata,
-            integrator_dst_ata,
+            protocol_dst_acc,
+            integrator_dst_acc,
             protocol_fee: order.fee.protocol_fee,
             integrator_fee: order.fee.integrator_fee,
             surplus_percentage: order.fee.surplus_percentage,

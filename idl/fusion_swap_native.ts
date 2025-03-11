@@ -391,11 +391,11 @@ export type FusionSwapNative = {
           };
         },
         {
-          name: "protocolDstAta";
+          name: "protocolDstAcc";
           optional: true;
         },
         {
-          name: "integratorDstAta";
+          name: "integratorDstAcc";
           optional: true;
         },
         {
@@ -624,11 +624,11 @@ export type FusionSwapNative = {
           address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
         },
         {
-          name: "protocolDstAta";
+          name: "protocolDstAcc";
           optional: true;
         },
         {
-          name: "integratorDstAta";
+          name: "integratorDstAcc";
           optional: true;
         }
       ];
@@ -859,12 +859,12 @@ export type FusionSwapNative = {
           };
         },
         {
-          name: "protocolDstAta";
+          name: "protocolDstAcc";
           writable: true;
           optional: true;
         },
         {
-          name: "integratorDstAta";
+          name: "integratorDstAcc";
           writable: true;
           optional: true;
         },

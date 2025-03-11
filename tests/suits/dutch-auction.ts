@@ -263,7 +263,7 @@ describe("Dutch Auction", () => {
       provider: banksClient,
       orderConfig: {
         fee: {
-          protocolDstAta:
+          protocolDstAcc:
             state.charlie.atas[state.tokens[1].toString()].address,
           surplusPercentage: 50, // 50%
         },
@@ -278,7 +278,7 @@ describe("Dutch Auction", () => {
           state.buildAccountsDataForFill({
             escrow: state.escrows[0].escrow,
             escrowSrcAta: state.escrows[0].ata,
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
           })
         )
@@ -328,9 +328,9 @@ describe("Dutch Auction", () => {
       provider: banksClient,
       orderConfig: {
         fee: {
-          protocolDstAta:
+          protocolDstAcc:
             state.charlie.atas[state.tokens[1].toString()].address,
-          integratorDstAta: state.dave.atas[state.tokens[1].toString()].address,
+          integratorDstAcc: state.dave.atas[state.tokens[1].toString()].address,
           protocolFee: 10000, // 10%
           integratorFee: 15000, // 15%
           surplusPercentage: 50, // 50%
@@ -346,9 +346,9 @@ describe("Dutch Auction", () => {
           state.buildAccountsDataForFill({
             escrow: state.escrows[0].escrow,
             escrowSrcAta: state.escrows[0].ata,
-            protocolDstAta:
+            protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
-            integratorDstAta:
+            integratorDstAcc:
               state.dave.atas[state.tokens[1].toString()].address,
           })
         )

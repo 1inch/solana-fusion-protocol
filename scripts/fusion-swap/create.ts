@@ -42,8 +42,8 @@ async function create(
   receiver: PublicKey = makerKeypair.publicKey,
   nativeDstAsset: boolean = false,
   fee: ReducedFeeConfig = defaultFeeConfig,
-  protocolDstAta: PublicKey = null,
-  integratorDstAta: PublicKey = null,
+  protocolDstAcc: PublicKey = null,
+  integratorDstAcc: PublicKey = null,
   estimatedDstAmount: BN = minDstAmount,
   dutchAuctionData: AuctionData = defaultAuctionData,
   cancellationAuctionDuration: number = defaultAuctionData.duration,
@@ -68,8 +68,8 @@ async function create(
     receiver,
     fee: {
       ...fee,
-      protocolDstAta,
-      integratorDstAta,
+      protocolDstAcc,
+      integratorDstAcc,
     },
   };
 
@@ -123,8 +123,8 @@ async function create(
       dstMint,
       escrow,
       srcTokenProgram,
-      protocolDstAta,
-      integratorDstAta,
+      protocolDstAcc,
+      integratorDstAcc,
     })
     .signers([makerKeypair])
     .instruction();
