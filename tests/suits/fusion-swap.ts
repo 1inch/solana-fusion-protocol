@@ -682,8 +682,7 @@ describe("Fusion Swap", () => {
             escrowSrcAta: escrow.ata,
             dstMint: splToken.NATIVE_MINT,
             makerDstAta: null,
-            takerDstAta:
-              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            takerDstAta: null,
             protocolDstAcc:
               state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
           })
@@ -796,8 +795,7 @@ describe("Fusion Swap", () => {
             escrowSrcAta: escrow.ata,
             dstMint: splToken.NATIVE_MINT,
             makerDstAta: null,
-            takerDstAta:
-              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            takerDstAta: null,
             integratorDstAcc:
               state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
           })
@@ -892,7 +890,7 @@ describe("Fusion Swap", () => {
       ]);
     });
 
-    it("Doesn't execute the trade with exchange amount more than escow has (x_token)", async () => {
+    it("Doesn't execute the trade with exchange amount more than escow has (src token)", async () => {
       await expect(
         program.methods
           .fill(
@@ -903,6 +901,20 @@ describe("Fusion Swap", () => {
           .signers([state.bob.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: NotEnoughTokensInEscrow");
+    });
+
+    it("Doesn't execute the trade without taking dst ata", async () => {
+      await expect(
+        program.methods
+          .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+          .accountsPartial(
+            state.buildAccountsDataForFill({
+              takerDstAta: null,
+            })
+          )
+          .signers([state.bob.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: MissingTakerDstAta");
     });
 
     it("Check that maker's yToken account is created automatically if it wasn't initialized before", async () => {

@@ -40,8 +40,8 @@ enum UniTransferParams<'info> {
 impl<'info> UniTransferParams<'info> {
     fn update_to(&mut self, new_to: AccountInfo<'info>) {
         match self {
-            UniTransferParams::NativeTransfer { to, .. } |
-            UniTransferParams::TokenTransfer { to, .. } => {
+            UniTransferParams::NativeTransfer { to, .. }
+            | UniTransferParams::TokenTransfer { to, .. } => {
                 *to = new_to;
             }
         }
@@ -49,8 +49,8 @@ impl<'info> UniTransferParams<'info> {
 
     fn update_amount(&mut self, new_amount: u64) {
         match self {
-            UniTransferParams::NativeTransfer { amount, .. } |
-            UniTransferParams::TokenTransfer { amount, .. } => {
+            UniTransferParams::NativeTransfer { amount, .. }
+            | UniTransferParams::TokenTransfer { amount, .. } => {
                 *amount = new_amount;
             }
         }
@@ -194,7 +194,12 @@ pub mod fusion_swap {
             }
         } else {
             UniTransferParams::TokenTransfer {
-                from: ctx.accounts.taker_dst_ata.to_account_info(),
+                from: ctx
+                    .accounts
+                    .taker_dst_ata
+                    .as_ref()
+                    .ok_or(FusionError::MissingTakerDstAta)?
+                    .to_account_info(),
                 taker: ctx.accounts.taker.to_account_info(),
                 to: ctx
                     .accounts
@@ -500,6 +505,18 @@ pub struct Fill<'info> {
     )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    /// Taker's ATA of src_mint
+    #[account(
+        mut,
+        constraint = taker_src_ata.mint.key() == src_mint.key()
+    )]
+    taker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    src_token_program: Interface<'info, TokenInterface>,
+    dst_token_program: Interface<'info, TokenInterface>,
+    system_program: Program<'info, System>,
+    associated_token_program: Program<'info, AssociatedToken>,
+
     /// Maker's ATA of dst_mint
     #[account(
         init_if_needed,
@@ -510,19 +527,6 @@ pub struct Fill<'info> {
     )]
     maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    #[account(mut)]
-    protocol_dst_acc: Option<UncheckedAccount<'info>>,
-
-    #[account(mut)]
-    integrator_dst_acc: Option<UncheckedAccount<'info>>,
-
-    /// Taker's ATA of src_mint
-    #[account(
-        mut,
-        constraint = taker_src_ata.mint.key() == src_mint.key()
-    )]
-    taker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
     /// Taker's ATA of dst_mint
     #[account(
         mut,
@@ -530,12 +534,13 @@ pub struct Fill<'info> {
         associated_token::authority = taker,
         associated_token::token_program = dst_token_program,
     )]
-    taker_dst_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    taker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
-    src_token_program: Interface<'info, TokenInterface>,
-    dst_token_program: Interface<'info, TokenInterface>,
-    system_program: Program<'info, System>,
-    associated_token_program: Program<'info, AssociatedToken>,
+    #[account(mut)]
+    protocol_dst_acc: Option<UncheckedAccount<'info>>,
+
+    #[account(mut)]
+    integrator_dst_acc: Option<UncheckedAccount<'info>>,
 }
 
 #[derive(Accounts)]
