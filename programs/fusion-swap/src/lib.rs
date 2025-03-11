@@ -396,7 +396,7 @@ pub struct Create<'info> {
         bump,
     )]
     /// CHECK: check is not needed here as we never initialize the account
-    escrow: AccountInfo<'info>,
+    escrow: UncheckedAccount<'info>,
 
     /// Source asset
     src_mint: Box<InterfaceAccount<'info, Mint>>,
@@ -430,7 +430,7 @@ pub struct Create<'info> {
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
-    maker_receiver: AccountInfo<'info>,
+    maker_receiver: UncheckedAccount<'info>,
 
     associated_token_program: Program<'info, AssociatedToken>,
 
@@ -461,10 +461,10 @@ pub struct Fill<'info> {
 
     /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]
-    maker: AccountInfo<'info>,
+    maker: UncheckedAccount<'info>,
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
-    maker_receiver: AccountInfo<'info>,
+    maker_receiver: UncheckedAccount<'info>,
 
     /// Maker asset
     src_mint: Box<InterfaceAccount<'info, Mint>>,
@@ -488,7 +488,7 @@ pub struct Fill<'info> {
         bump,
     )]
     /// CHECK: check is not needed here as we never initialize the account
-    escrow: AccountInfo<'info>,
+    escrow: UncheckedAccount<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
@@ -557,7 +557,7 @@ pub struct Cancel<'info> {
         bump,
     )]
     /// CHECK: check is not needed here as we never initialize the account
-    escrow: AccountInfo<'info>,
+    escrow: UncheckedAccount<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
@@ -597,10 +597,10 @@ pub struct CancelByResolver<'info> {
 
     /// CHECK: check is not necessary as maker is not spending any funds
     #[account(mut)]
-    maker: AccountInfo<'info>,
+    maker: UncheckedAccount<'info>,
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
-    maker_receiver: AccountInfo<'info>,
+    maker_receiver: UncheckedAccount<'info>,
 
     /// Maker asset
     src_mint: InterfaceAccount<'info, Mint>,
@@ -625,7 +625,7 @@ pub struct CancelByResolver<'info> {
         bump,
     )]
     /// CHECK: check is not needed here as we never initialize the account
-    escrow: AccountInfo<'info>,
+    escrow: UncheckedAccount<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
