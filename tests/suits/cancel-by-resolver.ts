@@ -347,7 +347,9 @@ describe("Cancel by Resolver", () => {
     expect(
       (await provider.connection.getAccountInfo(state.alice.keypair.publicKey))
         .lamports
-    ).to.be.eq(makerNativeBalanceBefore + tokenAccountRent - resolverPremium.toNumber());
+    ).to.be.eq(
+      makerNativeBalanceBefore + tokenAccountRent - resolverPremium.toNumber()
+    );
     expect(
       (await provider.connection.getAccountInfo(state.bob.keypair.publicKey))
         .lamports

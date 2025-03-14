@@ -355,8 +355,8 @@ pub mod fusion_swap {
             reduced_order.cancellation_auction_duration,
             reduced_order.fee.max_cancellation_premium,
         );
-        let maker_refund =
-            ctx.accounts.escrow_src_ata.to_account_info().lamports() - std::cmp::min(cancellation_premium, reward_limit);
+        let maker_refund = ctx.accounts.escrow_src_ata.to_account_info().lamports()
+            - std::cmp::min(cancellation_premium, reward_limit);
         // Transfer all the remaining lamports to the resolver first
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
