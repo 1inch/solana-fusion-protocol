@@ -37,26 +37,6 @@ enum UniTransferParams<'info> {
     },
 }
 
-impl<'info> UniTransferParams<'info> {
-    fn update_to(&mut self, new_to: AccountInfo<'info>) {
-        match self {
-            UniTransferParams::NativeTransfer { to, .. }
-            | UniTransferParams::TokenTransfer { to, .. } => {
-                *to = new_to;
-            }
-        }
-    }
-
-    fn update_amount(&mut self, new_amount: u64) {
-        match self {
-            UniTransferParams::NativeTransfer { amount, .. }
-            | UniTransferParams::TokenTransfer { amount, .. } => {
-                *amount = new_amount;
-            }
-        }
-    }
-}
-
 #[program]
 pub mod fusion_swap {
     use super::*;
@@ -216,27 +196,35 @@ pub mod fusion_swap {
 
         // Take protocol fee
         if protocol_fee_amount > 0 {
-            params.update_amount(protocol_fee_amount);
-            params.update_to(
-                ctx.accounts
-                    .protocol_dst_acc
-                    .as_ref()
-                    .ok_or(FusionError::InconsistentProtocolFeeConfig)?
-                    .to_account_info(),
-            );
+            match &mut params {
+                UniTransferParams::NativeTransfer { amount, to, .. }
+                | UniTransferParams::TokenTransfer { amount, to, .. } => {
+                    *amount = protocol_fee_amount;
+                    *to = ctx
+                        .accounts
+                        .protocol_dst_acc
+                        .as_ref()
+                        .ok_or(FusionError::InconsistentProtocolFeeConfig)?
+                        .to_account_info();
+                }
+            }
             uni_transfer(&params)?;
         }
 
         // Take integrator fee
         if integrator_fee_amount > 0 {
-            params.update_amount(integrator_fee_amount);
-            params.update_to(
-                ctx.accounts
-                    .integrator_dst_acc
-                    .as_ref()
-                    .ok_or(FusionError::InconsistentIntegratorFeeConfig)?
-                    .to_account_info(),
-            );
+            match &mut params {
+                UniTransferParams::NativeTransfer { amount, to, .. }
+                | UniTransferParams::TokenTransfer { amount, to, .. } => {
+                    *amount = integrator_fee_amount;
+                    *to = ctx
+                        .accounts
+                        .integrator_dst_acc
+                        .as_ref()
+                        .ok_or(FusionError::InconsistentProtocolFeeConfig)?
+                        .to_account_info();
+                }
+            }
             uni_transfer(&params)?;
         }
 
