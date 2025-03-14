@@ -200,7 +200,8 @@ pub mod fusion_swap {
                 UniTransferParams::NativeTransfer { amount, to, .. }
                 | UniTransferParams::TokenTransfer { amount, to, .. } => {
                     *amount = protocol_fee_amount;
-                    *to = ctx.accounts
+                    *to = ctx
+                        .accounts
                         .protocol_dst_acc
                         .as_ref()
                         .ok_or(FusionError::InconsistentProtocolFeeConfig)?
@@ -216,7 +217,8 @@ pub mod fusion_swap {
                 UniTransferParams::NativeTransfer { amount, to, .. }
                 | UniTransferParams::TokenTransfer { amount, to, .. } => {
                     *amount = integrator_fee_amount;
-                    *to = ctx.accounts
+                    *to = ctx
+                        .accounts
                         .integrator_dst_acc
                         .as_ref()
                         .ok_or(FusionError::InconsistentProtocolFeeConfig)?
