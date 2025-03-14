@@ -108,19 +108,14 @@ pub mod fusion_swap {
         );
 
         // Maker => Escrow
-        transfer_checked(
-            CpiContext::new(
-                ctx.accounts.src_token_program.to_account_info(),
-                TransferChecked {
-                    from: ctx.accounts.maker_src_ata.to_account_info(),
-                    mint: ctx.accounts.src_mint.to_account_info(),
-                    to: ctx.accounts.escrow_src_ata.to_account_info(),
-                    authority: ctx.accounts.maker.to_account_info(),
-                },
-            ),
-            order.src_amount,
-            ctx.accounts.src_mint.decimals,
-        )
+        uni_transfer(&UniTransferParams::TokenTransfer {
+            from: ctx.accounts.maker_src_ata.to_account_info(),
+            taker: ctx.accounts.maker.to_account_info(),
+            to: ctx.accounts.escrow_src_ata.to_account_info(),
+            mint: *ctx.accounts.src_mint.clone(),
+            amount: order.src_amount,
+            program: ctx.accounts.src_token_program.clone(),
+        })
     }
 
     pub fn fill(ctx: Context<Fill>, reduced_order: ReducedOrderConfig, amount: u64) -> Result<()> {
@@ -373,16 +368,12 @@ pub mod fusion_swap {
         ))?;
 
         // Transfer all lamports from the closed account, minus the cancellation premium, to the maker
-        anchor_lang::system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                anchor_lang::system_program::Transfer {
-                    from: ctx.accounts.resolver.to_account_info(),
-                    to: ctx.accounts.maker.to_account_info(),
-                },
-            ),
-            maker_refund,
-        )
+        uni_transfer(&UniTransferParams::NativeTransfer {
+            from: ctx.accounts.resolver.to_account_info(),
+            to: ctx.accounts.maker.to_account_info(),
+            amount: maker_refund,
+            program: ctx.accounts.system_program.clone(),
+        })
     }
 }
 
