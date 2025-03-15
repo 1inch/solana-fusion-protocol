@@ -1,4 +1,4 @@
-use anchor_lang::solana_program::hash::hash;
+use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -700,14 +700,15 @@ fn order_hash(
     dst_mint: Pubkey,
     receiver: Pubkey,
 ) -> Result<[u8; 32]> {
-    let mut serialized = order.try_to_vec()?;
-    serialized.extend_from_slice(&protocol_dst_acc.try_to_vec()?);
-    serialized.extend_from_slice(&integrator_dst_acc.try_to_vec()?);
-    serialized.extend_from_slice(&src_mint.try_to_vec()?);
-    serialized.extend_from_slice(&dst_mint.try_to_vec()?);
-    serialized.extend_from_slice(&receiver.try_to_vec()?);
-
-    Ok(hash(&serialized).to_bytes())
+    Ok(hashv(&[
+        &order.try_to_vec()?,
+        &protocol_dst_acc.try_to_vec()?,
+        &integrator_dst_acc.try_to_vec()?,
+        &src_mint.to_bytes(),
+        &dst_mint.to_bytes(),
+        &receiver.to_bytes(),
+    ])
+    .to_bytes())
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
