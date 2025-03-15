@@ -152,10 +152,7 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
     estimatedDstAmount: orderConfig.estimatedDstAmount.toNumber(),
     expirationTime: orderConfig.expirationTime,
     nativeDstAsset: orderConfig.nativeDstAsset,
-    receiver: orderConfig.receiver.toBuffer(),
     fee: {
-      protocolDstAcc: orderConfig.fee.protocolDstAcc?.toBuffer(),
-      integratorDstAcc: orderConfig.fee.integratorDstAcc?.toBuffer(),
       protocolFee: orderConfig.fee.protocolFee,
       integratorFee: orderConfig.fee.integratorFee,
       surplusPercentage: orderConfig.fee.surplusPercentage,
@@ -173,8 +170,13 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
       ),
     },
     cancellationAuctionDuration: orderConfig.cancellationAuctionDuration,
+
+    // Accounts concatenated directly to OrderConfig
+    protocolDstAcc: orderConfig.fee.protocolDstAcc?.toBuffer(),
+    integratorDstAcc: orderConfig.fee.integratorDstAcc?.toBuffer(),
     srcMint: orderConfig.srcMint.toBuffer(),
     dstMint: orderConfig.dstMint.toBuffer(),
+    receiver: orderConfig.receiver.toBuffer(),
   };
 
   return sha256(borsh.serialize(orderConfigSchema, values));
@@ -188,11 +190,8 @@ const orderConfigSchema = {
     estimatedDstAmount: "u64",
     expirationTime: "u32",
     nativeDstAsset: "bool",
-    receiver: { array: { type: "u8", len: 32 } },
     fee: {
       struct: {
-        protocolDstAcc: { option: { array: { type: "u8", len: 32 } } },
-        integratorDstAcc: { option: { array: { type: "u8", len: 32 } } },
         protocolFee: "u16",
         integratorFee: "u16",
         surplusPercentage: "u8",
@@ -217,7 +216,12 @@ const orderConfigSchema = {
       },
     },
     cancellationAuctionDuration: "u32",
+
+    // Accounts concatenated directly to OrderConfig
+    protocolDstAcc: { option: { array: { type: "u8", len: 32 } } },
+    integratorDstAcc: { option: { array: { type: "u8", len: 32 } } },
     srcMint: { array: { type: "u8", len: 32 } },
     dstMint: { array: { type: "u8", len: 32 } },
+    receiver: { array: { type: "u8", len: 32 } },
   },
 };

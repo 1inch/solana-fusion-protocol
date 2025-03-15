@@ -1,4 +1,4 @@
-use anchor_lang::solana_program::hash::hash;
+use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -41,7 +41,7 @@ enum UniTransferParams<'info> {
 pub mod fusion_swap {
     use super::*;
 
-    pub fn create(ctx: Context<Create>, order: ReducedOrderConfig) -> Result<()> {
+    pub fn create(ctx: Context<Create>, order: OrderConfig) -> Result<()> {
         require!(
             order.src_amount != 0 && order.min_dst_amount != 0,
             FusionError::InvalidAmount
@@ -103,9 +103,9 @@ pub mod fusion_swap {
         )
     }
 
-    pub fn fill(ctx: Context<Fill>, reduced_order: ReducedOrderConfig, amount: u64) -> Result<()> {
+    pub fn fill(ctx: Context<Fill>, order: OrderConfig, amount: u64) -> Result<()> {
         require!(
-            Clock::get()?.unix_timestamp <= reduced_order.expiration_time as i64,
+            Clock::get()?.unix_timestamp <= order.expiration_time as i64,
             FusionError::OrderExpired
         );
 
@@ -116,17 +116,24 @@ pub mod fusion_swap {
 
         require!(amount != 0, FusionError::InvalidAmount);
 
-        let order = build_order_from_reduced(
-            &reduced_order,
-            ctx.accounts.src_mint.key(),
-            ctx.accounts.dst_mint.key(),
-            ctx.accounts.maker_receiver.key(),
-            ctx.accounts.protocol_dst_acc.as_ref().map(|acc| acc.key()),
-            ctx.accounts
-                .integrator_dst_acc
-                .as_ref()
-                .map(|acc| acc.key()),
-        );
+        let order_src_mint = ctx.accounts.src_mint.key();
+        let order_dst_mint = ctx.accounts.dst_mint.key();
+        let order_receiver = ctx.accounts.maker_receiver.key();
+        let protocol_dst_acc = ctx.accounts.protocol_dst_acc.as_ref().map(|acc| acc.key());
+        let integrator_dst_acc = ctx
+            .accounts
+            .integrator_dst_acc
+            .as_ref()
+            .map(|acc| acc.key());
+
+        let order_hash = &order_hash(
+            &order,
+            protocol_dst_acc,
+            integrator_dst_acc,
+            order_src_mint,
+            order_dst_mint,
+            order_receiver,
+        )?;
 
         // Escrow => Taker
         transfer_checked(
@@ -141,7 +148,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    &order_hash(&order)?,
+                    order_hash,
                     &[ctx.bumps.escrow],
                 ]],
             ),
@@ -240,7 +247,7 @@ pub mod fusion_swap {
                 &[&[
                     "escrow".as_bytes(),
                     ctx.accounts.maker.key().as_ref(),
-                    &order_hash(&order)?,
+                    order_hash,
                     &[ctx.bumps.escrow],
                 ]],
             ))?;
@@ -289,32 +296,30 @@ pub mod fusion_swap {
 
     pub fn cancel_by_resolver(
         ctx: Context<CancelByResolver>,
-        reduced_order: ReducedOrderConfig,
+        order: OrderConfig,
         reward_limit: u64,
     ) -> Result<()> {
         require!(
-            reduced_order.fee.max_cancellation_premium > 0,
+            order.fee.max_cancellation_premium > 0,
             FusionError::CancelOrderByResolverIsForbidden
         );
         let current_timestamp = Clock::get()?.unix_timestamp;
         require!(
-            current_timestamp >= reduced_order.expiration_time as i64,
+            current_timestamp >= order.expiration_time as i64,
             FusionError::OrderNotExpired
         );
 
-        let order = build_order_from_reduced(
-            &reduced_order,
-            ctx.accounts.src_mint.key(),
-            ctx.accounts.dst_mint.key(),
-            ctx.accounts.maker_receiver.key(),
+        let order_hash = order_hash(
+            &order,
             ctx.accounts.protocol_dst_acc.as_ref().map(|acc| acc.key()),
             ctx.accounts
                 .integrator_dst_acc
                 .as_ref()
                 .map(|acc| acc.key()),
-        );
-
-        let order_hash = order_hash(&order)?;
+            ctx.accounts.src_mint.key(),
+            ctx.accounts.dst_mint.key(),
+            ctx.accounts.maker_receiver.key(),
+        )?;
 
         // Transfer cancellation fee to resolver
         transfer_checked(
@@ -339,9 +344,9 @@ pub mod fusion_swap {
 
         let cancellation_premium = calculate_premium(
             current_timestamp as u32,
-            reduced_order.expiration_time,
-            reduced_order.cancellation_auction_duration,
-            reduced_order.fee.max_cancellation_premium,
+            order.expiration_time,
+            order.cancellation_auction_duration,
+            order.fee.max_cancellation_premium,
         );
         let maker_refund = ctx.accounts.escrow_src_ata.to_account_info().lamports()
             - std::cmp::min(cancellation_premium, reward_limit);
@@ -376,7 +381,7 @@ pub mod fusion_swap {
 }
 
 #[derive(Accounts)]
-#[instruction(order: ReducedOrderConfig)]
+#[instruction(order: OrderConfig)]
 pub struct Create<'info> {
     system_program: Program<'info, System>,
 
@@ -385,14 +390,14 @@ pub struct Create<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            &order_hash(&build_order_from_reduced(
+            &order_hash(
                 &order,
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_acc.clone().map(|acc| acc.key()),
-                integrator_dst_acc.clone().map(|acc| acc.key()),
-            ))?,
+            )?,
         ],
         bump,
     )]
@@ -441,7 +446,7 @@ pub struct Create<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order: ReducedOrderConfig)]
+#[instruction(order: OrderConfig)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]
@@ -471,14 +476,14 @@ pub struct Fill<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            &order_hash(&build_order_from_reduced(
+            &order_hash(
                 &order,
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_acc.clone().map(|acc| acc.key()),
-                integrator_dst_acc.clone().map(|acc| acc.key()),
-            ))?,
+            )?,
         ],
         bump,
     )]
@@ -576,7 +581,7 @@ pub struct Cancel<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order: ReducedOrderConfig)]
+#[instruction(order: OrderConfig)]
 pub struct CancelByResolver<'info> {
     /// Account that cancels the escrow
     #[account(mut, signer)]
@@ -608,14 +613,14 @@ pub struct CancelByResolver<'info> {
         seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
-            &order_hash(&build_order_from_reduced(
+            &order_hash(
                 &order,
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
                 src_mint.key(),
                 dst_mint.key(),
                 maker_receiver.key(),
-                protocol_dst_acc.clone().map(|acc| acc.key()),
-                integrator_dst_acc.clone().map(|acc| acc.key()),
-            ))?,
+            )?,
         ],
         bump,
     )]
@@ -651,27 +656,6 @@ pub struct CancelByResolver<'info> {
 /// Configuration for fees applied to the escrow
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct FeeConfig {
-    protocol_dst_acc: Option<Pubkey>,
-    integrator_dst_acc: Option<Pubkey>,
-
-    /// Protocol fee in basis points where `BASE_1E5` = 100%
-    protocol_fee: u16,
-
-    /// Integrator fee in basis points where `BASE_1E5` = 100%
-    integrator_fee: u16,
-
-    /// Percentage of positive slippage taken by the protocol as an additional fee.
-    /// Value in basis points where `BASE_1E2` = 100%
-    surplus_percentage: u8,
-
-    /// Maximum cancellation premium
-    /// Value in absolute lamports amount
-    max_cancellation_premium: u64,
-}
-
-/// Configuration for fees applied to the escrow
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct ReducedFeeConfig {
     /// Protocol fee in basis points where `BASE_1E5` = 100%
     protocol_fee: u16,
 
@@ -695,29 +679,28 @@ pub struct OrderConfig {
     estimated_dst_amount: u64,
     expiration_time: u32,
     native_dst_asset: bool,
-    receiver: Pubkey,
     fee: FeeConfig,
     dutch_auction_data: AuctionData,
     cancellation_auction_duration: u32,
+}
+
+fn order_hash(
+    order: &OrderConfig,
+    protocol_dst_acc: Option<Pubkey>,
+    integrator_dst_acc: Option<Pubkey>,
     src_mint: Pubkey,
     dst_mint: Pubkey,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct ReducedOrderConfig {
-    id: u32,
-    src_amount: u64,
-    min_dst_amount: u64,
-    estimated_dst_amount: u64,
-    expiration_time: u32,
-    native_dst_asset: bool,
-    fee: ReducedFeeConfig,
-    dutch_auction_data: AuctionData,
-    cancellation_auction_duration: u32,
-}
-
-fn order_hash(order: &OrderConfig) -> Result<[u8; 32]> {
-    Ok(hash(order.try_to_vec()?.as_ref()).to_bytes())
+    receiver: Pubkey,
+) -> Result<[u8; 32]> {
+    Ok(hashv(&[
+        &order.try_to_vec()?,
+        &protocol_dst_acc.try_to_vec()?,
+        &integrator_dst_acc.try_to_vec()?,
+        &src_mint.to_bytes(),
+        &dst_mint.to_bytes(),
+        &receiver.to_bytes(),
+    ])
+    .to_bytes())
 }
 
 // Function to get amount of `dst_mint` tokens that the taker should pay to the maker using default or the dutch auction formula
@@ -770,37 +753,6 @@ fn get_fee_amounts(
         integrator_fee_amount,
         dst_amount - integrator_fee_amount - protocol_fee_amount,
     ))
-}
-
-fn build_order_from_reduced(
-    order: &ReducedOrderConfig,
-    src_mint: Pubkey,
-    dst_mint: Pubkey,
-    receiver: Pubkey,
-    protocol_dst_acc: Option<Pubkey>,
-    integrator_dst_acc: Option<Pubkey>,
-) -> OrderConfig {
-    OrderConfig {
-        id: order.id,
-        src_amount: order.src_amount,
-        min_dst_amount: order.min_dst_amount,
-        estimated_dst_amount: order.estimated_dst_amount,
-        expiration_time: order.expiration_time,
-        native_dst_asset: order.native_dst_asset,
-        receiver,
-        fee: FeeConfig {
-            protocol_dst_acc,
-            integrator_dst_acc,
-            protocol_fee: order.fee.protocol_fee,
-            integrator_fee: order.fee.integrator_fee,
-            surplus_percentage: order.fee.surplus_percentage,
-            max_cancellation_premium: order.fee.max_cancellation_premium,
-        },
-        dutch_auction_data: order.dutch_auction_data.clone(),
-        cancellation_auction_duration: order.cancellation_auction_duration,
-        src_mint,
-        dst_mint,
-    }
 }
 
 fn uni_transfer(params: &UniTransferParams<'_>) -> Result<()> {
