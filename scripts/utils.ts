@@ -151,6 +151,7 @@ export function calculateOrderHash(orderConfig: OrderConfig): Uint8Array {
     minDstAmount: orderConfig.minDstAmount.toNumber(),
     estimatedDstAmount: orderConfig.estimatedDstAmount.toNumber(),
     expirationTime: orderConfig.expirationTime,
+    nativeSrcAsset: orderConfig.nativeSrcAsset,
     nativeDstAsset: orderConfig.nativeDstAsset,
     fee: {
       protocolFee: orderConfig.fee.protocolFee,
@@ -189,6 +190,7 @@ const orderConfigSchema = {
     minDstAmount: "u64",
     estimatedDstAmount: "u64",
     expirationTime: "u32",
+    nativeSrcAsset: "bool",
     nativeDstAsset: "bool",
     fee: {
       struct: {

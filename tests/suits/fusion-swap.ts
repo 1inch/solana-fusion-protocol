@@ -1939,7 +1939,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           dstMint: splToken.NATIVE_MINT,
-          useNativeDstAsset: false,
+          nativeDstAsset: false,
         },
       });
 

@@ -391,6 +391,7 @@ export class TestState {
       minDstAmount: this.defaultDstAmount,
       estimatedDstAmount: this.defaultDstAmount,
       expirationTime: this.defaultExpirationTime,
+      nativeSrcAsset: false,
       nativeDstAsset: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
