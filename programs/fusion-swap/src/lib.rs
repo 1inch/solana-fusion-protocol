@@ -290,6 +290,7 @@ pub mod fusion_swap {
     pub fn cancel_by_resolver(
         ctx: Context<CancelByResolver>,
         reduced_order: ReducedOrderConfig,
+        reward_limit: u64,
     ) -> Result<()> {
         require!(
             reduced_order.fee.max_cancellation_premium > 0,
@@ -342,8 +343,8 @@ pub mod fusion_swap {
             reduced_order.cancellation_auction_duration,
             reduced_order.fee.max_cancellation_premium,
         );
-        let maker_refund =
-            ctx.accounts.escrow_src_ata.to_account_info().lamports() - cancellation_premium;
+        let maker_refund = ctx.accounts.escrow_src_ata.to_account_info().lamports()
+            - std::cmp::min(cancellation_premium, reward_limit);
         // Transfer all the remaining lamports to the resolver first
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
