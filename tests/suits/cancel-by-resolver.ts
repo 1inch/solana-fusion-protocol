@@ -424,10 +424,7 @@ describe("Cancel by Resolver", () => {
         .lamports
     ).to.be.eq(resolverNativeBalanceBefore);
 
-    expect(results).to.be.deep.eq([
-      BigInt(0),
-      BigInt(0),
-    ]);
+    expect(results).to.be.deep.eq([BigInt(0), BigInt(0)]);
   });
 
   it("Resolver can't cancel if the order has not expired", async () => {

@@ -614,12 +614,13 @@ async function prepareNativeTokens({
   amount,
   user,
   provider,
-  payer } : {
-    amount: anchor.BN;
-    user: User;
-    provider: anchor.AnchorProvider | BanksClient;
-    payer: anchor.web3.Keypair;
-  }) {
+  payer,
+}: {
+  amount: anchor.BN;
+  user: User;
+  provider: anchor.AnchorProvider | BanksClient;
+  payer: anchor.web3.Keypair;
+}) {
   const ata = user.atas[splToken.NATIVE_MINT.toString()].address;
   const wrapTransaction = new Transaction().add(
     anchor.web3.SystemProgram.transfer({
@@ -638,7 +639,7 @@ async function prepareNativeTokens({
     wrapTransaction.recentBlockhash = (await provider.getLatestBlockhash())[0];
     wrapTransaction.sign(payer);
     wrapTransaction.sign(user.keypair);
-	  await provider.processTransaction(wrapTransaction);
+    await provider.processTransaction(wrapTransaction);
   }
 }
 
