@@ -93,14 +93,36 @@ pub mod fusion_swap {
         );
 
         // Maker => Escrow
-        uni_transfer(&UniTransferParams::TokenTransfer {
-            from: ctx.accounts.maker_src_ata.to_account_info(),
-            authority: ctx.accounts.maker.to_account_info(),
-            to: ctx.accounts.escrow_src_ata.to_account_info(),
-            mint: *ctx.accounts.src_mint.clone(),
-            amount: order.src_amount,
-            program: ctx.accounts.src_token_program.clone(),
-        })
+        if order.src_asset_is_native {
+            uni_transfer(&UniTransferParams::NativeTransfer {
+                from: ctx.accounts.maker.to_account_info(),
+                to: ctx.accounts.escrow_src_ata.to_account_info(),
+                amount: order.src_amount,
+                program: ctx.accounts.system_program.clone(),
+            })?;
+
+            anchor_lang::solana_program::program::invoke(
+                &anchor_spl::token::spl_token::instruction::sync_native(
+                    &ctx.accounts.src_token_program.key(),
+                    &ctx.accounts.escrow_src_ata.key(),
+                )?,
+                &[
+                    ctx.accounts.src_token_program.to_account_info(),
+                    ctx.accounts.escrow_src_ata.to_account_info(),
+                ],
+            )?;
+
+            Ok(())
+        } else {
+            uni_transfer(&UniTransferParams::TokenTransfer {
+                from: ctx.accounts.maker_src_ata.to_account_info(),
+                authority: ctx.accounts.maker.to_account_info(),
+                to: ctx.accounts.escrow_src_ata.to_account_info(),
+                mint: *ctx.accounts.src_mint.clone(),
+                amount: order.src_amount,
+                program: ctx.accounts.src_token_program.clone(),
+            })
+        }
     }
 
     pub fn fill(ctx: Context<Fill>, order: OrderConfig, amount: u64) -> Result<()> {
