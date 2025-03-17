@@ -573,7 +573,7 @@ describe("Fusion Swap", () => {
 
         const transactionPromise = () =>
           program.methods
-            .cancel(Array.from(orderHash))
+            .cancel(Array.from(orderHash), false)
             .accountsPartial({
               maker: state.alice.keypair.publicKey,
               srcMint,
@@ -663,7 +663,7 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         orderConfig: {
-          nativeDstAsset: true,
+          dstAssetIsNative: true,
           dstMint: splToken.NATIVE_MINT,
           fee: {
             protocolDstAcc:
@@ -776,7 +776,7 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         orderConfig: {
-          nativeDstAsset: true,
+          dstAssetIsNative: true,
           dstMint: splToken.NATIVE_MINT,
           fee: {
             integratorDstAcc:
@@ -1628,7 +1628,7 @@ describe("Fusion Swap", () => {
 
       const transactionPromise = () =>
         program.methods
-          .cancel(Array.from(orderHash))
+          .cancel(Array.from(orderHash), false)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1661,27 +1661,41 @@ describe("Fusion Swap", () => {
 
       const orderHash = calculateOrderHash(escrow.orderConfig);
 
-      const transactionPromise = () =>
-        program.methods
-          .cancel(Array.from(orderHash))
-          .accountsPartial({
-            maker: state.alice.keypair.publicKey,
-            srcMint: splToken.NATIVE_MINT,
-            escrow: escrow.escrow,
-            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          })
-          .signers([state.alice.keypair])
-          .rpc();
+      const makerNativeBalanceBefore = (
+        await provider.connection.getAccountInfo(state.alice.keypair.publicKey)
+      ).lamports;
 
-      const results = await trackReceivedTokenAndTx(
-        provider.connection,
-        [state.alice.atas[splToken.NATIVE_MINT.toString()].address],
-        transactionPromise
+      await program.methods
+        .cancel(Array.from(orderHash), true)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: splToken.NATIVE_MINT,
+          escrow: escrow.escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      const tokenAccountRent =
+        await provider.connection.getMinimumBalanceForRentExemption(
+          splToken.AccountLayout.span
+        );
+
+      expect(
+        (
+          await provider.connection.getAccountInfo(
+            state.alice.keypair.publicKey
+          )
+        ).lamports
+      ).to.be.eq(
+        makerNativeBalanceBefore +
+          state.defaultSrcAmount.toNumber() +
+          tokenAccountRent
       );
 
-      expect(results).to.be.deep.eq([
-        BigInt(state.defaultSrcAmount.toNumber()),
-      ]);
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
     it("Doesn't cancel the trade with the wrong order_id", async () => {
@@ -1689,7 +1703,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .cancel(Array.from(orderHash))
+          .cancel(Array.from(orderHash), false)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1706,7 +1720,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .cancel(Array.from(orderHash))
+          .cancel(Array.from(orderHash), false)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1724,7 +1738,7 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-          .cancel(Array.from(orderHash))
+          .cancel(Array.from(orderHash), false)
           .accountsPartial({
             maker: state.charlie.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1807,7 +1821,7 @@ describe("Fusion Swap", () => {
       // Cancel the trade
       const transactionPromiseCancel = () =>
         program.methods
-          .cancel(Array.from(orderHash))
+          .cancel(Array.from(orderHash), false)
           .accountsPartial({
             maker: state.alice.keypair.publicKey,
             srcMint: state.tokens[0],
@@ -1837,7 +1851,7 @@ describe("Fusion Swap", () => {
         payer,
         provider,
         orderConfig: {
-          nativeDstAsset: true,
+          dstAssetIsNative: true,
           dstMint: splToken.NATIVE_MINT,
         },
       });
@@ -1900,9 +1914,9 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: MissingMakerDstAta");
     });
 
-    it("Fails to create if native_dst_asset = true but mint is different from native mint", async () => {
+    it("Fails to create if dst_asset_is_native = true but mint is different from native mint", async () => {
       const orderConfig = state.orderConfig({
-        nativeDstAsset: true,
+        dstAssetIsNative: true,
       });
 
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -1932,14 +1946,14 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: InconsistentNativeDstTrait.");
     });
 
-    it("Execute the trade and transfer wSOL if native_dst_asset = false and native dst mint is provided", async () => {
+    it("Execute the trade and transfer wSOL if dst_asset_is_native = false and native dst mint is provided", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
         payer,
         provider,
         orderConfig: {
           dstMint: splToken.NATIVE_MINT,
-          nativeDstAsset: false,
+          dstAssetIsNative: false,
         },
       });
 
@@ -2173,7 +2187,7 @@ describe("Fusion Swap", () => {
       });
 
       const txCancelSignature = await program.methods
-        .cancel(Array.from(calculateOrderHash(orderConfig)))
+        .cancel(Array.from(calculateOrderHash(orderConfig)), false)
         .accountsPartial({
           maker: state.alice.keypair.publicKey,
           srcMint: state.tokens[0],

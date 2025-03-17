@@ -369,7 +369,7 @@ describe("Cancel by Resolver", () => {
       provider: banksClient,
       orderConfig: state.orderConfig({
         srcMint: splToken.NATIVE_MINT,
-        nativeSrcAsset: true,
+        srcAssetIsNative: true,
         srcAmount: amount,
         fee: {
           maxCancellationPremium: defaultMaxCancellationPremium,

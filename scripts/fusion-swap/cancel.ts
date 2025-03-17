@@ -23,6 +23,7 @@ async function cancel(
   program: Program<FusionSwap>,
   makerKeypair: Keypair,
   srcMint: PublicKey,
+  srcAssetIsNative: boolean,
   orderHash: string
 ): Promise<void> {
   const orderHashBytes = Array.from(orderHash.match(/../g) || [], (h) =>
@@ -42,7 +43,7 @@ async function cancel(
   );
 
   const cancelIx = await program.methods
-    .cancel(orderHashBytes)
+    .cancel(orderHashBytes, srcAssetIsNative)
     .accountsPartial({
       maker: makerKeypair.publicKey,
       srcMint,
@@ -66,6 +67,8 @@ async function main() {
   const makerKeypairPath = prompt("Enter maker keypair path: ");
   const orderHash = prompt("Enter order hash: ");
   const srcMint = new PublicKey(prompt("Enter src mint public key: "));
+  const srcAssetIsNative =
+    prompt("Is src asset native? (true/false): ") === "true";
 
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
@@ -94,7 +97,14 @@ async function main() {
     return;
   }
 
-  await cancel(connection, fusionSwap, makerKeypair, srcMint, orderHash);
+  await cancel(
+    connection,
+    fusionSwap,
+    makerKeypair,
+    srcMint,
+    srcAssetIsNative,
+    orderHash
+  );
 }
 
 main();

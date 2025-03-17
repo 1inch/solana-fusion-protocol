@@ -49,12 +49,12 @@ pub mod fusion_swap {
 
         // we support only original spl_token::native_mint
         require!(
-            ctx.accounts.src_mint.key() == native_mint::id() || !order.native_src_asset,
+            ctx.accounts.src_mint.key() == native_mint::id() || !order.src_asset_is_native,
             FusionError::InconsistentNativeSrcTrait
         );
 
         require!(
-            ctx.accounts.dst_mint.key() == native_mint::id() || !order.native_dst_asset,
+            ctx.accounts.dst_mint.key() == native_mint::id() || !order.dst_asset_is_native,
             FusionError::InconsistentNativeDstTrait
         );
 
@@ -172,7 +172,7 @@ pub mod fusion_swap {
         )?;
 
         // Taker => Maker
-        let mut params = if order.native_dst_asset {
+        let mut params = if order.dst_asset_is_native {
             UniTransferParams::NativeTransfer {
                 from: ctx.accounts.taker.to_account_info(),
                 to: ctx.accounts.maker_receiver.to_account_info(),
@@ -256,27 +256,38 @@ pub mod fusion_swap {
         Ok(())
     }
 
-    pub fn cancel(ctx: Context<Cancel>, order_hash: [u8; 32]) -> Result<()> {
+    pub fn cancel(
+        ctx: Context<Cancel>,
+        order_hash: [u8; 32],
+        order_src_asset_is_native: bool,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.src_mint.key() == native_mint::id() || !order_src_asset_is_native,
+            FusionError::InconsistentNativeSrcTrait
+        );
+
         // Return remaining src tokens back to maker
-        transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.src_token_program.to_account_info(),
-                TransferChecked {
-                    from: ctx.accounts.escrow_src_ata.to_account_info(),
-                    mint: ctx.accounts.src_mint.to_account_info(),
-                    to: ctx.accounts.maker_src_ata.to_account_info(),
-                    authority: ctx.accounts.escrow.to_account_info(),
-                },
-                &[&[
-                    "escrow".as_bytes(),
-                    ctx.accounts.maker.key().as_ref(),
-                    &order_hash,
-                    &[ctx.bumps.escrow],
-                ]],
-            ),
-            ctx.accounts.escrow_src_ata.amount,
-            ctx.accounts.src_mint.decimals,
-        )?;
+        if !order_src_asset_is_native {
+            transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.src_token_program.to_account_info(),
+                    TransferChecked {
+                        from: ctx.accounts.escrow_src_ata.to_account_info(),
+                        mint: ctx.accounts.src_mint.to_account_info(),
+                        to: ctx.accounts.maker_src_ata.to_account_info(),
+                        authority: ctx.accounts.escrow.to_account_info(),
+                    },
+                    &[&[
+                        "escrow".as_bytes(),
+                        ctx.accounts.maker.key().as_ref(),
+                        &order_hash,
+                        &[ctx.bumps.escrow],
+                    ]],
+                ),
+                ctx.accounts.escrow_src_ata.amount,
+                ctx.accounts.src_mint.decimals,
+            )?;
+        }
 
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
@@ -322,7 +333,7 @@ pub mod fusion_swap {
         )?;
 
         // Return remaining src tokens back to maker
-        if !order.native_src_asset {
+        if !order.src_asset_is_native {
             transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.src_token_program.to_account_info(),
@@ -677,8 +688,8 @@ pub struct OrderConfig {
     min_dst_amount: u64,
     estimated_dst_amount: u64,
     expiration_time: u32,
-    native_src_asset: bool,
-    native_dst_asset: bool,
+    src_asset_is_native: bool,
+    dst_asset_is_native: bool,
     fee: FeeConfig,
     dutch_auction_data: AuctionData,
     cancellation_auction_duration: u32,
