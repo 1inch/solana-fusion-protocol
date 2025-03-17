@@ -322,14 +322,7 @@ pub mod fusion_swap {
         )?;
 
         // Return remaining src tokens back to maker
-        if order.native_src_asset {
-            uni_transfer(&UniTransferParams::NativeTransfer {
-                from: ctx.accounts.escrow_src_ata.to_account_info(),
-                to: ctx.accounts.maker_receiver.to_account_info(),
-                amount: ctx.accounts.escrow_src_ata.amount,
-                program: ctx.accounts.system_program.clone(),
-            })?;
-        } else {
+        if !order.native_src_asset {
             transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.src_token_program.to_account_info(),
@@ -357,8 +350,9 @@ pub mod fusion_swap {
             order.cancellation_auction_duration,
             order.fee.max_cancellation_premium,
         );
-        let maker_refund = ctx.accounts.escrow_src_ata.to_account_info().lamports()
+        let maker_amount = ctx.accounts.escrow_src_ata.to_account_info().lamports()
             - std::cmp::min(cancellation_premium, reward_limit);
+
         // Transfer all the remaining lamports to the resolver first
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
@@ -379,7 +373,7 @@ pub mod fusion_swap {
         uni_transfer(&UniTransferParams::NativeTransfer {
             from: ctx.accounts.resolver.to_account_info(),
             to: ctx.accounts.maker.to_account_info(),
-            amount: maker_refund,
+            amount: maker_amount,
             program: ctx.accounts.system_program.clone(),
         })
     }

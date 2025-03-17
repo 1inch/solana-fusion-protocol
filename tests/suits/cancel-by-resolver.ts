@@ -361,6 +361,75 @@ describe("Cancel by Resolver", () => {
     ]);
   });
 
+  it("Maker recives native tokens if order was created with native src assets", async () => {
+    const amount = new anchor.BN(10000);
+    const escrow = await state.createEscrow({
+      escrowProgram: program,
+      payer,
+      provider: banksClient,
+      orderConfig: state.orderConfig({
+        srcMint: splToken.NATIVE_MINT,
+        nativeSrcAsset: true,
+        srcAmount: amount,
+        fee: {
+          maxCancellationPremium: defaultMaxCancellationPremium,
+        },
+        cancellationAuctionDuration: order.auctionDuration,
+      }),
+    });
+
+    const makerNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.alice.keypair.publicKey)
+    ).lamports;
+    const resolverNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.bob.keypair.publicKey)
+    ).lamports;
+
+    // Rewind time to expire the order
+    await setCurrentTime(context, state.defaultExpirationTime);
+
+    const transactionPromise = () =>
+      program.methods
+        .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
+        .accountsPartial({
+          resolver: state.bob.keypair.publicKey,
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([payer, state.bob.keypair])
+        .rpc();
+
+    const results = await trackReceivedTokenAndTx(
+      provider.connection,
+      [
+        state.alice.atas[state.tokens[0].toString()].address,
+        state.bob.atas[state.tokens[0].toString()].address,
+      ],
+      transactionPromise
+    );
+
+    expect(
+      (await provider.connection.getAccountInfo(state.alice.keypair.publicKey))
+        .lamports
+    ).to.be.eq(makerNativeBalanceBefore + amount.toNumber() + tokenAccountRent);
+    expect(
+      (await provider.connection.getAccountInfo(state.bob.keypair.publicKey))
+        .lamports
+    ).to.be.eq(resolverNativeBalanceBefore);
+
+    expect(results).to.be.deep.eq([
+      BigInt(0),
+      BigInt(0),
+    ]);
+  });
+
   it("Resolver can't cancel if the order has not expired", async () => {
     const escrow = await state.createEscrow({
       escrowProgram: program,
