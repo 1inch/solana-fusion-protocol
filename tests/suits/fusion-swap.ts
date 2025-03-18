@@ -21,6 +21,7 @@ import {
   initializeLookupTable,
   sendV0Transaction,
 } from "../utils/lookupTables";
+import { sendAndConfirmTransaction, SystemProgram } from "@solana/web3.js";
 import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
@@ -2198,6 +2199,60 @@ describe("Fusion Swap", () => {
         .rpc();
 
       await printTxCosts("Cancel", txCancelSignature, provider.connection);
+    });
+
+    it("Calculate and print tx cost (native src)", async () => {
+      const srcAmount = new anchor.BN(10000);
+      // create new escrow
+      const orderConfig = state.orderConfig({
+        srcMint: splToken.NATIVE_MINT,
+        srcAssetIsNative: true,
+        srcAmount,
+        expirationTime: 0xffffffff,
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      const createIx = await program.methods
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: splToken.NATIVE_MINT,
+          dstMint: state.tokens[1],
+          protocolDstAcc: null,
+          integratorDstAcc: null,
+          escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .instruction();
+
+      const tx = new anchor.web3.Transaction();
+      tx.add(
+        SystemProgram.transfer({
+          fromPubkey: state.alice.keypair.publicKey,
+          toPubkey: state.alice.atas[splToken.NATIVE_MINT.toString()].address,
+          lamports: srcAmount.toNumber(),
+        }),
+        splToken.createSyncNativeInstruction(state.alice.atas[splToken.NATIVE_MINT.toString()].address),
+        createIx,
+      );
+
+      const txSignature = await sendAndConfirmTransaction(provider.connection, tx, [
+        payer,
+        state.alice.keypair,
+      ]);
+
+      // create tx
+      await printTxCosts("Native src create", txSignature, provider.connection);
     });
 
     it("Calculate and print tx cost (lookup tables)", async () => {
