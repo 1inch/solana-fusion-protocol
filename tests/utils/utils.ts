@@ -331,24 +331,21 @@ export class TestState {
       srcTokenProgram
     );
 
-    if (provider instanceof anchor.AnchorProvider) {
-      // TODO: research Bankrun native token support if needed
-      if (orderConfig.srcMint == splToken.NATIVE_MINT) {
-        await prepareNativeTokens({
-          amount: orderConfig.srcAmount,
-          user: this.alice,
-          provider,
-          payer,
-        });
-      }
-      if (orderConfig.dstMint == splToken.NATIVE_MINT) {
-        await prepareNativeTokens({
-          amount: orderConfig.minDstAmount,
-          user: this.bob,
-          provider,
-          payer,
-        });
-      }
+    if (orderConfig.srcMint == splToken.NATIVE_MINT) {
+      await prepareNativeTokens({
+        amount: orderConfig.srcAmount,
+        user: this.alice,
+        provider,
+        payer,
+      });
+    }
+    if (orderConfig.dstMint == splToken.NATIVE_MINT) {
+      await prepareNativeTokens({
+        amount: orderConfig.minDstAmount,
+        user: this.bob,
+        provider,
+        payer,
+      });
     }
 
     const txBuilder = escrowProgram.methods
@@ -391,7 +388,8 @@ export class TestState {
       minDstAmount: this.defaultDstAmount,
       estimatedDstAmount: this.defaultDstAmount,
       expirationTime: this.defaultExpirationTime,
-      nativeDstAsset: false,
+      srcAssetIsNative: false,
+      dstAssetIsNative: false,
       receiver: this.alice.keypair.publicKey,
       dutchAuctionData: this.auction,
       cancellationAuctionDuration: 0,
@@ -612,7 +610,17 @@ export async function mintTokens(
   );
 }
 
-async function prepareNativeTokens({ amount, user, provider, payer }) {
+async function prepareNativeTokens({
+  amount,
+  user,
+  provider,
+  payer,
+}: {
+  amount: anchor.BN;
+  user: User;
+  provider: anchor.AnchorProvider | BanksClient;
+  payer: anchor.web3.Keypair;
+}) {
   const ata = user.atas[splToken.NATIVE_MINT.toString()].address;
   const wrapTransaction = new Transaction().add(
     anchor.web3.SystemProgram.transfer({
@@ -622,10 +630,17 @@ async function prepareNativeTokens({ amount, user, provider, payer }) {
     }),
     splToken.createSyncNativeInstruction(ata)
   );
-  await sendAndConfirmTransaction(provider.connection, wrapTransaction, [
-    payer,
-    user.keypair,
-  ]);
+  if (provider instanceof anchor.AnchorProvider) {
+    await sendAndConfirmTransaction(provider.connection, wrapTransaction, [
+      payer,
+      user.keypair,
+    ]);
+  } else {
+    wrapTransaction.recentBlockhash = (await provider.getLatestBlockhash())[0];
+    wrapTransaction.sign(payer);
+    wrapTransaction.sign(user.keypair);
+    await provider.processTransaction(wrapTransaction);
+  }
 }
 
 export async function setCurrentTime(

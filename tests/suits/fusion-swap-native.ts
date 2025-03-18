@@ -1971,7 +1971,7 @@ describe.skip("Fusion Swap Native", () => {
         provider,
         orderConfig: state.orderConfig({
           dstMint: splToken.NATIVE_MINT,
-          useNativeDstAsset: false,
+          nativeDstAsset: false,
         }),
       });
 

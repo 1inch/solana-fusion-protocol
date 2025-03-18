@@ -17,7 +17,7 @@ pub mod error;
 
 use error::FusionError;
 
-declare_id!("9HrF5xdbeYPjftX3y3r2NtEzVCwHZr7DAAFzcmrRCFuF");
+declare_id!("hfx5P17FFE6Twr41CujppXU67K8VgA3NUtEn8UHxb6P");
 
 enum UniTransferParams<'info> {
     NativeTransfer {
@@ -29,7 +29,7 @@ enum UniTransferParams<'info> {
 
     TokenTransfer {
         from: AccountInfo<'info>,
-        taker: AccountInfo<'info>,
+        authority: AccountInfo<'info>,
         to: AccountInfo<'info>,
         mint: InterfaceAccount<'info, Mint>,
         amount: u64,
@@ -49,7 +49,12 @@ pub mod fusion_swap {
 
         // we support only original spl_token::native_mint
         require!(
-            ctx.accounts.dst_mint.key() == native_mint::id() || !order.native_dst_asset,
+            ctx.accounts.src_mint.key() == native_mint::id() || !order.src_asset_is_native,
+            FusionError::InconsistentNativeSrcTrait
+        );
+
+        require!(
+            ctx.accounts.dst_mint.key() == native_mint::id() || !order.dst_asset_is_native,
             FusionError::InconsistentNativeDstTrait
         );
 
@@ -90,7 +95,7 @@ pub mod fusion_swap {
         // Maker => Escrow
         uni_transfer(&UniTransferParams::TokenTransfer {
             from: ctx.accounts.maker_src_ata.to_account_info(),
-            taker: ctx.accounts.maker.to_account_info(),
+            authority: ctx.accounts.maker.to_account_info(),
             to: ctx.accounts.escrow_src_ata.to_account_info(),
             mint: *ctx.accounts.src_mint.clone(),
             amount: order.src_amount,
@@ -167,7 +172,7 @@ pub mod fusion_swap {
         )?;
 
         // Taker => Maker
-        let mut params = if order.native_dst_asset {
+        let mut params = if order.dst_asset_is_native {
             UniTransferParams::NativeTransfer {
                 from: ctx.accounts.taker.to_account_info(),
                 to: ctx.accounts.maker_receiver.to_account_info(),
@@ -182,7 +187,7 @@ pub mod fusion_swap {
                     .as_ref()
                     .ok_or(FusionError::MissingTakerDstAta)?
                     .to_account_info(),
-                taker: ctx.accounts.taker.to_account_info(),
+                authority: ctx.accounts.taker.to_account_info(),
                 to: ctx
                     .accounts
                     .maker_dst_ata
@@ -251,27 +256,38 @@ pub mod fusion_swap {
         Ok(())
     }
 
-    pub fn cancel(ctx: Context<Cancel>, order_hash: [u8; 32]) -> Result<()> {
+    pub fn cancel(
+        ctx: Context<Cancel>,
+        order_hash: [u8; 32],
+        order_src_asset_is_native: bool,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.src_mint.key() == native_mint::id() || !order_src_asset_is_native,
+            FusionError::InconsistentNativeSrcTrait
+        );
+
         // Return remaining src tokens back to maker
-        transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.src_token_program.to_account_info(),
-                TransferChecked {
-                    from: ctx.accounts.escrow_src_ata.to_account_info(),
-                    mint: ctx.accounts.src_mint.to_account_info(),
-                    to: ctx.accounts.maker_src_ata.to_account_info(),
-                    authority: ctx.accounts.escrow.to_account_info(),
-                },
-                &[&[
-                    "escrow".as_bytes(),
-                    ctx.accounts.maker.key().as_ref(),
-                    &order_hash,
-                    &[ctx.bumps.escrow],
-                ]],
-            ),
-            ctx.accounts.escrow_src_ata.amount,
-            ctx.accounts.src_mint.decimals,
-        )?;
+        if !order_src_asset_is_native {
+            transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.src_token_program.to_account_info(),
+                    TransferChecked {
+                        from: ctx.accounts.escrow_src_ata.to_account_info(),
+                        mint: ctx.accounts.src_mint.to_account_info(),
+                        to: ctx.accounts.maker_src_ata.to_account_info(),
+                        authority: ctx.accounts.escrow.to_account_info(),
+                    },
+                    &[&[
+                        "escrow".as_bytes(),
+                        ctx.accounts.maker.key().as_ref(),
+                        &order_hash,
+                        &[ctx.bumps.escrow],
+                    ]],
+                ),
+                ctx.accounts.escrow_src_ata.amount,
+                ctx.accounts.src_mint.decimals,
+            )?;
+        }
 
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
@@ -316,26 +332,28 @@ pub mod fusion_swap {
             ctx.accounts.maker_receiver.key(),
         )?;
 
-        // Transfer cancellation fee to resolver
-        transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.src_token_program.to_account_info(),
-                TransferChecked {
-                    from: ctx.accounts.escrow_src_ata.to_account_info(),
-                    mint: ctx.accounts.src_mint.to_account_info(),
-                    to: ctx.accounts.maker_src_ata.to_account_info(),
-                    authority: ctx.accounts.escrow.to_account_info(),
-                },
-                &[&[
-                    "escrow".as_bytes(),
-                    ctx.accounts.maker.key().as_ref(),
-                    &order_hash,
-                    &[ctx.bumps.escrow],
-                ]],
-            ),
-            ctx.accounts.escrow_src_ata.amount,
-            ctx.accounts.src_mint.decimals,
-        )?;
+        // Return remaining src tokens back to maker
+        if !order.src_asset_is_native {
+            transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.src_token_program.to_account_info(),
+                    TransferChecked {
+                        from: ctx.accounts.escrow_src_ata.to_account_info(),
+                        mint: ctx.accounts.src_mint.to_account_info(),
+                        to: ctx.accounts.maker_src_ata.to_account_info(),
+                        authority: ctx.accounts.escrow.to_account_info(),
+                    },
+                    &[&[
+                        "escrow".as_bytes(),
+                        ctx.accounts.maker.key().as_ref(),
+                        &order_hash,
+                        &[ctx.bumps.escrow],
+                    ]],
+                ),
+                ctx.accounts.escrow_src_ata.amount,
+                ctx.accounts.src_mint.decimals,
+            )?;
+        };
 
         let cancellation_premium = calculate_premium(
             current_timestamp as u32,
@@ -343,8 +361,9 @@ pub mod fusion_swap {
             order.cancellation_auction_duration,
             order.fee.max_cancellation_premium,
         );
-        let maker_refund = ctx.accounts.escrow_src_ata.to_account_info().lamports()
+        let maker_amount = ctx.accounts.escrow_src_ata.to_account_info().lamports()
             - std::cmp::min(cancellation_premium, reward_limit);
+
         // Transfer all the remaining lamports to the resolver first
         close_account(CpiContext::new_with_signer(
             ctx.accounts.src_token_program.to_account_info(),
@@ -365,7 +384,7 @@ pub mod fusion_swap {
         uni_transfer(&UniTransferParams::NativeTransfer {
             from: ctx.accounts.resolver.to_account_info(),
             to: ctx.accounts.maker.to_account_info(),
-            amount: maker_refund,
+            amount: maker_amount,
             program: ctx.accounts.system_program.clone(),
         })
     }
@@ -669,7 +688,8 @@ pub struct OrderConfig {
     min_dst_amount: u64,
     estimated_dst_amount: u64,
     expiration_time: u32,
-    native_dst_asset: bool,
+    src_asset_is_native: bool,
+    dst_asset_is_native: bool,
     fee: FeeConfig,
     dutch_auction_data: AuctionData,
     cancellation_auction_duration: u32,
@@ -765,7 +785,7 @@ fn uni_transfer(params: &UniTransferParams<'_>) -> Result<()> {
         ),
         UniTransferParams::TokenTransfer {
             from,
-            taker,
+            authority,
             to,
             mint,
             amount,
@@ -777,7 +797,7 @@ fn uni_transfer(params: &UniTransferParams<'_>) -> Result<()> {
                     from: from.to_account_info(),
                     mint: mint.to_account_info(),
                     to: to.to_account_info(),
-                    authority: taker.to_account_info(),
+                    authority: authority.to_account_info(),
                 },
             ),
             *amount,

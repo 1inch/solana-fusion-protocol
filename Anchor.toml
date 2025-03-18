@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-fusion_swap = "9HrF5xdbeYPjftX3y3r2NtEzVCwHZr7DAAFzcmrRCFuF"
+fusion_swap = "hfx5P17FFE6Twr41CujppXU67K8VgA3NUtEn8UHxb6P"
 whitelist = "DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ"
 
 [registry]

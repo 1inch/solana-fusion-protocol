@@ -2,6 +2,8 @@ use anchor_lang::error_code;
 
 #[error_code]
 pub enum FusionError {
+    #[msg("Inconsistent native src trait")]
+    InconsistentNativeSrcTrait,
     #[msg("Inconsistent native dst trait")]
     InconsistentNativeDstTrait,
     #[msg("Invalid amount")]
