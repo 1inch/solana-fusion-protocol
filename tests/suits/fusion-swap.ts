@@ -2200,6 +2200,98 @@ describe("Fusion Swap", () => {
       await printTxCosts("Cancel", txCancelSignature, provider.connection);
     });
 
+    it("Calculate and print tx cost (native src)", async () => {
+      const srcAmount = new anchor.BN(10000);
+      // create new escrow
+      const orderConfig = state.orderConfig({
+        srcMint: splToken.NATIVE_MINT,
+        srcAssetIsNative: true,
+        srcAmount,
+        expirationTime: 0xffffffff,
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      const escrowAta = await splToken.getAssociatedTokenAddress(
+        orderConfig.srcMint,
+        escrow,
+        true,
+        splToken.TOKEN_PROGRAM_ID
+      );
+
+      const txSignature = await program.methods
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: splToken.NATIVE_MINT,
+          dstMint: state.tokens[1],
+          protocolDstAcc: null,
+          integratorDstAcc: null,
+          escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      // create tx
+      await printTxCosts("Native src create", txSignature, provider.connection);
+
+      // fill tx
+      const txFillSignature = await program.methods
+        .fill(orderConfig as ReducedOrderConfig, srcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow,
+            srcMint: splToken.NATIVE_MINT,
+            takerSrcAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            escrowSrcAta: escrowAta,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      await printTxCosts(
+        "Native src fill",
+        txFillSignature,
+        provider.connection
+      );
+
+      // cancel tx
+      // re-create escrow with same id
+      await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig,
+      });
+
+      const txCancelSignature = await program.methods
+        .cancel(Array.from(calculateOrderHash(orderConfig)), false)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: splToken.NATIVE_MINT,
+          escrow: escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      await printTxCosts(
+        "Native src cancel",
+        txCancelSignature,
+        provider.connection
+      );
+    });
+
     it("Calculate and print tx cost (lookup tables)", async () => {
       // create new escrow
       const escrow = await state.createEscrow({

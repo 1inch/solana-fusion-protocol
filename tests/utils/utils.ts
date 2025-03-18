@@ -331,7 +331,10 @@ export class TestState {
       srcTokenProgram
     );
 
-    if (orderConfig.srcMint == splToken.NATIVE_MINT) {
+    if (
+      orderConfig.srcMint == splToken.NATIVE_MINT &&
+      !orderConfig.srcAssetIsNative
+    ) {
       await prepareNativeTokens({
         amount: orderConfig.srcAmount,
         user: this.alice,
@@ -339,7 +342,10 @@ export class TestState {
         payer,
       });
     }
-    if (orderConfig.dstMint == splToken.NATIVE_MINT) {
+    if (
+      orderConfig.dstMint == splToken.NATIVE_MINT &&
+      !orderConfig.dstAssetIsNative
+    ) {
       await prepareNativeTokens({
         amount: orderConfig.minDstAmount,
         user: this.bob,
