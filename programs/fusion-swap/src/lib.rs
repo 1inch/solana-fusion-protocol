@@ -94,7 +94,7 @@ pub mod fusion_swap {
 
         // Maker => Escrow
         if order.src_asset_is_native {
-            // Wrap SOL to wSOL if 'src_asset_is_native' flag is set to 'true'
+            // Wrap SOL to wSOL
             uni_transfer(&UniTransferParams::NativeTransfer {
                 from: ctx.accounts.maker.to_account_info(),
                 to: ctx.accounts.escrow_src_ata.to_account_info(),
