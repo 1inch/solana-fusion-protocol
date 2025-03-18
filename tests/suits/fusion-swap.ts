@@ -2251,14 +2251,19 @@ describe("Fusion Swap", () => {
           state.buildAccountsDataForFill({
             escrow,
             srcMint: splToken.NATIVE_MINT,
-            takerSrcAta: state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+            takerSrcAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
             escrowSrcAta: escrowAta,
           })
         )
         .signers([state.bob.keypair])
         .rpc();
 
-      await printTxCosts("Native src fill", txFillSignature, provider.connection);
+      await printTxCosts(
+        "Native src fill",
+        txFillSignature,
+        provider.connection
+      );
 
       // cancel tx
       // re-create escrow with same id
@@ -2280,7 +2285,11 @@ describe("Fusion Swap", () => {
         .signers([state.alice.keypair])
         .rpc();
 
-      await printTxCosts("Native src cancel", txCancelSignature, provider.connection);
+      await printTxCosts(
+        "Native src cancel",
+        txCancelSignature,
+        provider.connection
+      );
     });
 
     it("Calculate and print tx cost (lookup tables)", async () => {
