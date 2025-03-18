@@ -2242,14 +2242,17 @@ describe("Fusion Swap", () => {
           toPubkey: state.alice.atas[splToken.NATIVE_MINT.toString()].address,
           lamports: srcAmount.toNumber(),
         }),
-        splToken.createSyncNativeInstruction(state.alice.atas[splToken.NATIVE_MINT.toString()].address),
-        createIx,
+        splToken.createSyncNativeInstruction(
+          state.alice.atas[splToken.NATIVE_MINT.toString()].address
+        ),
+        createIx
       );
 
-      const txSignature = await sendAndConfirmTransaction(provider.connection, tx, [
-        payer,
-        state.alice.keypair,
-      ]);
+      const txSignature = await sendAndConfirmTransaction(
+        provider.connection,
+        tx,
+        [payer, state.alice.keypair]
+      );
 
       // create tx
       await printTxCosts("Native src create", txSignature, provider.connection);
