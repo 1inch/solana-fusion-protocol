@@ -8,7 +8,7 @@ inputs:
   rustc-version:
     description: "Rust version"
     required: true
-    default: "1.82.0"
+    default: "1.85.0"
   solana-version:
     description: "Solana version"
     required: true
