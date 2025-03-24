@@ -61,12 +61,7 @@ runs:
       shell: bash
       run: solana-keygen new --no-bip39-passphrase
 
-    # Anchor
-    - name: Install Anchor CLI
-      shell: bash
-      run: cargo install anchor-cli --version 0.30.1
-
-    # Verifications
+      # Verifications
     - name: Verify Yarn installation
       shell: bash
       run: yarn --version
@@ -78,6 +73,11 @@ runs:
     - name: Verify Solana installation
       shell: bash
       run: solana --version
+
+    # Anchor
+    - name: Install Anchor CLI
+      shell: bash
+      run: cargo install anchor-cli --version 0.30.1
 
     - name: Verify Anchor CLI installation
       shell: bash
