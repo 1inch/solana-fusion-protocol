@@ -17,7 +17,7 @@ pub mod error;
 
 use error::FusionError;
 
-declare_id!("hfx5P17FFE6Twr41CujppXU67K8VgA3NUtEn8UHxb6P");
+declare_id!("5uzpYuGqBaetRMXPDtGWGN9W4mdmgBzpGHcQACrZ1npi");
 
 enum UniTransferParams<'info> {
     NativeTransfer {
