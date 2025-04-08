@@ -438,7 +438,7 @@ pub struct Create<'info> {
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
-        init,
+        init_if_needed,
         payer = maker,
         associated_token::mint = src_mint,
         associated_token::authority = escrow,

@@ -1017,6 +1017,60 @@ describe("Fusion Swap", () => {
 
     // TODO: Add a test for the case of accepting an expired order
 
+    it("Create doesn't fail if escrow_ata has been created beforehand", async () => {
+      const orderConfig = state.orderConfig({});
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      // Create escrow_ata calling 'create' endpoint.
+      const srcMint = state.tokens[0];
+      const escrowAta = await splToken.createAssociatedTokenAccount(
+        provider.connection,
+        payer,
+        srcMint,
+        escrow,
+        {},
+        splToken.TOKEN_PROGRAM_ID,
+        splToken.ASSOCIATED_TOKEN_PROGRAM_ID,
+        true // allow owner off-curve
+      );
+
+      const transactionPromise = () =>
+        program.methods
+          .create(orderConfig as ReducedOrderConfig)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
+            srcMint,
+            dstMint: state.tokens[1],
+            protocolDstAcc: null,
+            integratorDstAcc: null,
+            escrow: escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          })
+          .signers([state.alice.keypair])
+          .rpc();
+
+      // Transaction doesn't fail because of 'init_if_needed' flag on 'escrow_ata' account.
+      const results = await trackReceivedTokenAndTx(
+        provider.connection,
+        [state.alice.atas[srcMint.toString()].address, escrowAta],
+        transactionPromise
+      );
+
+      expect(results).to.be.deep.eq([
+        -BigInt(state.defaultSrcAmount.toNumber()),
+        BigInt(state.defaultSrcAmount.toNumber()),
+      ]);
+    });
+
     it("Fails to create with zero src amount", async () => {
       const orderConfig = state.orderConfig({
         srcAmount: new anchor.BN(0),
