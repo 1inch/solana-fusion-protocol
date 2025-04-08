@@ -77,7 +77,7 @@ describe("Dutch Auction", () => {
   });
 
   it("should not work after the expiration time", async () => {
-    await setCurrentTime(context, state.defaultExpirationTime + 1);
+    await setCurrentTime(context, state.defaultExpirationTime);
     await expect(
       program.methods
         .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
