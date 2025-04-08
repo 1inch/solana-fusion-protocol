@@ -22,7 +22,8 @@ pub mod whitelist {
     }
 
     /// Registers a new user to the whitelist
-    pub fn register(_ctx: Context<Register>, _user: Pubkey) -> Result<()> {
+    pub fn register(ctx: Context<Register>, _user: Pubkey) -> Result<()> {
+        ctx.accounts.resolver_access.bump = ctx.bumps.resolver_access;
         Ok(())
     }
 
@@ -129,4 +130,6 @@ pub struct WhitelistState {
 
 #[account]
 #[derive(InitSpace)]
-pub struct ResolverAccess {}
+pub struct ResolverAccess {
+    pub bump: u8,
+}

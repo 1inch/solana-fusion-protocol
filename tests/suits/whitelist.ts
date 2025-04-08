@@ -74,6 +74,38 @@ describe("Whitelist", () => {
     ).to.be.rejectedWith("Account does not exist");
   });
 
+  it("Stores the canonical bump in the whitelist account", async () => {
+    // Get the canonical bump
+    const [, canonicalBump] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("resolver_access"), userToWhitelist.publicKey.toBuffer()],
+      program.programId
+    );
+
+    // Register the user
+    await program.methods
+      .register(userToWhitelist.publicKey)
+      .accountsPartial({
+        owner: payer.publicKey,
+      })
+      .signers([payer])
+      .rpc();
+
+    // Verify the whitelist account stores the canonical bump
+    const whitelistAccount = await program.account.resolverAccess.fetch(
+      whitelistPDA
+    );
+    expect(whitelistAccount.bump).to.be.equal(canonicalBump);
+
+    // Deregister the user to not interfere with other tests
+    await program.methods
+      .deregister(userToWhitelist.publicKey)
+      .accountsPartial({
+        owner: payer.publicKey,
+      })
+      .signers([payer])
+      .rpc();
+  });
+
   it("Cannot register the same user twice", async () => {
     // First registration
     await program.methods
