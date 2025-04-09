@@ -30,4 +30,6 @@ pub enum FusionError {
     CancelOrderByResolverIsForbidden,
     #[msg("Missing taker dst ata")]
     MissingTakerDstAta,
+    #[msg("Missing maker src ata")]
+    MissingMakerSrcAta,
 }
