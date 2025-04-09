@@ -1050,6 +1050,38 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith("Error Code: InvalidAmount");
     });
 
+    it("Fails to create with spl-tokens, if maker-src-ata is missing", async () => {
+      const orderConfig = state.orderConfig({});
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      // srcAmount = 0
+      await expect(
+        program.methods
+          .create(orderConfig as ReducedOrderConfig)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            protocolDstAcc: orderConfig.fee.protocolDstAcc,
+            integratorDstAcc: null,
+            escrow: escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+            makerSrcAta: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
+    });
+
     it("Fails to create with zero min dst amount", async () => {
       const orderConfig = state.orderConfig({
         minDstAmount: new anchor.BN(0),
@@ -1647,6 +1679,23 @@ describe("Fusion Swap", () => {
       expect(results).to.be.deep.eq([
         BigInt(state.defaultSrcAmount.toNumber()),
       ]);
+    });
+
+    it("Cancellation with spl tokens fails if maker-src-ata is absent", async () => {
+      const orderHash = calculateOrderHash(state.escrows[0].orderConfig);
+
+      await expect(
+        program.methods
+        .cancel(Array.from(orderHash), false)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: state.tokens[0],
+          escrow: state.escrows[0].escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null
+        })
+        .signers([state.alice.keypair])
+        .rpc()).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
     });
 
     it("Cancel the trade with native tokens", async () => {

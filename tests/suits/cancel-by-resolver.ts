@@ -127,6 +127,50 @@ describe("Cancel by Resolver", () => {
     ]);
   });
 
+  it("Resolver cannot cancel the order involving spl-tokens without providing maker-src-ata", async () => {
+    const escrow = await state.createEscrow({
+      escrowProgram: program,
+      payer,
+      provider: banksClient,
+      orderConfig: state.orderConfig({
+        srcAmount: defaultSrcAmount,
+        fee: {
+          maxCancellationPremium: defaultMaxCancellationPremium,
+        },
+        cancellationAuctionDuration: order.auctionDuration,
+      }),
+    });
+
+    const makerNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.alice.keypair.publicKey)
+    ).lamports;
+    const resolverNativeBalanceBefore = (
+      await provider.connection.getAccountInfo(state.bob.keypair.publicKey)
+    ).lamports;
+
+    // Rewind time to expire the order
+    await setCurrentTime(context, state.defaultExpirationTime);
+
+    expect(program.methods
+        .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+        .accountsPartial({
+          resolver: state.bob.keypair.publicKey,
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null
+        })
+        .signers([payer, state.bob.keypair])
+        .rpc()
+      ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
+  });
+
   it("Resolver can cancel the order at different points in the order time frame", async () => {
     const cancellationPoints = [10, 25, 50, 100].map(
       (percentage) =>
