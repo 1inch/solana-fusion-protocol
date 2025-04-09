@@ -59,7 +59,7 @@ pub mod fusion_swap {
         );
 
         require!(
-            Clock::get()?.unix_timestamp <= order.expiration_time as i64,
+            Clock::get()?.unix_timestamp < order.expiration_time as i64,
             FusionError::OrderExpired
         );
 

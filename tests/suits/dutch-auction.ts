@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import * as splBankrunToken from "spl-token-bankrun";
+import * as splToken from "@solana/spl-token";
 import { FusionSwap } from "../../target/types/fusion_swap";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -10,6 +11,7 @@ import {
 } from "../utils/utils";
 import { BankrunProvider } from "anchor-bankrun";
 import { BanksClient, ProgramTestContext } from "solana-bankrun";
+import { calculateOrderHash } from "../../scripts/utils";
 chai.use(chaiAsPromised);
 
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -83,6 +85,40 @@ describe("Dutch Auction", () => {
         .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
         .accounts(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
+        .rpc()
+    ).to.be.rejectedWith("Error Code: OrderExpired");
+  });
+
+  // This test has nothing to do with the dutch auction logic and placed
+  // here only because this test suite uses bankrun.
+  it("should not create the escrow after the expiration time", async () => {
+    await setCurrentTime(context, state.defaultExpirationTime);
+
+    const orderConfig = state.orderConfig({});
+
+    const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        anchor.utils.bytes.utf8.encode("escrow"),
+        state.alice.keypair.publicKey.toBuffer(),
+        calculateOrderHash(orderConfig),
+      ],
+      program.programId
+    );
+
+    await expect(
+      program.methods
+        .create(orderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: state.tokens[0],
+          dstMint: state.tokens[1],
+          protocolDstAcc: null,
+          integratorDstAcc: null,
+          escrow: escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        })
+        .signers([state.alice.keypair])
         .rpc()
     ).to.be.rejectedWith("Error Code: OrderExpired");
   });
