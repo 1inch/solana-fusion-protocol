@@ -471,6 +471,45 @@ describe("Cancel by Resolver", () => {
     expect(results).to.be.deep.eq([BigInt(0), BigInt(0)]);
   });
 
+  it("Cancel works without maker-src-ata if order was created with native src assets", async () => {
+    const amount = new anchor.BN(10000);
+    const escrow = await state.createEscrow({
+      escrowProgram: program,
+      payer,
+      provider: banksClient,
+      orderConfig: state.orderConfig({
+        srcMint: splToken.NATIVE_MINT,
+        srcAssetIsNative: true,
+        srcAmount: amount,
+        fee: {
+          maxCancellationPremium: defaultMaxCancellationPremium,
+        },
+        cancellationAuctionDuration: order.auctionDuration,
+      }),
+    });
+
+    // Rewind time to expire the order
+    await setCurrentTime(context, state.defaultExpirationTime);
+
+    await program.methods
+        .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
+        .accountsPartial({
+          resolver: state.bob.keypair.publicKey,
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: escrow.orderConfig.receiver,
+          srcMint: escrow.orderConfig.srcMint,
+          dstMint: escrow.orderConfig.dstMint,
+          escrow: escrow.escrow,
+          escrowSrcAta: escrow.ata,
+          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null
+        })
+        .signers([payer, state.bob.keypair])
+        .rpc();
+  });
+
   it("Resolver can't cancel if the order has not expired", async () => {
     const escrow = await state.createEscrow({
       escrowProgram: program,
