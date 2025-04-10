@@ -481,7 +481,7 @@ pub struct Fill<'info> {
     /// Account allowed to fill the order
     #[account(
         seeds = [whitelist::RESOLVER_ACCESS_SEED, taker.key().as_ref()],
-        bump,
+        bump = resolver_access.bump,
         seeds::program = whitelist::ID,
     )]
     resolver_access: Account<'info, whitelist::ResolverAccess>,
@@ -617,7 +617,7 @@ pub struct CancelByResolver<'info> {
     /// Account allowed to cancel the order
     #[account(
         seeds = [whitelist::RESOLVER_ACCESS_SEED, resolver.key().as_ref()],
-        bump,
+        bump = resolver_access.bump,
         seeds::program = whitelist::ID,
     )]
     resolver_access: Account<'info, whitelist::ResolverAccess>,
