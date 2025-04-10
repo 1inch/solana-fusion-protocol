@@ -430,16 +430,16 @@ pub struct Create<'info> {
     /// Account to store order conditions
     #[account(
         seeds = [
-        "escrow".as_bytes(),
-        maker.key().as_ref(),
-        &order_hash(
-            &order,
-            protocol_dst_acc.clone().map(|acc| acc.key()),
-            integrator_dst_acc.clone().map(|acc| acc.key()),
-            src_mint.key(),
-            dst_mint.key(),
-            maker_receiver.key(),
-        )?,
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            &order_hash(
+                &order,
+                protocol_dst_acc.clone().map(|acc| acc.key()),
+                integrator_dst_acc.clone().map(|acc| acc.key()),
+                src_mint.key(),
+                dst_mint.key(),
+                maker_receiver.key(),
+            )?,
         ],
         bump,
     )]
@@ -453,12 +453,12 @@ pub struct Create<'info> {
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
-            init,
-            payer = maker,
-            associated_token::mint = src_mint,
-            associated_token::authority = escrow,
-            associated_token::token_program = src_token_program,
-        )]
+        init,
+        payer = maker,
+        associated_token::mint = src_mint,
+        associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
+    )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// `maker`, who is willing to sell src token for dst token
@@ -467,11 +467,11 @@ pub struct Create<'info> {
 
     /// Maker's ATA of src_mint
     #[account(
-                mut,
-                associated_token::mint = src_mint,
-                associated_token::authority = maker,
-                associated_token::token_program = src_token_program,
-            )]
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
+    )]
     maker_src_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     /// Destination asset
@@ -515,7 +515,7 @@ pub struct Fill<'info> {
 
     /// Account to store order conditions
     #[account(
-            seeds = [
+        seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
             &order_hash(
@@ -526,26 +526,26 @@ pub struct Fill<'info> {
                 dst_mint.key(),
                 maker_receiver.key(),
             )?,
-            ],
-            bump,
-        )]
+        ],
+        bump,
+    )]
     /// CHECK: check is not needed here as we never initialize the account
     escrow: UncheckedAccount<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
-                mut,
-                associated_token::mint = src_mint,
-                associated_token::authority = escrow,
-                associated_token::token_program = src_token_program,
-            )]
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
+    )]
     escrow_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// Taker's ATA of src_mint
     #[account(
-                    mut,
-                    constraint = taker_src_ata.mint.key() == src_mint.key()
-                )]
+        mut,
+        constraint = taker_src_ata.mint.key() == src_mint.key()
+    )]
     taker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     src_token_program: Interface<'info, TokenInterface>,
@@ -555,21 +555,21 @@ pub struct Fill<'info> {
 
     /// Maker's ATA of dst_mint
     #[account(
-                        init_if_needed,
-                        payer = taker,
-                        associated_token::mint = dst_mint,
-                        associated_token::authority = maker_receiver,
-                        associated_token::token_program = dst_token_program,
-                    )]
+        init_if_needed,
+        payer = taker,
+        associated_token::mint = dst_mint,
+        associated_token::authority = maker_receiver,
+        associated_token::token_program = dst_token_program,
+    )]
     maker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     /// Taker's ATA of dst_mint
     #[account(
-                            mut,
-                            associated_token::mint = dst_mint,
-                            associated_token::authority = taker,
-                            associated_token::token_program = dst_token_program,
-                        )]
+        mut,
+        associated_token::mint = dst_mint,
+        associated_token::authority = taker,
+        associated_token::token_program = dst_token_program,
+    )]
     taker_dst_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(mut)]
@@ -592,9 +592,9 @@ pub struct Cancel<'info> {
     /// Account to store order conditions
     #[account(
         seeds = [
-        "escrow".as_bytes(),
-        maker.key().as_ref(),
-        &order_hash,
+            "escrow".as_bytes(),
+            maker.key().as_ref(),
+            &order_hash,
         ],
         bump,
     )]
@@ -603,20 +603,20 @@ pub struct Cancel<'info> {
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
-            mut,
-            associated_token::mint = src_mint,
-            associated_token::authority = escrow,
-            associated_token::token_program = src_token_program,
-        )]
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
+    )]
     escrow_src_ata: InterfaceAccount<'info, TokenAccount>,
 
     /// Maker's ATA of src_mint
     #[account(
-                mut,
-                associated_token::mint = src_mint,
-                associated_token::authority = maker,
-                associated_token::token_program = src_token_program,
-            )]
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
+    )]
     maker_src_ata: Option<InterfaceAccount<'info, TokenAccount>>,
 
     src_token_program: Interface<'info, TokenInterface>,
@@ -652,7 +652,7 @@ pub struct CancelByResolver<'info> {
 
     /// Account to store order conditions
     #[account(
-            seeds = [
+        seeds = [
             "escrow".as_bytes(),
             maker.key().as_ref(),
             &order_hash(
@@ -663,28 +663,28 @@ pub struct CancelByResolver<'info> {
                 dst_mint.key(),
                 maker_receiver.key(),
             )?,
-            ],
-            bump,
-        )]
+        ],
+        bump,
+    )]
     /// CHECK: check is not needed here as we never initialize the account
     escrow: UncheckedAccount<'info>,
 
     /// ATA of src_mint to store escrowed tokens
     #[account(
-                mut,
-                associated_token::mint = src_mint,
-                associated_token::authority = escrow,
-                associated_token::token_program = src_token_program,
-            )]
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = escrow,
+        associated_token::token_program = src_token_program,
+    )]
     escrow_src_ata: InterfaceAccount<'info, TokenAccount>,
 
     /// Maker's ATA of src_mint
     #[account(
-                    mut,
-                    associated_token::mint = src_mint,
-                    associated_token::authority = maker,
-                    associated_token::token_program = src_token_program,
-                )]
+        mut,
+        associated_token::mint = src_mint,
+        associated_token::authority = maker,
+        associated_token::token_program = src_token_program,
+    )]
     maker_src_ata: Option<InterfaceAccount<'info, TokenAccount>>,
 
     src_token_program: Interface<'info, TokenInterface>,
