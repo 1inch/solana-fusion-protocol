@@ -1700,13 +1700,6 @@ describe("Fusion Swap", () => {
         program.programId
       );
 
-      const escrowAta = await splToken.getAssociatedTokenAddress(
-        orderConfig.srcMint,
-        escrow,
-        true,
-        splToken.TOKEN_PROGRAM_ID
-      );
-
       await program.methods
         .create(orderConfig as ReducedOrderConfig)
         .accountsPartial({
@@ -1718,7 +1711,7 @@ describe("Fusion Swap", () => {
           integratorDstAcc: null,
           escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          makerSrcAta: null
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -1730,11 +1723,10 @@ describe("Fusion Swap", () => {
           srcMint: splToken.NATIVE_MINT,
           escrow: escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          makerSrcAta: null
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();
-
     });
 
     it("Cancellation with spl tokens fails if maker-src-ata is absent", async () => {
@@ -1742,16 +1734,17 @@ describe("Fusion Swap", () => {
 
       await expect(
         program.methods
-        .cancel(Array.from(orderHash), false)
-        .accountsPartial({
-          maker: state.alice.keypair.publicKey,
-          srcMint: state.tokens[0],
-          escrow: state.escrows[0].escrow,
-          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          makerSrcAta: null
-        })
-        .signers([state.alice.keypair])
-        .rpc()).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
+          .cancel(Array.from(orderHash), false)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            escrow: state.escrows[0].escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+            makerSrcAta: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
     });
 
     it("Cancel the trade with native tokens", async () => {
@@ -1966,13 +1959,6 @@ describe("Fusion Swap", () => {
         program.programId
       );
 
-      const escrowAta = await splToken.getAssociatedTokenAddress(
-        orderConfig.srcMint,
-        escrow,
-        true,
-        splToken.TOKEN_PROGRAM_ID
-      );
-
       await program.methods
         .create(orderConfig as ReducedOrderConfig)
         .accountsPartial({
@@ -1984,7 +1970,7 @@ describe("Fusion Swap", () => {
           integratorDstAcc: null,
           escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          makerSrcAta: null
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();

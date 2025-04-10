@@ -141,17 +141,11 @@ describe("Cancel by Resolver", () => {
       }),
     });
 
-    const makerNativeBalanceBefore = (
-      await provider.connection.getAccountInfo(state.alice.keypair.publicKey)
-    ).lamports;
-    const resolverNativeBalanceBefore = (
-      await provider.connection.getAccountInfo(state.bob.keypair.publicKey)
-    ).lamports;
-
     // Rewind time to expire the order
     await setCurrentTime(context, state.defaultExpirationTime);
 
-    expect(program.methods
+    expect(
+      program.methods
         .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
@@ -164,11 +158,11 @@ describe("Cancel by Resolver", () => {
           protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
           integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          makerSrcAta: null
+          makerSrcAta: null,
         })
         .signers([payer, state.bob.keypair])
         .rpc()
-      ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
+    ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
   });
 
   it("Resolver can cancel the order at different points in the order time frame", async () => {
@@ -492,22 +486,22 @@ describe("Cancel by Resolver", () => {
     await setCurrentTime(context, state.defaultExpirationTime);
 
     await program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
-        .accountsPartial({
-          resolver: state.bob.keypair.publicKey,
-          maker: state.alice.keypair.publicKey,
-          makerReceiver: escrow.orderConfig.receiver,
-          srcMint: escrow.orderConfig.srcMint,
-          dstMint: escrow.orderConfig.dstMint,
-          escrow: escrow.escrow,
-          escrowSrcAta: escrow.ata,
-          protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
-          integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
-          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
-          makerSrcAta: null
-        })
-        .signers([payer, state.bob.keypair])
-        .rpc();
+      .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
+      .accountsPartial({
+        resolver: state.bob.keypair.publicKey,
+        maker: state.alice.keypair.publicKey,
+        makerReceiver: escrow.orderConfig.receiver,
+        srcMint: escrow.orderConfig.srcMint,
+        dstMint: escrow.orderConfig.dstMint,
+        escrow: escrow.escrow,
+        escrowSrcAta: escrow.ata,
+        protocolDstAcc: escrow.orderConfig.fee.protocolDstAcc,
+        integratorDstAcc: escrow.orderConfig.fee.integratorDstAcc,
+        srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+        makerSrcAta: null,
+      })
+      .signers([payer, state.bob.keypair])
+      .rpc();
   });
 
   it("Resolver can't cancel if the order has not expired", async () => {
