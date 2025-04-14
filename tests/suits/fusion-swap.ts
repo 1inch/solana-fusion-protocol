@@ -826,6 +826,52 @@ describe("Fusion Swap", () => {
       ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
     });
 
+    it("Execute the trade with native tokens (SOL) as destination and different maker receiver", async () => {
+      const makerReceiverNativeTokenBalanceBefore =
+        await provider.connection.getBalance(state.charlie.keypair.publicKey);
+
+      const escrow = await state.createEscrow({
+        escrowProgram: program,
+        payer,
+        provider,
+        orderConfig: {
+          dstAssetIsNative: true,
+          dstMint: splToken.NATIVE_MINT,
+          receiver: state.charlie.keypair.publicKey,
+        },
+      });
+
+      await program.methods
+        .fill(escrow.reducedOrderConfig, state.defaultSrcAmount)
+        .accountsPartial(
+          state.buildAccountsDataForFill({
+            escrow: escrow.escrow,
+            escrowSrcAta: escrow.ata,
+            dstMint: splToken.NATIVE_MINT,
+            makerReceiver: escrow.orderConfig.receiver,
+            makerDstAta: null,
+            takerDstAta:
+              state.bob.atas[splToken.NATIVE_MINT.toString()].address,
+          })
+        )
+        .signers([state.bob.keypair])
+        .rpc();
+
+      const makerReceiverNativeTokenBalanceAfter =
+        await provider.connection.getBalance(state.charlie.keypair.publicKey);
+
+      // check that native tokens were sent to maker
+      expect(makerReceiverNativeTokenBalanceAfter).to.be.eq(
+        makerReceiverNativeTokenBalanceBefore +
+          state.defaultDstAmount.toNumber()
+      );
+
+      // Verify that the escrow account was closed
+      await expect(
+        splToken.getAccount(provider.connection, escrow.ata)
+      ).to.be.rejectedWith(splToken.TokenAccountNotFoundError);
+    });
+
     it("Execute the trade with wrapped native tokens (wSOL) as destination + protocol & integrator fee", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
