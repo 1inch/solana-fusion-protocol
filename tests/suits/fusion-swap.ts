@@ -1079,7 +1079,7 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
+      ).to.be.rejectedWith("Error Code: InconsistentNativeSrcTrait");
     });
 
     it("Fails to create with zero min dst amount", async () => {
@@ -1744,7 +1744,7 @@ describe("Fusion Swap", () => {
           })
           .signers([state.alice.keypair])
           .rpc()
-      ).to.be.rejectedWith("Error Code: MissingMakerSrcAta");
+      ).to.be.rejectedWith("Error Code: InconsistentNativeSrcTrait");
     });
 
     it("Cancel the trade with native tokens", async () => {
@@ -1770,6 +1770,7 @@ describe("Fusion Swap", () => {
           srcMint: splToken.NATIVE_MINT,
           escrow: escrow.escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -2371,6 +2372,7 @@ describe("Fusion Swap", () => {
           integratorDstAcc: null,
           escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();

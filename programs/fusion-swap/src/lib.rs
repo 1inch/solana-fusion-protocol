@@ -92,6 +92,11 @@ pub mod fusion_swap {
             FusionError::InvalidCancellationFee
         );
 
+        require!(
+            order.src_asset_is_native == ctx.accounts.maker_src_ata.is_none(),
+            FusionError::InconsistentNativeSrcTrait
+        );
+
         // Maker => Escrow
         if order.src_asset_is_native {
             // Wrap SOL to wSOL
@@ -288,6 +293,11 @@ pub mod fusion_swap {
             FusionError::InconsistentNativeSrcTrait
         );
 
+        require!(
+            order_src_asset_is_native == ctx.accounts.maker_src_ata.is_none(),
+            FusionError::InconsistentNativeSrcTrait
+        );
+
         // Return remaining src tokens back to maker
         if !order_src_asset_is_native {
             transfer_checked(
@@ -345,6 +355,10 @@ pub mod fusion_swap {
         require!(
             current_timestamp >= order.expiration_time as i64,
             FusionError::OrderNotExpired
+        );
+        require!(
+            order.src_asset_is_native == ctx.accounts.maker_src_ata.is_none(),
+            FusionError::InconsistentNativeSrcTrait
         );
 
         let order_hash = order_hash(
