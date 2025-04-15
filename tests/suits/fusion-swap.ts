@@ -1031,7 +1031,6 @@ describe("Fusion Swap", () => {
         program.programId
       );
 
-      // srcAmount = 0
       await expect(
         program.methods
           .create(orderConfig as ReducedOrderConfig)
