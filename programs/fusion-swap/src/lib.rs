@@ -491,6 +491,7 @@ pub struct Fill<'info> {
     maker: UncheckedAccount<'info>,
 
     /// CHECK: maker_receiver only has to be equal to escrow parameter
+    #[account(mut)]
     maker_receiver: UncheckedAccount<'info>,
 
     /// Maker asset
