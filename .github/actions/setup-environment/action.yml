@@ -93,4 +93,4 @@ runs:
     # https://solana.stackexchange.com/questions/21558/errore0599-no-method-named-source-file-found-for-struct-proc-macro2span
     - name: Downgrade proc-macro2 craete (temporary)
       shell: bash
-      run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path anchor/Cargo.toml
+      run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path programs/fusion-swap/Cargo.toml
