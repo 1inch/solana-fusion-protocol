@@ -94,10 +94,10 @@ runs:
     #
     # https://github.com/solana-foundation/anchor/issues/3662#issuecomment-2809237122
     # https://solana.stackexchange.com/questions/21558/errore0599-no-method-named-source-file-found-for-struct-proc-macro2span
-    - name: Downgrade proc-macro2 craete for fusion-swap (temporary)
+    - name: Downgrade proc-macro2 crate for fusion-swap (temporary)
       shell: bash
       run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path programs/fusion-swap/Cargo.toml
 
-    - name: Downgrade proc-macro2 craete for whitelist (temporary)
+    - name: Downgrade proc-macro2 crate for whitelist (temporary)
       shell: bash
-      run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path programs/fusion-swap/Cargo.toml
+      run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path programs/whitelist/Cargo.toml
