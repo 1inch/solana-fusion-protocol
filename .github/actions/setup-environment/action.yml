@@ -12,6 +12,8 @@ inputs:
   solana-version:
     description: "Solana version"
     required: true
+    # The recommended Solana version for Anchor 0.31.0
+    # https://www.anchor-lang.com/docs/updates/release-notes/0-31-0#recommended-solana-version
     default: "v2.1.0"
 
 runs:
@@ -27,6 +29,7 @@ runs:
     - shell: bash
       run: yarn
 
+    # Anchor 0.31.0 requires this library to be installed on the system.
     - shell: bash
       run: sudo apt-get install libudev-dev
 
