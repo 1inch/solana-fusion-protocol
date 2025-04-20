@@ -679,7 +679,6 @@ dependencies = [
  "anchor-spl",
  "common",
  "muldiv",
- "proc-macro2",
  "whitelist",
 ]
 
