@@ -25,6 +25,7 @@ anchor-spl = "0.31.0"
 common = { path =  "../../common" }
 whitelist = { path = "../whitelist", features = ["no-entrypoint"] }
 muldiv = "1.0.1"
+proc-macro2 = "=1.0.94"
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ["cfg(solana)"] }
