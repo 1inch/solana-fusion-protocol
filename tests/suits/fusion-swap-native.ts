@@ -57,7 +57,7 @@ describe.skip("Fusion Swap Native", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = new Program(FUSION_SWAP_NATIVE_IDL as FusionSwapNative, {
+  const program = new Program<FusionSwapNative>(FUSION_SWAP_NATIVE_IDL, {
     connection: provider.connection,
   });
   const whitelistProgram = anchor.workspace

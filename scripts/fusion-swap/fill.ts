@@ -120,8 +120,8 @@ async function main() {
   const amount = Number(prompt("Enter fill amount: "));
 
   const connection = new Connection(clusterUrl, "confirmed");
-  const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
-  const whitelist = new Program(WHITELIST_IDL as Whitelist, { connection });
+  const fusionSwap = new Program<FusionSwap>(FUSION_IDL, { connection });
+  const whitelist = new Program<Whitelist>(WHITELIST_IDL, { connection });
 
   try {
     const orderHash = calculateOrderHash(orderConfig);

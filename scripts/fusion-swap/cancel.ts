@@ -71,7 +71,7 @@ async function main() {
     prompt("Is src asset native? (true/false): ") === "true";
 
   const connection = new Connection(clusterUrl, "confirmed");
-  const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
+  const fusionSwap = new Program<FusionSwap>(FUSION_IDL, { connection });
 
   const makerKeypair = await loadKeypairFromFile(makerKeypairPath);
 
