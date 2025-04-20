@@ -11,7 +11,7 @@
     "test": "RUSTUP_TOOLCHAIN=nightly-2025-04-14 RUST_LOG=error anchor test",
     "clean": "anchor clean",
     "build:all": "cargo build-sbf && anchor build -p fusion-swap && anchor build -p whitelist",
-    "build": "RUSTUP_TOOLCHAIN=nightly-2025-04-14 anchor build -p fusion-swap && anchor build -p whitelist",
+    "build": "RUSTUP_TOOLCHAIN=nightly-2025-04-14 anchor build",
     "new": "anchor new",
     "sync": "anchor keys sync",
     "typecheck": "tsc --noEmit --skipLibCheck",
