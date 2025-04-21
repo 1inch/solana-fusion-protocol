@@ -35,7 +35,7 @@ pub mod whitelist {
     /// Transfers ownership of the whitelist to a new owner
     pub fn transfer_ownership(ctx: Context<TransferOwnership>, _new_owner: Pubkey) -> Result<()> {
         let whitelist_state = &mut ctx.accounts.whitelist_state;
-        whitelist_state.owner = _new_owner.key();
+        whitelist_state.owner = _new_owner;
         Ok(())
     }
 }
