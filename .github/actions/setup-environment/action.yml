@@ -8,11 +8,11 @@ inputs:
   rustc-version:
     description: "Rust version"
     required: true
-    default: "1.85.0"
+    default: "1.86.0"
   solana-version:
     description: "Solana version"
     required: true
-    # The recommended Solana version for Anchor 0.31.0
+    # The recommended Solana version for Anchor 0.31.1
     # https://www.anchor-lang.com/docs/updates/release-notes/0-31-0#recommended-solana-version
     default: "v2.1.0"
 
@@ -29,7 +29,7 @@ runs:
     - shell: bash
       run: yarn
 
-    # Anchor 0.31.0 requires this library to be installed on the system.
+    # Anchor 0.31.1 requires this library to be installed on the system.
     - shell: bash
       run: sudo apt-get install libudev-dev
 
@@ -70,7 +70,7 @@ runs:
     # Anchor
     - name: Install Anchor CLI
       shell: bash
-      run: cargo install anchor-cli --version 0.31.0
+      run: cargo install anchor-cli --version 0.31.1
 
     # Verifications
     - name: Verify Yarn installation
@@ -88,16 +88,3 @@ runs:
     - name: Verify Anchor CLI installation
       shell: bash
       run: anchor --version
-
-    # Update in proc-macro2 crate broke the compatibility and here is a temporary
-    # workaround to resolve it
-    #
-    # https://github.com/solana-foundation/anchor/issues/3662#issuecomment-2809237122
-    # https://solana.stackexchange.com/questions/21558/errore0599-no-method-named-source-file-found-for-struct-proc-macro2span
-    - name: Downgrade proc-macro2 crate for fusion-swap (temporary)
-      shell: bash
-      run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path programs/fusion-swap/Cargo.toml
-
-    - name: Downgrade proc-macro2 crate for whitelist (temporary)
-      shell: bash
-      run: cargo update -p proc-macro2 --precise 1.0.94 --manifest-path programs/whitelist/Cargo.toml

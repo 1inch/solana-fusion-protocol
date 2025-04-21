@@ -8,10 +8,10 @@
     "lint:fix": "yarn lint:ts:fix && yarn lint:rust:fix",
     "lint": "yarn lint:ts && yarn lint:rust",
     "test:all": "yarn build:all && RUST_LOG=error anchor test --skip-build && cargo test",
-    "test": "RUSTUP_TOOLCHAIN=nightly-2025-04-14 RUST_LOG=error anchor test",
+    "test": "RUST_LOG=error anchor test",
     "clean": "anchor clean",
     "build:all": "cargo build-sbf && anchor build -p fusion-swap && anchor build -p whitelist",
-    "build": "RUSTUP_TOOLCHAIN=nightly-2025-04-14 anchor build",
+    "build": "anchor build",
     "new": "anchor new",
     "sync": "anchor keys sync",
     "typecheck": "tsc --noEmit --skipLibCheck",
@@ -20,7 +20,7 @@
     "deploy:whitelist": "anchor clean && anchor keys sync && anchor build && anchor deploy --program-name whitelist --provider.cluster "
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.0",
+    "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.1",
     "@solana/spl-token": "^0.4.9",
     "anchor-bankrun": "^0.5.0",
