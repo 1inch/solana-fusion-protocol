@@ -11,6 +11,7 @@ on:
 jobs:
   code_review:
     runs-on: ubuntu-latest
+    continue-on-error: true # Temporary allow this job to fail due to the error on CI.
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
