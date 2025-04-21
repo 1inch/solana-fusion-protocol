@@ -412,7 +412,7 @@ pub mod fusion_swap {
 pub struct Create<'info> {
     system_program: Program<'info, System>,
 
-    /// Account to store order conditions
+    /// PDA derived from order details, acting as the authority for the escrow ATA
     #[account(
         seeds = [
             "escrow".as_bytes(),
@@ -499,7 +499,7 @@ pub struct Fill<'info> {
     /// Taker asset
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// Account to store order conditions
+    /// PDA derived from order details, acting as the authority for the escrow ATA
     #[account(
         seeds = [
             "escrow".as_bytes(),
@@ -575,7 +575,7 @@ pub struct Cancel<'info> {
     /// Maker asset
     src_mint: InterfaceAccount<'info, Mint>,
 
-    /// Account to store order conditions
+    /// PDA derived from order details, acting as the authority for the escrow ATA
     #[account(
         seeds = [
             "escrow".as_bytes(),
@@ -636,7 +636,7 @@ pub struct CancelByResolver<'info> {
     /// Taker asset
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// Account to store order conditions
+    /// PDA derived from order details, acting as the authority for the escrow ATA
     #[account(
         seeds = [
             "escrow".as_bytes(),
