@@ -14,10 +14,10 @@ pub const RESOLVER_ACCESS_SEED: &[u8] = b"resolver_access";
 pub mod whitelist {
     use super::*;
 
-    /// Initializes the whitelist with the owner
+    /// Initializes the whitelist with the authority
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let whitelist_state = &mut ctx.accounts.whitelist_state;
-        whitelist_state.owner = ctx.accounts.owner.key();
+        whitelist_state.authority = ctx.accounts.authority.key();
         Ok(())
     }
 
@@ -32,10 +32,10 @@ pub mod whitelist {
         Ok(())
     }
 
-    /// Transfers ownership of the whitelist to a new owner
-    pub fn transfer_ownership(ctx: Context<TransferOwnership>, new_owner: Pubkey) -> Result<()> {
+    /// Sets new whitelist authority
+    pub fn set_authority(ctx: Context<SetAuthority>, new_authority: Pubkey) -> Result<()> {
         let whitelist_state = &mut ctx.accounts.whitelist_state;
-        whitelist_state.owner = new_owner;
+        whitelist_state.authority = new_authority;
         Ok(())
     }
 }
@@ -43,11 +43,11 @@ pub mod whitelist {
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
-    pub owner: Signer<'info>,
+    pub authority: Signer<'info>,
 
     #[account(
         init,
-        payer = owner,
+        payer = authority,
         space = DISCRIMINATOR + WhitelistState::INIT_SPACE,
         seeds = [WHITELIST_STATE_SEED],
         bump,
@@ -61,19 +61,19 @@ pub struct Initialize<'info> {
 #[instruction(user: Pubkey)]
 pub struct Register<'info> {
     #[account(mut)]
-    pub owner: Signer<'info>,
+    pub authority: Signer<'info>,
 
     #[account(
       seeds = [WHITELIST_STATE_SEED],
       bump,
-      // Ensures only the whitelist owner can register new users
-      constraint = whitelist_state.owner == owner.key() @ WhitelistError::UnauthorizedOwner
+      // Ensures only the whitelist authority can register new users
+      constraint = whitelist_state.authority == authority.key() @ WhitelistError::Unauthorized
     )]
     pub whitelist_state: Account<'info, WhitelistState>,
 
     #[account(
         init,
-        payer = owner,
+        payer = authority,
         space = DISCRIMINATOR + ResolverAccess::INIT_SPACE,
         seeds = [RESOLVER_ACCESS_SEED, user.key().as_ref()],
         bump,
@@ -87,19 +87,19 @@ pub struct Register<'info> {
 #[instruction(user: Pubkey)]
 pub struct Deregister<'info> {
     #[account(mut)]
-    pub owner: Signer<'info>,
+    pub authority: Signer<'info>,
 
     #[account(
       seeds = [WHITELIST_STATE_SEED],
       bump,
-      // Ensures only the whitelist owner can deregister users from the whitelist
-      constraint = whitelist_state.owner == owner.key() @ WhitelistError::UnauthorizedOwner
+      // Ensures only the whitelist authority can deregister users from the whitelist
+      constraint = whitelist_state.authority == authority.key() @ WhitelistError::Unauthorized
     )]
     pub whitelist_state: Account<'info, WhitelistState>,
 
     #[account(
         mut,
-        close = owner,
+        close = authority,
         seeds = [RESOLVER_ACCESS_SEED, user.key().as_ref()],
         bump,
     )]
@@ -109,15 +109,15 @@ pub struct Deregister<'info> {
 }
 
 #[derive(Accounts)]
-pub struct TransferOwnership<'info> {
+pub struct SetAuthority<'info> {
     #[account(mut)]
-    pub current_owner: Signer<'info>,
+    pub current_authority: Signer<'info>,
     #[account(
         mut,
         seeds = [WHITELIST_STATE_SEED],
         bump,
-        // Ensures only the current owner can transfer ownership
-        constraint = whitelist_state.owner == current_owner.key() @ WhitelistError::UnauthorizedOwner
+        // Ensures only the current authority can set new authority
+        constraint = whitelist_state.authority == current_authority.key() @ WhitelistError::Unauthorized
     )]
     pub whitelist_state: Account<'info, WhitelistState>,
 }
@@ -125,7 +125,7 @@ pub struct TransferOwnership<'info> {
 #[account]
 #[derive(InitSpace)]
 pub struct WhitelistState {
-    pub owner: Pubkey,
+    pub authority: Pubkey,
 }
 
 #[account]

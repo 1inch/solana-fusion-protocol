@@ -20,23 +20,23 @@ const prompt = require("prompt-sync")({ sigint: true });
 async function initialize(
   connection: Connection,
   program: Program<Whitelist>,
-  ownerKeypair: Keypair
+  authorityKeypair: Keypair
 ): Promise<void> {
   const whitelistState = findWhitelistStateAddress(program.programId);
 
   const initializeIx = await program.methods
     .initialize()
     .accountsPartial({
-      owner: ownerKeypair.publicKey,
+      authority: authorityKeypair.publicKey,
       whitelistState,
     })
-    .signers([ownerKeypair])
+    .signers([authorityKeypair])
     .instruction();
 
   const tx = new Transaction().add(initializeIx);
 
   const signature = await sendAndConfirmTransaction(connection, tx, [
-    ownerKeypair,
+    authorityKeypair,
   ]);
   console.log(`Transaction signature ${signature}`);
 }
@@ -47,10 +47,10 @@ async function main() {
   const connection = new Connection(clusterUrl, "confirmed");
   const whitelist = new Program<Whitelist>(WHITELIST_IDL, { connection });
 
-  const ownerKeypairPath = prompt("Enter owner keypair path: ");
-  const ownerKeypair = await loadKeypairFromFile(ownerKeypairPath);
+  const authorityKeypairPath = prompt("Enter authority keypair path: ");
+  const authorityKeypair = await loadKeypairFromFile(authorityKeypairPath);
 
-  await initialize(connection, whitelist, ownerKeypair);
+  await initialize(connection, whitelist, authorityKeypair);
 }
 
 main();
