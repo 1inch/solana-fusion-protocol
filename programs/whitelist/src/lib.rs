@@ -32,7 +32,7 @@ pub mod whitelist {
         Ok(())
     }
 
-    /// Sets new whitelist authority
+    /// Sets the new whitelist authority
     pub fn set_authority(ctx: Context<SetAuthority>, new_authority: Pubkey) -> Result<()> {
         let whitelist_state = &mut ctx.accounts.whitelist_state;
         whitelist_state.authority = new_authority;
