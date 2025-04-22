@@ -151,7 +151,7 @@ async function main() {
   const orderId = Number(prompt("Enter order id: "));
 
   const connection = new Connection(clusterUrl, "confirmed");
-  const fusionSwap = new Program(FUSION_IDL as FusionSwap, { connection });
+  const fusionSwap = new Program<FusionSwap>(FUSION_IDL, { connection });
 
   const makerKeypair = await loadKeypairFromFile(makerKeypairPath);
 
