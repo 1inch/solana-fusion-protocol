@@ -365,6 +365,7 @@ export class TestState {
         integratorDstAcc: orderConfig.fee.integratorDstAcc,
         escrow,
         srcTokenProgram,
+        makerSrcAta: orderConfig.srcAssetIsNative ? null : undefined,
       })
       .signers([this.alice.keypair]);
 

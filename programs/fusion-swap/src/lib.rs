@@ -92,6 +92,11 @@ pub mod fusion_swap {
             FusionError::InvalidCancellationFee
         );
 
+        require!(
+            order.src_asset_is_native == ctx.accounts.maker_src_ata.is_none(),
+            FusionError::InconsistentNativeSrcTrait
+        );
+
         // Maker => Escrow
         if order.src_asset_is_native {
             // Wrap SOL to wSOL
@@ -110,7 +115,12 @@ pub mod fusion_swap {
             ))
         } else {
             uni_transfer(&UniTransferParams::TokenTransfer {
-                from: ctx.accounts.maker_src_ata.to_account_info(),
+                from: ctx
+                    .accounts
+                    .maker_src_ata
+                    .as_ref()
+                    .ok_or(FusionError::MissingMakerSrcAta)?
+                    .to_account_info(),
                 authority: ctx.accounts.maker.to_account_info(),
                 to: ctx.accounts.escrow_src_ata.to_account_info(),
                 mint: *ctx.accounts.src_mint.clone(),
@@ -283,6 +293,11 @@ pub mod fusion_swap {
             FusionError::InconsistentNativeSrcTrait
         );
 
+        require!(
+            order_src_asset_is_native == ctx.accounts.maker_src_ata.is_none(),
+            FusionError::InconsistentNativeSrcTrait
+        );
+
         // Return remaining src tokens back to maker
         if !order_src_asset_is_native {
             transfer_checked(
@@ -291,7 +306,12 @@ pub mod fusion_swap {
                     TransferChecked {
                         from: ctx.accounts.escrow_src_ata.to_account_info(),
                         mint: ctx.accounts.src_mint.to_account_info(),
-                        to: ctx.accounts.maker_src_ata.to_account_info(),
+                        to: ctx
+                            .accounts
+                            .maker_src_ata
+                            .as_ref()
+                            .ok_or(FusionError::MissingMakerSrcAta)?
+                            .to_account_info(),
                         authority: ctx.accounts.escrow.to_account_info(),
                     },
                     &[&[
@@ -336,6 +356,10 @@ pub mod fusion_swap {
             current_timestamp >= order.expiration_time as i64,
             FusionError::OrderNotExpired
         );
+        require!(
+            order.src_asset_is_native == ctx.accounts.maker_src_ata.is_none(),
+            FusionError::InconsistentNativeSrcTrait
+        );
 
         let order_hash = order_hash(
             &order,
@@ -357,7 +381,12 @@ pub mod fusion_swap {
                     TransferChecked {
                         from: ctx.accounts.escrow_src_ata.to_account_info(),
                         mint: ctx.accounts.src_mint.to_account_info(),
-                        to: ctx.accounts.maker_src_ata.to_account_info(),
+                        to: ctx
+                            .accounts
+                            .maker_src_ata
+                            .as_ref()
+                            .ok_or(FusionError::MissingMakerSrcAta)?
+                            .to_account_info(),
                         authority: ctx.accounts.escrow.to_account_info(),
                     },
                     &[&[
@@ -457,7 +486,7 @@ pub struct Create<'info> {
         associated_token::authority = maker,
         associated_token::token_program = src_token_program,
     )]
-    maker_src_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    maker_src_ata: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     /// Destination asset
     dst_mint: Box<InterfaceAccount<'info, Mint>>,
@@ -603,7 +632,7 @@ pub struct Cancel<'info> {
         associated_token::authority = maker,
         associated_token::token_program = src_token_program,
     )]
-    maker_src_ata: InterfaceAccount<'info, TokenAccount>,
+    maker_src_ata: Option<InterfaceAccount<'info, TokenAccount>>,
 
     src_token_program: Interface<'info, TokenInterface>,
 }
@@ -671,7 +700,7 @@ pub struct CancelByResolver<'info> {
         associated_token::authority = maker,
         associated_token::token_program = src_token_program,
     )]
-    maker_src_ata: InterfaceAccount<'info, TokenAccount>,
+    maker_src_ata: Option<InterfaceAccount<'info, TokenAccount>>,
 
     src_token_program: Interface<'info, TokenInterface>,
     system_program: Program<'info, System>,

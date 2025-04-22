@@ -1077,7 +1077,6 @@ describe("Fusion Swap", () => {
         program.programId
       );
 
-      // srcAmount = 0
       await expect(
         program.methods
           .create(orderConfig as ReducedOrderConfig)
@@ -1094,6 +1093,38 @@ describe("Fusion Swap", () => {
           .signers([state.alice.keypair])
           .rpc()
       ).to.be.rejectedWith("Error Code: InvalidAmount");
+    });
+
+    it("Fails to create with spl-tokens, if maker-src-ata is missing", async () => {
+      const orderConfig = state.orderConfig({});
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      // srcAmount = 0
+      await expect(
+        program.methods
+          .create(orderConfig as ReducedOrderConfig)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            makerReceiver: orderConfig.receiver,
+            srcMint: state.tokens[0],
+            dstMint: state.tokens[1],
+            protocolDstAcc: orderConfig.fee.protocolDstAcc,
+            integratorDstAcc: null,
+            escrow: escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+            makerSrcAta: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InconsistentNativeSrcTrait");
     });
 
     it("Fails to create with zero min dst amount", async () => {
@@ -1695,6 +1726,72 @@ describe("Fusion Swap", () => {
       ]);
     });
 
+    it("Cancellation works if src-token is native and maker-src-ata is not provided", async () => {
+      const srcAmount = new anchor.BN(10000);
+      // create new escrow
+      const orderConfig = state.orderConfig({
+        srcMint: splToken.NATIVE_MINT,
+        srcAssetIsNative: true,
+        srcAmount,
+        expirationTime: 0xffffffff,
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: splToken.NATIVE_MINT,
+          dstMint: state.tokens[1],
+          protocolDstAcc: null,
+          integratorDstAcc: null,
+          escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+
+      await program.methods
+        .cancel(Array.from(calculateOrderHash(orderConfig)), true)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          srcMint: splToken.NATIVE_MINT,
+          escrow: escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
+    });
+
+    it("Cancellation with spl tokens fails if maker-src-ata is absent", async () => {
+      const orderHash = calculateOrderHash(state.escrows[0].orderConfig);
+
+      await expect(
+        program.methods
+          .cancel(Array.from(orderHash), false)
+          .accountsPartial({
+            maker: state.alice.keypair.publicKey,
+            srcMint: state.tokens[0],
+            escrow: state.escrows[0].escrow,
+            srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+            makerSrcAta: null,
+          })
+          .signers([state.alice.keypair])
+          .rpc()
+      ).to.be.rejectedWith("Error Code: InconsistentNativeSrcTrait");
+    });
+
     it("Cancel the trade with native tokens", async () => {
       const escrow = await state.createEscrow({
         escrowProgram: program,
@@ -1718,6 +1815,7 @@ describe("Fusion Swap", () => {
           srcMint: splToken.NATIVE_MINT,
           escrow: escrow.escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();
@@ -1886,6 +1984,42 @@ describe("Fusion Swap", () => {
       expect(resultsCancel).to.be.deep.eq([
         BigInt(state.defaultSrcAmount.divn(2).toNumber()),
       ]);
+    });
+
+    it("Can create with native token source, even if maker-src-ata is missing", async () => {
+      const srcAmount = new anchor.BN(10000);
+      // create new escrow
+      const orderConfig = state.orderConfig({
+        srcMint: splToken.NATIVE_MINT,
+        srcAssetIsNative: true,
+        srcAmount,
+        expirationTime: 0xffffffff,
+      });
+
+      const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("escrow"),
+          state.alice.keypair.publicKey.toBuffer(),
+          calculateOrderHash(orderConfig),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .create(orderConfig as ReducedOrderConfig)
+        .accountsPartial({
+          maker: state.alice.keypair.publicKey,
+          makerReceiver: orderConfig.receiver,
+          srcMint: splToken.NATIVE_MINT,
+          dstMint: state.tokens[1],
+          protocolDstAcc: null,
+          integratorDstAcc: null,
+          escrow,
+          srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
+        })
+        .signers([state.alice.keypair])
+        .rpc();
     });
 
     it("Execute the trade with native tokens (SOL) as destination", async () => {
@@ -2283,6 +2417,7 @@ describe("Fusion Swap", () => {
           integratorDstAcc: null,
           escrow,
           srcTokenProgram: splToken.TOKEN_PROGRAM_ID,
+          makerSrcAta: null,
         })
         .signers([state.alice.keypair])
         .rpc();
