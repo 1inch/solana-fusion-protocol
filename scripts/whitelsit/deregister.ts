@@ -22,7 +22,7 @@ const prompt = require("prompt-sync")({ sigint: true });
 async function deregister(
   connection: Connection,
   program: Program<Whitelist>,
-  ownerKeypair: Keypair,
+  authorityKeypair: Keypair,
   user: PublicKey
 ): Promise<void> {
   const whitelistState = findWhitelistStateAddress(program.programId);
@@ -31,17 +31,17 @@ async function deregister(
   const registerIx = await program.methods
     .deregister(user)
     .accountsPartial({
-      owner: ownerKeypair.publicKey,
+      authority: authorityKeypair.publicKey,
       whitelistState,
       resolverAccess,
     })
-    .signers([ownerKeypair])
+    .signers([authorityKeypair])
     .instruction();
 
   const tx = new Transaction().add(registerIx);
 
   const signature = await sendAndConfirmTransaction(connection, tx, [
-    ownerKeypair,
+    authorityKeypair,
   ]);
   console.log(`Transaction signature ${signature}`);
 }
@@ -52,11 +52,11 @@ async function main() {
   const connection = new Connection(clusterUrl, "confirmed");
   const whitelist = new Program<Whitelist>(WHITELIST_IDL, { connection });
 
-  const ownerKeypairPath = prompt("Enter owner keypair path: ");
-  const ownerKeypair = await loadKeypairFromFile(ownerKeypairPath);
+  const authorityKeypairPath = prompt("Enter authority keypair path: ");
+  const authorityKeypair = await loadKeypairFromFile(authorityKeypairPath);
   const user = new PublicKey(prompt("Enter user public key: "));
 
-  await deregister(connection, whitelist, ownerKeypair, user);
+  await deregister(connection, whitelist, authorityKeypair, user);
 }
 
 main();

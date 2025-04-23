@@ -475,7 +475,7 @@ async function createUsers(
 
 export async function initializeWhitelist(
   program: anchor.Program<Whitelist>,
-  owner: anchor.web3.Keypair
+  authority: anchor.web3.Keypair
 ) {
   const [whitelistStatePDA] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from("whitelist_state")],
@@ -495,9 +495,9 @@ export async function initializeWhitelist(
       await program.methods
         .initialize()
         .accountsPartial({
-          owner: owner.publicKey,
+          authority: authority.publicKey,
         })
-        .signers([owner])
+        .signers([authority])
         .rpc();
     } else {
       throw e; // Re-throw if it's a different error
@@ -508,32 +508,32 @@ export async function initializeWhitelist(
 export async function createWhitelistedAccount(
   program: anchor.Program<Whitelist>,
   user: anchor.web3.Keypair,
-  owner: anchor.web3.Keypair
+  authority: anchor.web3.Keypair
 ) {
-  // Initialize the whitelist state with the payer as owner
-  await initializeWhitelist(program, owner);
+  // Initialize the whitelist state with the payer as authority
+  await initializeWhitelist(program, authority);
   // Register the user
   await program.methods
     .register(user.publicKey)
     .accountsPartial({
-      owner: owner.publicKey,
+      authority: authority.publicKey,
     })
-    .signers([owner])
+    .signers([authority])
     .rpc();
 }
 
 export async function removeWhitelistedAccount(
   user: anchor.web3.Keypair,
-  owner: anchor.web3.Keypair
+  authority: anchor.web3.Keypair
 ) {
   const program = anchor.workspace.Whitelist as anchor.Program<Whitelist>;
   // Deregister the user
   await program.methods
     .deregister(user.publicKey)
     .accountsPartial({
-      owner: owner.publicKey,
+      authority: authority.publicKey,
     })
-    .signers([owner])
+    .signers([authority])
     .rpc();
 }
 

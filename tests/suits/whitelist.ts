@@ -17,7 +17,7 @@ describe("Whitelist", () => {
   debugLog(`Payer ::`, payer.publicKey.toString());
 
   let userToWhitelist: anchor.web3.Keypair;
-  let newOwner: anchor.web3.Keypair;
+  let newAuthority: anchor.web3.Keypair;
   let whitelistPDA: anchor.web3.PublicKey;
 
   before(async () => {
@@ -27,10 +27,10 @@ describe("Whitelist", () => {
       1 * LAMPORTS_PER_SOL
     );
 
-    // Generate new owner keypair and fund it
-    newOwner = anchor.web3.Keypair.generate();
+    // Generate new authority keypair and fund it
+    newAuthority = anchor.web3.Keypair.generate();
     await provider.connection.requestAirdrop(
-      newOwner.publicKey,
+      newAuthority.publicKey,
       1 * LAMPORTS_PER_SOL
     );
 
@@ -39,7 +39,7 @@ describe("Whitelist", () => {
       program.programId
     );
 
-    // Initialize the whitelist state with the payer as owner
+    // Initialize the whitelist state with the payer as authority
     await initializeWhitelist(program, payer);
   });
 
@@ -48,7 +48,7 @@ describe("Whitelist", () => {
     await program.methods
       .register(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: payer.publicKey,
+        authority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -63,7 +63,7 @@ describe("Whitelist", () => {
     await program.methods
       .deregister(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: payer.publicKey,
+        authority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -85,7 +85,7 @@ describe("Whitelist", () => {
     await program.methods
       .register(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: payer.publicKey,
+        authority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -100,7 +100,7 @@ describe("Whitelist", () => {
     await program.methods
       .deregister(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: payer.publicKey,
+        authority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -111,7 +111,7 @@ describe("Whitelist", () => {
     await program.methods
       .register(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: payer.publicKey,
+        authority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
@@ -121,7 +121,7 @@ describe("Whitelist", () => {
       program.methods
         .register(userToWhitelist.publicKey)
         .accountsPartial({
-          owner: payer.publicKey,
+          authority: payer.publicKey,
         })
         .signers([payer])
         .rpc()
@@ -131,23 +131,23 @@ describe("Whitelist", () => {
     await program.methods
       .deregister(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: payer.publicKey,
+        authority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
   });
 
-  it("Can transfer ownership to new owner", async () => {
-    // Transfer ownership
+  it("Can set authority to new account", async () => {
+    // Set new authority
     await program.methods
-      .transferOwnership(newOwner.publicKey)
+      .setAuthority(newAuthority.publicKey)
       .accountsPartial({
-        currentOwner: payer.publicKey,
+        currentAuthority: payer.publicKey,
       })
       .signers([payer])
       .rpc();
 
-    // Verify the new owner is set correctly
+    // Verify the new authority is set correctly
     const [whitelistStatePDA] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("whitelist_state")],
       program.programId
@@ -155,19 +155,19 @@ describe("Whitelist", () => {
     const whitelistState = await program.account.whitelistState.fetch(
       whitelistStatePDA
     );
-    expect(whitelistState.owner.toString()).to.equal(
-      newOwner.publicKey.toString()
+    expect(whitelistState.authority.toString()).to.equal(
+      newAuthority.publicKey.toString()
     );
   });
 
-  it("New owner can register and deregister users", async () => {
-    // New owner should be able to register a user
+  it("New authority can register and deregister users", async () => {
+    // New authority should be able to register a user
     await program.methods
       .register(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: newOwner.publicKey,
+        authority: newAuthority.publicKey,
       })
-      .signers([newOwner])
+      .signers([newAuthority])
       .rpc();
 
     // Verify the whitelist account exists
@@ -176,13 +176,13 @@ describe("Whitelist", () => {
     );
     expect(whitelistAccount).to.not.be.null;
 
-    // New owner should be able to deregister the user
+    // New authority should be able to deregister the user
     await program.methods
       .deregister(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: newOwner.publicKey,
+        authority: newAuthority.publicKey,
       })
-      .signers([newOwner])
+      .signers([newAuthority])
       .rpc();
 
     // Verify the whitelist account does not exist
@@ -191,83 +191,83 @@ describe("Whitelist", () => {
     ).to.be.rejectedWith("Account does not exist");
   });
 
-  it("Cannot register with wrong owner", async () => {
+  it("Cannot register with wrong authority", async () => {
     await expect(
       program.methods
         .register(userToWhitelist.publicKey)
         .accountsPartial({
-          owner: userToWhitelist.publicKey,
+          authority: userToWhitelist.publicKey,
         })
         .signers([userToWhitelist])
         .rpc()
-    ).to.be.rejectedWith("Error Code: UnauthorizedOwner");
+    ).to.be.rejectedWith("Error Code: Unauthorized");
   });
 
-  it("Cannot deregister with wrong owner", async () => {
+  it("Cannot deregister with wrong authority", async () => {
     // First register the user
     await program.methods
       .register(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: newOwner.publicKey,
+        authority: newAuthority.publicKey,
       })
-      .signers([newOwner])
+      .signers([newAuthority])
       .rpc();
 
-    // Try to deregister with wrong owner
+    // Try to deregister with wrong authority
     await expect(
       program.methods
         .deregister(userToWhitelist.publicKey)
         .accountsPartial({
-          owner: userToWhitelist.publicKey,
+          authority: userToWhitelist.publicKey,
         })
         .signers([userToWhitelist])
         .rpc()
-    ).to.be.rejectedWith("Error Code: UnauthorizedOwner");
+    ).to.be.rejectedWith("Error Code: Unauthorized");
 
     // Cleanup
     await program.methods
       .deregister(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: newOwner.publicKey,
+        authority: newAuthority.publicKey,
       })
-      .signers([newOwner])
+      .signers([newAuthority])
       .rpc();
   });
 
-  it("Previous owner cannot register or deregister users", async () => {
-    // Previous owner should not be able to register a user
+  it("Previous authority cannot register or deregister users", async () => {
+    // Previous authority should not be able to register a user
     await expect(
       program.methods
         .register(userToWhitelist.publicKey)
         .accountsPartial({
-          owner: payer.publicKey,
+          authority: payer.publicKey,
         })
         .signers([payer])
         .rpc()
-    ).to.be.rejectedWith("Error Code: UnauthorizedOwner");
+    ).to.be.rejectedWith("Error Code: Unauthorized");
 
-    // Register user with new owner for deregister test
+    // Register user with new authority for deregister test
     await program.methods
       .register(userToWhitelist.publicKey)
       .accountsPartial({
-        owner: newOwner.publicKey,
+        authority: newAuthority.publicKey,
       })
-      .signers([newOwner])
+      .signers([newAuthority])
       .rpc();
 
-    // Previous owner should not be able to deregister a user
+    // Previous authority should not be able to deregister a user
     await expect(
       program.methods
         .deregister(userToWhitelist.publicKey)
         .accountsPartial({
-          owner: payer.publicKey,
+          authority: payer.publicKey,
         })
         .signers([payer])
         .rpc()
-    ).to.be.rejectedWith("Error Code: UnauthorizedOwner");
+    ).to.be.rejectedWith("Error Code: Unauthorized");
   });
 
-  it("Non-owner cannot transfer ownership", async () => {
+  it("Non-authority cannot set authority", async () => {
     const randomUser = anchor.web3.Keypair.generate();
     await provider.connection.requestAirdrop(
       randomUser.publicKey,
@@ -276,12 +276,12 @@ describe("Whitelist", () => {
 
     await expect(
       program.methods
-        .transferOwnership(newOwner.publicKey)
+        .setAuthority(newAuthority.publicKey)
         .accountsPartial({
-          currentOwner: randomUser.publicKey,
+          currentAuthority: randomUser.publicKey,
         })
         .signers([randomUser])
         .rpc()
-    ).to.be.rejectedWith("Error Code: UnauthorizedOwner");
+    ).to.be.rejectedWith("Error Code: Unauthorized");
   });
 });
