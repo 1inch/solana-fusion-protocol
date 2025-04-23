@@ -34,7 +34,7 @@ pub fn calculate_rate_bump(timestamp: u64, data: &AuctionData) -> u64 {
         if timestamp <= next_point_time {
             // Overflow is not possible because:
             // 1. current_point_time < timestamp <= next_point_time
-            // 2. size(timestamp) + size(rate_bump) < 64
+            // 2. timestamp * rate_bump < 2^64
             // 3. point_time_delta != 0 as this would contradict point 1
             return ((timestamp - current_point_time) * next_rate_bump
                 + (next_point_time - timestamp) * current_rate_bump)
@@ -47,9 +47,9 @@ pub fn calculate_rate_bump(timestamp: u64, data: &AuctionData) -> u64 {
 
     // Overflow is not possible because:
     // 1. timestamp < auction_finish_time
-    // 2. size(timestamp) + size(rate_bump) < 64
+    // 2. rate_bump * timestamp < 2^64
     // 3. current_point_time < auction_finish_time as we know that current_point_time < timestamp
-    (auction_finish_time - timestamp) * current_rate_bump
+    current_rate_bump * (auction_finish_time - timestamp)
         / (auction_finish_time - current_point_time)
 }
 
