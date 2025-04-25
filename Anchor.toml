@@ -8,14 +8,14 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-fusion_swap = "5uzpYuGqBaetRMXPDtGWGN9W4mdmgBzpGHcQACrZ1npi"
+fusion_swap = "HNarfxC3kYMMhFkxUFeYb8wHVdPzY5t9pupqW5fL2meM"
 whitelist = "DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
