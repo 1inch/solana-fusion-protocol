@@ -9,7 +9,7 @@ skip-lint = false
 
 [programs.localnet]
 fusion_swap = "HNarfxC3kYMMhFkxUFeYb8wHVdPzY5t9pupqW5fL2meM"
-whitelist = "DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ"
+whitelist = "5jzZhrzqkbdwp5d3J1XbmaXMRnqeXimM1mDMoGHyvR7S"
 
 [registry]
 url = "https://api.apr.dev"
