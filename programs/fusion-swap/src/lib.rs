@@ -255,7 +255,7 @@ pub mod fusion_swap {
                         .accounts
                         .integrator_dst_acc
                         .as_ref()
-                        .ok_or(FusionError::InconsistentProtocolFeeConfig)?
+                        .ok_or(FusionError::InconsistentIntegratorFeeConfig)?
                         .to_account_info();
                 }
             }
