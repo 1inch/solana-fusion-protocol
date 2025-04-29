@@ -673,12 +673,13 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fusion-swap"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
  "common",
  "muldiv",
+ "solana-security-txt",
  "whitelist",
 ]
 
@@ -2797,11 +2798,12 @@ dependencies = [
 
 [[package]]
 name = "whitelist"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
  "common",
+ "solana-security-txt",
 ]
 
 [[package]]
