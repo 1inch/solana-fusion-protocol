@@ -1,8 +1,5 @@
 [workspace]
 members = [
-    # 'native-programs' folder is excluded from this list intentionally
-    # and needs to be added back when the development of 'fusion-swap-native'
-    # program will be continued.
     "programs/*"
 ]
 resolver = "2"
