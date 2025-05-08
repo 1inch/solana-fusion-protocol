@@ -22,7 +22,6 @@ import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
 import { calculateOrderHash } from "../../scripts/utils";
-import { FusionSwapNative } from "../../idl/fusion_swap_native";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
@@ -304,9 +303,7 @@ export class TestState {
     orderConfig,
     srcTokenProgram = splToken.TOKEN_PROGRAM_ID,
   }: {
-    escrowProgram:
-      | anchor.Program<FusionSwap>
-      | anchor.Program<FusionSwapNative>;
+    escrowProgram: anchor.Program<FusionSwap>;
     provider: anchor.AnchorProvider | BanksClient;
     payer: anchor.web3.Keypair;
     orderConfig?: Partial<OrderConfig>;
