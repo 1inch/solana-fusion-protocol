@@ -17,6 +17,22 @@ pub mod error;
 
 use error::FusionError;
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    // Required fields
+    name: "1inch Fusion Program",
+    project_url: "http://1inch.io",
+    contacts: "email:security@1inch.io,link:https://1inch.io/contacts/",
+    policy: "",
+
+    // Optional Fields
+    preferred_languages: "en",
+    source_code: "https://github.com/1inch/solana-fusion-protocol",
+    source_release: "1.0.0-release",
+    source_revision: "6fec865864a281ca84f5790d58c31f44518d0167",
+    auditors: "https://github.com/1inch/1inch-audits/tree/master/Solana-Fusion"
+}
+
 declare_id!("HNarfxC3kYMMhFkxUFeYb8wHVdPzY5t9pupqW5fL2meM");
 
 enum UniTransferParams<'info> {
