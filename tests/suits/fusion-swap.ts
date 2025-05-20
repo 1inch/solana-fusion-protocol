@@ -610,6 +610,10 @@ describe("Fusion Swap", () => {
             protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
+            integratorDstAcc: undefined,
+            integratorFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -669,6 +673,10 @@ describe("Fusion Swap", () => {
             protocolDstAcc:
               state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
             protocolFee: 10000, // 10%
+            integratorDstAcc: undefined,
+            integratorFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -723,6 +731,10 @@ describe("Fusion Swap", () => {
             integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 15000, // 15%
+            protocolDstAcc: undefined,
+            protocolFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -782,6 +794,10 @@ describe("Fusion Swap", () => {
             integratorDstAcc:
               state.charlie.atas[splToken.NATIVE_MINT.toString()].address,
             integratorFee: 15000, // 15%
+            protocolDstAcc: undefined,
+            protocolFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -886,6 +902,8 @@ describe("Fusion Swap", () => {
             integratorDstAcc:
               state.dave.atas[splToken.NATIVE_MINT.toString()].address,
             integratorFee: 15000, // 15%
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -1260,7 +1278,13 @@ describe("Fusion Swap", () => {
 
     it("Doesn't create escrow with the wrong surplus param", async () => {
       const orderConfig = state.orderConfig({
-        fee: { surplusPercentage: 146 }, // 146%
+        fee: { surplusPercentage: 146, // 146%
+          protocolDstAcc: undefined,
+          integratorDstAcc: undefined,
+          protocolFee: undefined,
+          integratorFee: undefined,
+          maxCancellationPremium: undefined
+        },
       });
 
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -1292,7 +1316,13 @@ describe("Fusion Swap", () => {
 
     it("Doesn't create escrow with protocol_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
-        fee: { protocolFee: 10000 }, // 10%
+        fee: { protocolFee: 10000, // 10%
+          protocolDstAcc: undefined,
+          integratorDstAcc: undefined,
+          integratorFee: undefined,
+          surplusPercentage: undefined,
+          maxCancellationPremium: undefined
+        },
       });
 
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -1325,7 +1355,13 @@ describe("Fusion Swap", () => {
 
     it("Doesn't create escrow with intergrator_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
-        fee: { integratorFee: 10000 }, // 10%
+        fee: { integratorFee: 10000 , // 10%
+          protocolDstAcc: undefined,
+          integratorDstAcc: undefined,
+          protocolFee: undefined,
+          surplusPercentage: undefined,
+          maxCancellationPremium: undefined
+        }
       });
 
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -1366,6 +1402,10 @@ describe("Fusion Swap", () => {
             protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
+          integratorDstAcc: undefined,
+          integratorFee: undefined,
+          surplusPercentage: undefined,
+          maxCancellationPremium: undefined
           },
         },
       });
@@ -1396,6 +1436,10 @@ describe("Fusion Swap", () => {
             protocolDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address, // wrong protocol_dst_acc mint
             protocolFee: 10000, // 10%
+            integratorDstAcc: undefined,
+            integratorFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -1426,6 +1470,10 @@ describe("Fusion Swap", () => {
             protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
+            integratorDstAcc: undefined,
+            integratorFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -1454,6 +1502,10 @@ describe("Fusion Swap", () => {
             integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
+            protocolDstAcc: undefined,
+            protocolFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -1484,6 +1536,10 @@ describe("Fusion Swap", () => {
             integratorDstAcc:
               state.charlie.atas[state.tokens[0].toString()].address, // wrong integrator_dst_acc mint
             integratorFee: 10000, // 10%
+            protocolDstAcc: undefined,
+            protocolFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -1514,6 +1570,10 @@ describe("Fusion Swap", () => {
             integratorDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             integratorFee: 10000, // 10%
+            protocolDstAcc: undefined,
+            protocolFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined
           },
         },
       });
@@ -1601,7 +1661,7 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           srcAmount: _srcAmount,
-          srcRemaining: _srcAmount,
+          // srcRemaining: _srcAmount, // TODO @sras, this appear to be unused, confirm and remove
           minDstAmount: _dstAmount,
           estimatedDstAmount: _dstAmount,
         },

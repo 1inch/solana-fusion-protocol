@@ -302,6 +302,10 @@ describe("Dutch Auction", () => {
           protocolDstAcc:
             state.charlie.atas[state.tokens[1].toString()].address,
           surplusPercentage: 50, // 50%
+          integratorDstAcc: undefined,
+          protocolFee: undefined,
+          integratorFee: undefined,
+          maxCancellationPremium: undefined
         },
         dutchAuctionData: auction,
       },
@@ -370,6 +374,7 @@ describe("Dutch Auction", () => {
           protocolFee: 10000, // 10%
           integratorFee: 15000, // 15%
           surplusPercentage: 50, // 50%
+          maxCancellationPremium: undefined
         },
         dutchAuctionData: auction,
       },
