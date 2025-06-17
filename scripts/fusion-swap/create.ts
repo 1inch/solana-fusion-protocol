@@ -23,9 +23,9 @@ import {
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
-  ReducedFeeConfig,
-  ReducedOrderConfig,
 } from "../utils";
+
+import { FeeConfig } from "../../ts-common/common";
 
 const prompt = require("prompt-sync")({ sigint: true });
 
@@ -42,7 +42,7 @@ async function create(
   receiver: PublicKey = makerKeypair.publicKey,
   srcAssetIsNative: boolean = false,
   dstAssetIsNative: boolean = false,
-  fee: ReducedFeeConfig = defaultFeeConfig,
+  fee: FeeConfig = defaultFeeConfig,
   protocolDstAcc: PublicKey = null,
   integratorDstAcc: PublicKey = null,
   estimatedDstAmount: BN = minDstAmount,
@@ -50,7 +50,7 @@ async function create(
   cancellationAuctionDuration: number = defaultAuctionData.duration,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
-  const reducedOrderConfig: ReducedOrderConfig = {
+  const orderConfig:OrderConfig = {
     id: orderId,
     srcAmount,
     minDstAmount,
@@ -58,32 +58,22 @@ async function create(
     expirationTime,
     srcAssetIsNative,
     dstAssetIsNative,
-    fee,
-    dutchAuctionData,
-    cancellationAuctionDuration,
-  };
-
-  const orderConfig: OrderConfig = {
-    ...reducedOrderConfig,
-    srcMint,
-    dstMint,
-    receiver,
     fee: {
       ...fee,
       protocolDstAcc,
       integratorDstAcc,
     },
+    dutchAuctionData,
+    cancellationAuctionDuration,
+    srcMint,
+    dstMint,
+    receiver,
   };
 
   const orderHash = calculateOrderHash(orderConfig);
   console.log(`Order hash hex: ${Buffer.from(orderHash).toString("hex")}`);
 
-  const orderConfigs = {
-    full: orderConfig,
-    reduced: reducedOrderConfig,
-  };
-
-  fs.writeFileSync("order.json", JSON.stringify(orderConfigs));
+  fs.writeFileSync("order.json", JSON.stringify(orderConfig));
   console.log("Saved full and reduced order configs to order.json");
 
   const escrow = findEscrowAddress(
@@ -99,25 +89,8 @@ async function create(
 
   let tx = new Transaction();
 
-  if (srcMint == splToken.NATIVE_MINT) {
-    // Wrap SOL to wSOL
-    const makerNativeAta = await splToken.getAssociatedTokenAddress(
-      splToken.NATIVE_MINT,
-      makerKeypair.publicKey
-    );
-
-    const transferIx = SystemProgram.transfer({
-      fromPubkey: makerKeypair.publicKey,
-      toPubkey: makerNativeAta,
-      lamports: srcAmount.toNumber(),
-    });
-    tx.add(transferIx);
-
-    tx.add(splToken.createSyncNativeInstruction(makerNativeAta));
-  }
-
   const createIx = await program.methods
-    .create(reducedOrderConfig)
+    .create(orderConfig)
     .accountsPartial({
       maker: makerKeypair.publicKey,
       makerReceiver: receiver,

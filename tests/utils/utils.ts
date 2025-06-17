@@ -22,49 +22,9 @@ import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
 import { calculateOrderHash } from "../../scripts/utils";
+import { OrderConfig} from "../../ts-common/common";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
-
-type FeeConfig = {
-  protocolDstAcc: anchor.web3.PublicKey | null;
-  integratorDstAcc: anchor.web3.PublicKey | null;
-  protocolFee: number;
-  integratorFee: number;
-  surplusPercentage: number;
-  maxCancellationPremium: anchor.BN;
-};
-
-export type PointAndTimeDelta = {
-  rateBump: number;
-  timeDelta: number;
-};
-
-export type AuctionData = {
-  startTime: number;
-  duration: number;
-  initialRateBump: number;
-  pointsAndTimeDeltas: Array<PointAndTimeDelta>;
-}
-//
-export type ReducedOrderConfig = {
-  id : number;
-  srcAmount: anchor.BN;
-  minDstAmount: anchor.BN;
-  estimatedDstAmount: anchor.BN;
-  expirationTime: number;
-  srcAssetIsNative: boolean;
-  dstAssetIsNative: boolean;
-  fee: FeeConfig;
-  dutchAuctionData: AuctionData;
-  cancellationAuctionDuration: number;
-};
-
-type OrderConfig = ReducedOrderConfig & {
-  srcMint: anchor.web3.PublicKey;
-  dstMint: anchor.web3.PublicKey;
-  receiver: anchor.web3.PublicKey;
-  fee: FeeConfig;
-};
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -76,7 +36,6 @@ export type User = {
 export type Escrow = {
   escrow: anchor.web3.PublicKey;
   orderConfig: OrderConfig;
-  reducedOrderConfig: ReducedOrderConfig;
   ata: anchor.web3.PublicKey;
 };
 
@@ -397,7 +356,6 @@ export class TestState {
     return {
       escrow,
       orderConfig: orderConfig_,
-      reducedOrderConfig: orderConfig_ as ReducedOrderConfig,
       ata: escrowAta,
     };
   }

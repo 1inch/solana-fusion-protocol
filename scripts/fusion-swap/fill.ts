@@ -21,7 +21,6 @@ import {
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
-  ReducedOrderConfig,
 } from "../utils";
 
 const prompt = require("prompt-sync")({ sigint: true });
@@ -34,7 +33,6 @@ async function fill(
   maker: PublicKey,
   amount: number,
   orderConfig: OrderConfig,
-  reducedOrderConfig: ReducedOrderConfig
 ): Promise<void> {
   const orderHash = calculateOrderHash(orderConfig);
 
@@ -65,7 +63,7 @@ async function fill(
   );
 
   const fillIx = await program.methods
-    .fill(reducedOrderConfig, new BN(amount * Math.pow(10, srcMintDecimals)))
+    .fill(orderConfig, new BN(amount * Math.pow(10, srcMintDecimals)))
     .accountsPartial({
       taker: takerKeypair.publicKey,
       resolverAccess,
@@ -97,22 +95,16 @@ async function main() {
   const orderFilePath = prompt("Enter order config file path: ");
   const maker = new PublicKey(prompt("Enter maker public key: "));
 
-  const orderConfigs = JSON.parse(fs.readFileSync(orderFilePath));
+  const orderConfigJson = JSON.parse(fs.readFileSync(orderFilePath));
 
-  const orderConfig = {
-    ...orderConfigs.full,
-    srcAmount: new BN(orderConfigs.full.srcAmount, "hex"),
-    minDstAmount: new BN(orderConfigs.full.minDstAmount, "hex"),
-    estimatedDstAmount: new BN(orderConfigs.full.estimatedDstAmount, "hex"),
-    srcMint: new PublicKey(orderConfigs.full.srcMint),
-    dstMint: new PublicKey(orderConfigs.full.dstMint),
-    receiver: new PublicKey(orderConfigs.full.receiver),
-  };
-  const reducedOrderConfig = {
-    ...orderConfigs.reduced,
-    srcAmount: new BN(orderConfigs.reduced.srcAmount, "hex"),
-    minDstAmount: new BN(orderConfigs.reduced.minDstAmount, "hex"),
-    estimatedDstAmount: new BN(orderConfigs.reduced.estimatedDstAmount, "hex"),
+  const orderConfig: OrderConfig = {
+    ...orderConfigJson,
+    srcamount: new BN(orderConfigJson.srcamount, "hex"),
+    mindstamount: new BN(orderConfigJson.mindstamount, "hex"),
+    estimateddstamount: new BN(orderConfigJson.estimateddstamount, "hex"),
+    srcmint: new PublicKey(orderConfigJson.srcmint),
+    dstmint: new PublicKey(orderConfigJson.dstmint),
+    receiver: new PublicKey(orderConfigJson.receiver),
   };
 
   const takerKeypairPath = prompt("Enter taker keypair path: ");
@@ -155,7 +147,6 @@ async function main() {
     maker,
     amount,
     orderConfig,
-    reducedOrderConfig
   );
 }
 

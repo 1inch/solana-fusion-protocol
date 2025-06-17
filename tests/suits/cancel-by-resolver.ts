@@ -93,7 +93,7 @@ describe("Cancel by Resolver", () => {
 
     const transactionPromise = () =>
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+        .cancelByResolver(escrow.orderConfig, defaultRewardLimit)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -157,7 +157,7 @@ describe("Cancel by Resolver", () => {
 
     expect(
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+        .cancelByResolver(escrow.orderConfig, defaultRewardLimit)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -224,7 +224,7 @@ describe("Cancel by Resolver", () => {
 
         const transactionPromise = () =>
           program.methods
-            .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+            .cancelByResolver(escrow.orderConfig, defaultRewardLimit)
             .accountsPartial({
               resolver: state.bob.keypair.publicKey,
               maker: state.alice.keypair.publicKey,
@@ -307,7 +307,7 @@ describe("Cancel by Resolver", () => {
 
     const transactionPromise = () =>
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+        .cancelByResolver(escrow.orderConfig, defaultRewardLimit)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -383,7 +383,7 @@ describe("Cancel by Resolver", () => {
 
     const transactionPromise = () =>
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, resolverPremium)
+        .cancelByResolver(escrow.orderConfig, resolverPremium)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -459,7 +459,7 @@ describe("Cancel by Resolver", () => {
 
     const transactionPromise = () =>
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
+        .cancelByResolver(escrow.orderConfig, new anchor.BN(0))
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -523,7 +523,7 @@ describe("Cancel by Resolver", () => {
     await setCurrentTime(context, state.defaultExpirationTime);
 
     await program.methods
-      .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
+      .cancelByResolver(escrow.orderConfig, new anchor.BN(0))
       .accountsPartial({
         resolver: state.bob.keypair.publicKey,
         maker: state.alice.keypair.publicKey,
@@ -568,7 +568,7 @@ describe("Cancel by Resolver", () => {
 
     await expect(
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, new anchor.BN(0))
+        .cancelByResolver(escrow.orderConfig, new anchor.BN(0))
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -606,7 +606,7 @@ describe("Cancel by Resolver", () => {
 
     await expect(
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+        .cancelByResolver(escrow.orderConfig, defaultRewardLimit)
         .accountsPartial({
           resolver: state.bob.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
@@ -645,7 +645,7 @@ describe("Cancel by Resolver", () => {
     await setCurrentTime(context, state.defaultExpirationTime + 1);
     await expect(
       program.methods
-        .cancelByResolver(escrow.reducedOrderConfig, defaultRewardLimit)
+        .cancelByResolver(escrow.orderConfig, defaultRewardLimit)
         .accountsPartial({
           resolver: state.charlie.keypair.publicKey,
           maker: state.alice.keypair.publicKey,
