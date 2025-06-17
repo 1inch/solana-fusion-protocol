@@ -2,7 +2,6 @@ import {
   Connection,
   Keypair,
   PublicKey,
-  SystemProgram,
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
@@ -100,6 +99,9 @@ async function create(
       srcTokenProgram,
       protocolDstAcc,
       integratorDstAcc,
+      makerSrcAta: orderConfig.srcAssetIsNative ? null : undefined,
+        // if srcAssetIsNative then set makerSrcAta as null, else leave
+        // it as undefined so that anchor will compute it using other accounts.
     })
     .signers([makerKeypair])
     .instruction();
@@ -139,7 +141,10 @@ async function main() {
     new BN(minDstAmount * Math.pow(10, dstMintDecimals)),
     new PublicKey(srcMint),
     new PublicKey(dstMint),
-    orderId
+    orderId,
+    defaultExpirationTime(),
+    makerKeypair.publicKey,
+    srcMint.equals(splToken.NATIVE_MINT) // If source mint is native, then set srcAssetIsNative arg.
   );
 
   console.log(`Escrow account address: ${escrowAddr.toString()}`);
