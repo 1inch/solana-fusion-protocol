@@ -99,11 +99,11 @@ async function main() {
 
   const orderConfig: OrderConfig = {
     ...orderConfigJson,
-    srcamount: new BN(orderConfigJson.srcamount, "hex"),
-    mindstamount: new BN(orderConfigJson.mindstamount, "hex"),
-    estimateddstamount: new BN(orderConfigJson.estimateddstamount, "hex"),
-    srcmint: new PublicKey(orderConfigJson.srcmint),
-    dstmint: new PublicKey(orderConfigJson.dstmint),
+    srcAmount: new BN(orderConfigJson.srcamount, "hex"),
+    minDstAmount: new BN(orderConfigJson.mindstamount, "hex"),
+    estimatedDstAmount: new BN(orderConfigJson.estimateddstamount, "hex"),
+    srcMint: new PublicKey(orderConfigJson.srcmint),
+    dstMint: new PublicKey(orderConfigJson.dstmint),
     receiver: new PublicKey(orderConfigJson.receiver),
   };
 
