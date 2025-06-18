@@ -16,7 +16,6 @@ import {
   defaultAuctionData,
   defaultExpirationTime,
   defaultFeeConfig,
-  AuctionData,
   findEscrowAddress,
   getClusterUrlEnv,
   getTokenDecimals,
@@ -24,7 +23,7 @@ import {
   OrderConfig,
 } from "../utils";
 
-import { FeeConfig } from "../../ts-common/common";
+import { AuctionData, FeeConfig } from "../../ts-common/common";
 
 const prompt = require("prompt-sync")({ sigint: true });
 

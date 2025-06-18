@@ -1,5 +1,15 @@
 import * as anchor from "@coral-xyz/anchor";
 
+const FusionSwapIDL = require("../target/idl/fusion_swap.json");
+
+const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
+export type Escrow = (typeof escrowType)["type"]["fields"];
+
+const auctionDataType = FusionSwapIDL.types.find(
+  (t) => t.name === "AuctionData"
+);
+export type AuctionData = (typeof auctionDataType)["type"]["fields"];
+
 export type FeeConfig = {
   protocolDstAcc: anchor.web3.PublicKey | null;
   integratorDstAcc: anchor.web3.PublicKey | null;
@@ -9,18 +19,6 @@ export type FeeConfig = {
   maxCancellationPremium: anchor.BN;
 };
 
-export type PointAndTimeDelta = {
-  rateBump: number;
-  timeDelta: number;
-};
-
-export type AuctionData = {
-  startTime: number;
-  duration: number;
-  initialRateBump: number;
-  pointsAndTimeDeltas: Array<PointAndTimeDelta>;
-}
-//
 export type OrderConfig = {
   id : number;
   srcAmount: anchor.BN;

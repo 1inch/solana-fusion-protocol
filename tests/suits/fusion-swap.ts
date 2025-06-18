@@ -1661,7 +1661,6 @@ describe("Fusion Swap", () => {
         provider,
         orderConfig: {
           srcAmount: _srcAmount,
-          // srcRemaining: _srcAmount, // TODO @sras, this appear to be unused, confirm and remove
           minDstAmount: _dstAmount,
           estimatedDstAmount: _dstAmount,
         },

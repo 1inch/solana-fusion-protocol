@@ -7,17 +7,7 @@ import * as splToken from "@solana/spl-token";
 import { sha256 } from "@noble/hashes/sha256";
 import * as borsh from "borsh";
 export { OrderConfig, FeeConfig} from "../ts-common/common";
-import { OrderConfig, FeeConfig} from "../ts-common/common";
-
-const FusionSwapIDL = require("../target/idl/fusion_swap.json");
-
-const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
-export type Escrow = (typeof escrowType)["type"]["fields"];
-
-const auctionDataType = FusionSwapIDL.types.find(
-  (t) => t.name === "AuctionData"
-);
-export type AuctionData = (typeof auctionDataType)["type"]["fields"];
+import { OrderConfig, FeeConfig, AuctionData} from "../ts-common/common";
 
 export const defaultFeeConfig: FeeConfig = {
   protocolFee: 0,
