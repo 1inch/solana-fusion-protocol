@@ -6,10 +6,10 @@ import os from "os";
 import * as splToken from "@solana/spl-token";
 import { sha256 } from "@noble/hashes/sha256";
 import * as borsh from "borsh";
-export { OrderConfig, FeeConfig} from "../ts-common/common";
-import { OrderConfig, FeeConfig, AuctionData} from "../ts-common/common";
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
+export { OrderConfig, FeeConfig } from "../ts-common/common";
+import { OrderConfig, FeeConfig, AuctionData } from "../ts-common/common";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 const prompt = require("prompt-sync")({ sigint: true });
 
 export const defaultFeeConfig: FeeConfig = {
@@ -198,14 +198,12 @@ const orderConfigSchema = {
   },
 };
 
-
 // return argument if provided in cmd line, else ask the user and get it.
 export function prompt_(key: string, pmpt: string): string {
-  const argv = yargs(hideBin(process.argv)).parse()
+  const argv = yargs(hideBin(process.argv)).parse();
   if (key in argv) {
     return argv[key];
   } else {
     return prompt(pmpt);
   }
 }
-

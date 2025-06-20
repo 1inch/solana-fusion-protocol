@@ -613,7 +613,7 @@ describe("Fusion Swap", () => {
             integratorDstAcc: undefined,
             integratorFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -676,7 +676,7 @@ describe("Fusion Swap", () => {
             integratorDstAcc: undefined,
             integratorFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -734,7 +734,7 @@ describe("Fusion Swap", () => {
             protocolDstAcc: undefined,
             protocolFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -797,7 +797,7 @@ describe("Fusion Swap", () => {
             protocolDstAcc: undefined,
             protocolFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -903,7 +903,7 @@ describe("Fusion Swap", () => {
               state.dave.atas[splToken.NATIVE_MINT.toString()].address,
             integratorFee: 15000, // 15%
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -957,10 +957,7 @@ describe("Fusion Swap", () => {
     it("Doesn't execute the trade with exchange amount more than escow has (src token)", async () => {
       await expect(
         program.methods
-          .fill(
-            state.escrows[0].orderConfig,
-            state.defaultSrcAmount.muln(10)
-          )
+          .fill(state.escrows[0].orderConfig, state.defaultSrcAmount.muln(10))
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc()
@@ -1278,12 +1275,13 @@ describe("Fusion Swap", () => {
 
     it("Doesn't create escrow with the wrong surplus param", async () => {
       const orderConfig = state.orderConfig({
-        fee: { surplusPercentage: 146, // 146%
+        fee: {
+          surplusPercentage: 146, // 146%
           protocolDstAcc: undefined,
           integratorDstAcc: undefined,
           protocolFee: undefined,
           integratorFee: undefined,
-          maxCancellationPremium: undefined
+          maxCancellationPremium: undefined,
         },
       });
 
@@ -1316,12 +1314,13 @@ describe("Fusion Swap", () => {
 
     it("Doesn't create escrow with protocol_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
-        fee: { protocolFee: 10000, // 10%
+        fee: {
+          protocolFee: 10000, // 10%
           protocolDstAcc: undefined,
           integratorDstAcc: undefined,
           integratorFee: undefined,
           surplusPercentage: undefined,
-          maxCancellationPremium: undefined
+          maxCancellationPremium: undefined,
         },
       });
 
@@ -1355,13 +1354,14 @@ describe("Fusion Swap", () => {
 
     it("Doesn't create escrow with intergrator_dst_acc from different mint", async () => {
       const orderConfig = state.orderConfig({
-        fee: { integratorFee: 10000 , // 10%
+        fee: {
+          integratorFee: 10000, // 10%
           protocolDstAcc: undefined,
           integratorDstAcc: undefined,
           protocolFee: undefined,
           surplusPercentage: undefined,
-          maxCancellationPremium: undefined
-        }
+          maxCancellationPremium: undefined,
+        },
       });
 
       const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -1402,10 +1402,10 @@ describe("Fusion Swap", () => {
             protocolDstAcc:
               state.charlie.atas[state.tokens[1].toString()].address,
             protocolFee: 10000, // 10%
-          integratorDstAcc: undefined,
-          integratorFee: undefined,
-          surplusPercentage: undefined,
-          maxCancellationPremium: undefined
+            integratorDstAcc: undefined,
+            integratorFee: undefined,
+            surplusPercentage: undefined,
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -1439,7 +1439,7 @@ describe("Fusion Swap", () => {
             integratorDstAcc: undefined,
             integratorFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -1473,7 +1473,7 @@ describe("Fusion Swap", () => {
             integratorDstAcc: undefined,
             integratorFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -1505,7 +1505,7 @@ describe("Fusion Swap", () => {
             protocolDstAcc: undefined,
             protocolFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -1539,7 +1539,7 @@ describe("Fusion Swap", () => {
             protocolDstAcc: undefined,
             protocolFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -1573,7 +1573,7 @@ describe("Fusion Swap", () => {
             protocolDstAcc: undefined,
             protocolFee: undefined,
             surplusPercentage: undefined,
-            maxCancellationPremium: undefined
+            maxCancellationPremium: undefined,
           },
         },
       });
@@ -1595,10 +1595,7 @@ describe("Fusion Swap", () => {
     it("Execute the multiple trades", async () => {
       let transactionPromise = () =>
         program.methods
-          .fill(
-            state.escrows[0].orderConfig,
-            state.defaultSrcAmount.divn(2)
-          )
+          .fill(state.escrows[0].orderConfig, state.defaultSrcAmount.divn(2))
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();
@@ -1624,10 +1621,7 @@ describe("Fusion Swap", () => {
       // Second trade
       transactionPromise = () =>
         program.methods
-          .fill(
-            state.escrows[0].orderConfig,
-            state.defaultSrcAmount.divn(2)
-          )
+          .fill(state.escrows[0].orderConfig, state.defaultSrcAmount.divn(2))
           .accountsPartial(state.buildAccountsDataForFill({}))
           .signers([state.bob.keypair])
           .rpc();

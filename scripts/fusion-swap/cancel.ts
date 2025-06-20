@@ -14,7 +14,7 @@ import {
   findEscrowAddress,
   getClusterUrlEnv,
   loadKeypairFromFile,
-  prompt_
+  prompt_,
 } from "../utils";
 
 async function cancel(
@@ -65,7 +65,9 @@ async function main() {
   const clusterUrl = getClusterUrlEnv();
   const makerKeypairPath = prompt_("maker-kp", "Enter maker keypair path: ");
   const orderHash = prompt_("order-hash", "Enter order hash: ");
-  const srcMint = new PublicKey(prompt_("src-mint", "Enter src mint public key: "));
+  const srcMint = new PublicKey(
+    prompt_("src-mint", "Enter src mint public key: ")
+  );
   const srcAssetIsNative =
     prompt_("is-native", "Is src asset native? (true/false): ") === "true";
 

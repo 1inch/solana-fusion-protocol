@@ -20,7 +20,7 @@ export type FeeConfig = {
 };
 
 export type OrderConfig = {
-  id : number;
+  id: number;
   srcAmount: anchor.BN;
   minDstAmount: anchor.BN;
   estimatedDstAmount: anchor.BN;

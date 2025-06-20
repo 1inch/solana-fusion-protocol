@@ -22,7 +22,7 @@ import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
 import { calculateOrderHash } from "../../scripts/utils";
-import { OrderConfig} from "../../ts-common/common";
+import { OrderConfig } from "../../ts-common/common";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
 
@@ -285,7 +285,7 @@ export class TestState {
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
   }): Promise<Escrow> {
-    const orderConfig_ : OrderConfig = this.orderConfig(orderConfig);
+    const orderConfig_: OrderConfig = this.orderConfig(orderConfig);
 
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -361,10 +361,14 @@ export class TestState {
   }
 
   orderConfig(params: Partial<OrderConfig> = {}): OrderConfig {
-    const definedParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined));
+    const definedParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined)
+    );
     var fee;
     if (definedParams.fee) {
-      fee = Object.fromEntries(Object.entries(definedParams.fee).filter(([_, v]) => v !== undefined));
+      fee = Object.fromEntries(
+        Object.entries(definedParams.fee).filter(([_, v]) => v !== undefined)
+      );
     }
     const result = {
       id: this.order_id++,

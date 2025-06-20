@@ -21,7 +21,7 @@ import {
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
-  prompt_
+  prompt_,
 } from "../utils";
 
 async function fill(
@@ -31,7 +31,7 @@ async function fill(
   takerKeypair: Keypair,
   maker: PublicKey,
   amount: number,
-  orderConfig: OrderConfig,
+  orderConfig: OrderConfig
 ): Promise<void> {
   const orderHash = calculateOrderHash(orderConfig);
 
@@ -131,7 +131,6 @@ async function main() {
   try {
     const orderHash = calculateOrderHash(orderConfig);
 
-
     const escrowAddr = findEscrowAddress(
       fusionSwap.programId,
       maker,
@@ -145,7 +144,9 @@ async function main() {
     );
     console.log("Escrow address:" + escrowAddr.toString());
     console.log("Escrow src ata:" + escrowSrcAtaAddr.toString());
-    console.log(`Order hash hex in fill: ${Buffer.from(orderHash).toString("hex")}`);
+    console.log(
+      `Order hash hex in fill: ${Buffer.from(orderHash).toString("hex")}`
+    );
 
     await splToken.getAccount(connection, escrowSrcAtaAddr);
     console.log(`Order exists`);
@@ -155,7 +156,10 @@ async function main() {
     );
     return;
   }
-  orderConfig.fee.maxCancellationPremium = new BN(orderConfigJson.fee.maxCancellationPremium, "hex");
+  orderConfig.fee.maxCancellationPremium = new BN(
+    orderConfigJson.fee.maxCancellationPremium,
+    "hex"
+  );
 
   await fill(
     connection,
@@ -164,7 +168,7 @@ async function main() {
     takerKeypair,
     maker,
     amount,
-    orderConfig,
+    orderConfig
   );
 }
 

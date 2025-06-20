@@ -21,7 +21,7 @@ import {
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
-  prompt_
+  prompt_,
 } from "../utils";
 
 import { AuctionData, FeeConfig } from "../../ts-common/common";
@@ -47,7 +47,7 @@ async function create(
   cancellationAuctionDuration: number = defaultAuctionData.duration,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
-  const orderConfig:OrderConfig = {
+  const orderConfig: OrderConfig = {
     id: orderId,
     srcAmount,
     minDstAmount,
@@ -98,8 +98,8 @@ async function create(
       protocolDstAcc,
       integratorDstAcc,
       makerSrcAta: orderConfig.srcAssetIsNative ? null : undefined,
-        // if srcAssetIsNative then set makerSrcAta as null, else leave
-        // it as undefined so that anchor will compute it using other accounts.
+      // if srcAssetIsNative then set makerSrcAta as null, else leave
+      // it as undefined so that anchor will compute it using other accounts.
     })
     .signers([makerKeypair])
     .instruction();
@@ -115,13 +115,18 @@ async function create(
 }
 
 async function main() {
-
   const clusterUrl = getClusterUrlEnv();
   const makerKeypairPath = prompt_("maker", "Enter maker keypair path: ");
-  const srcMint = new PublicKey(prompt_("src-mint", "Enter src mint public key: "));
-  const dstMint = new PublicKey(prompt_("dst-mint", "Enter dst mint public key: "));
+  const srcMint = new PublicKey(
+    prompt_("src-mint", "Enter src mint public key: ")
+  );
+  const dstMint = new PublicKey(
+    prompt_("dst-mint", "Enter dst mint public key: ")
+  );
   const srcAmount = Number(prompt_("amount", "Enter src amount: "));
-  const minDstAmount = Number(prompt_("min-dst-amount", "Enter min dst amount: "));
+  const minDstAmount = Number(
+    prompt_("min-dst-amount", "Enter min dst amount: ")
+  );
   const orderId = Number(prompt_("order-id", "Enter order id: "));
 
   const connection = new Connection(clusterUrl, "confirmed");
