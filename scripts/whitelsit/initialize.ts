@@ -13,9 +13,8 @@ import {
   findWhitelistStateAddress,
   getClusterUrlEnv,
   loadKeypairFromFile,
+  prompt_,
 } from "../utils";
-
-const prompt = require("prompt-sync")({ sigint: true });
 
 async function initialize(
   connection: Connection,
@@ -47,7 +46,10 @@ async function main() {
   const connection = new Connection(clusterUrl, "confirmed");
   const whitelist = new Program<Whitelist>(WHITELIST_IDL, { connection });
 
-  const authorityKeypairPath = prompt("Enter authority keypair path: ");
+  const authorityKeypairPath = prompt_(
+    "authority-kp",
+    "Enter authority keypair path: "
+  );
   const authorityKeypair = await loadKeypairFromFile(authorityKeypairPath);
 
   await initialize(connection, whitelist, authorityKeypair);
