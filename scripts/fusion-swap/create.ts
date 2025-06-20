@@ -21,11 +21,10 @@ import {
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
+  prompt_
 } from "../utils";
 
 import { AuctionData, FeeConfig } from "../../ts-common/common";
-
-const prompt = require("prompt-sync")({ sigint: true });
 
 async function create(
   connection: Connection,
@@ -116,13 +115,14 @@ async function create(
 }
 
 async function main() {
+
   const clusterUrl = getClusterUrlEnv();
-  const makerKeypairPath = prompt("Enter maker keypair path: ");
-  const srcMint = new PublicKey(prompt("Enter src mint public key: "));
-  const dstMint = new PublicKey(prompt("Enter dst mint public key: "));
-  const srcAmount = Number(prompt("Enter src amount: "));
-  const minDstAmount = Number(prompt("Enter min dst amount: "));
-  const orderId = Number(prompt("Enter order id: "));
+  const makerKeypairPath = prompt_("maker", "Enter maker keypair path: ");
+  const srcMint = new PublicKey(prompt_("src-mint", "Enter src mint public key: "));
+  const dstMint = new PublicKey(prompt_("dst-mint", "Enter dst mint public key: "));
+  const srcAmount = Number(prompt_("amount", "Enter src amount: "));
+  const minDstAmount = Number(prompt_("min-dst-amount", "Enter min dst amount: "));
+  const orderId = Number(prompt_("order-id", "Enter order id: "));
 
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program<FusionSwap>(FUSION_IDL, { connection });

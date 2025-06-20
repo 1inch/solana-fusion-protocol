@@ -30,8 +30,7 @@ export type OrderConfig = {
   fee: FeeConfig;
   dutchAuctionData: AuctionData;
   cancellationAuctionDuration: number;
-  srcMint: anchor.web3.PublicKey;
-  dstMint: anchor.web3.PublicKey;
-  receiver: anchor.web3.PublicKey;
+  srcMint: anchor.web3.PublicKey | null;
+  dstMint: anchor.web3.PublicKey | null;
+  receiver: anchor.web3.PublicKey | null;
 };
-

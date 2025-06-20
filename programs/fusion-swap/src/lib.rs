@@ -17,7 +17,7 @@ pub mod error;
 
 use error::FusionError;
 
-declare_id!("HNarfxC3kYMMhFkxUFeYb8wHVdPzY5t9pupqW5fL2meM");
+declare_id!("12nFacVKzTjC5d82ZVV3Le9PFrnFw2vw2LR751MkXZFy");
 
 enum UniTransferParams<'info> {
     NativeTransfer {
@@ -502,7 +502,7 @@ pub struct Create<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order: OrderConfig)]
+#[instruction(order: OrderConfig, amount: u64)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]

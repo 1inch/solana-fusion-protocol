@@ -14,9 +14,8 @@ import {
   findEscrowAddress,
   getClusterUrlEnv,
   loadKeypairFromFile,
+  prompt_
 } from "../utils";
-
-const prompt = require("prompt-sync")({ sigint: true });
 
 async function cancel(
   connection: Connection,
@@ -64,11 +63,11 @@ async function cancel(
 
 async function main() {
   const clusterUrl = getClusterUrlEnv();
-  const makerKeypairPath = prompt("Enter maker keypair path: ");
-  const orderHash = prompt("Enter order hash: ");
-  const srcMint = new PublicKey(prompt("Enter src mint public key: "));
+  const makerKeypairPath = prompt_("maker-kp", "Enter maker keypair path: ");
+  const orderHash = prompt_("order-hash", "Enter order hash: ");
+  const srcMint = new PublicKey(prompt_("src-mint", "Enter src mint public key: "));
   const srcAssetIsNative =
-    prompt("Is src asset native? (true/false): ") === "true";
+    prompt_("is-native", "Is src asset native? (true/false): ") === "true";
 
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program<FusionSwap>(FUSION_IDL, { connection });
