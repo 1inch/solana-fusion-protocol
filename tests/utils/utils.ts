@@ -22,32 +22,9 @@ import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { Whitelist } from "../../target/types/whitelist";
 import { BankrunProvider } from "anchor-bankrun";
 import { calculateOrderHash } from "../../scripts/utils";
+import { OrderConfig } from "../../ts-common/common";
 
 const WhitelistIDL = require("../../target/idl/whitelist.json");
-const FusionSwapIDL = require("../../target/idl/fusion_swap.json");
-const reducedOrderConfigType = FusionSwapIDL.types.find(
-  (t) => t.name === "ReducedOrderConfig"
-);
-
-export type ReducedOrderConfig =
-  (typeof reducedOrderConfigType)["type"]["fields"];
-
-type FeeConfig = {
-  protocolDstAcc: anchor.web3.PublicKey | null;
-  integratorDstAcc: anchor.web3.PublicKey | null;
-  protocolFee: number;
-  integratorFee: number;
-  surplusPercentage: number;
-  minCancellationPremium: anchor.BN;
-  maxCancellationPremium: anchor.BN;
-};
-
-type OrderConfig = ReducedOrderConfig & {
-  srcMint: anchor.web3.PublicKey;
-  dstMint: anchor.web3.PublicKey;
-  receiver: anchor.web3.PublicKey;
-  fee: FeeConfig;
-};
 
 export type User = {
   keypair: anchor.web3.Keypair;
@@ -59,7 +36,6 @@ export type User = {
 export type Escrow = {
   escrow: anchor.web3.PublicKey;
   orderConfig: OrderConfig;
-  reducedOrderConfig: ReducedOrderConfig;
   ata: anchor.web3.PublicKey;
 };
 
@@ -309,42 +285,42 @@ export class TestState {
     orderConfig?: Partial<OrderConfig>;
     srcTokenProgram?: anchor.web3.PublicKey;
   }): Promise<Escrow> {
-    orderConfig = this.orderConfig(orderConfig);
+    const orderConfig_: OrderConfig = this.orderConfig(orderConfig);
 
     // Derive escrow address
     const [escrow] = anchor.web3.PublicKey.findProgramAddressSync(
       [
         anchor.utils.bytes.utf8.encode("escrow"),
         this.alice.keypair.publicKey.toBuffer(),
-        calculateOrderHash(orderConfig),
+        calculateOrderHash(orderConfig_),
       ],
       escrowProgram.programId
     );
 
     const escrowAta = await splToken.getAssociatedTokenAddress(
-      orderConfig.srcMint,
+      orderConfig_.srcMint,
       escrow,
       true,
       srcTokenProgram
     );
 
     if (
-      orderConfig.srcMint == splToken.NATIVE_MINT &&
-      !orderConfig.srcAssetIsNative
+      orderConfig_.srcMint == splToken.NATIVE_MINT &&
+      !orderConfig_.srcAssetIsNative
     ) {
       await prepareNativeTokens({
-        amount: orderConfig.srcAmount,
+        amount: orderConfig_.srcAmount,
         user: this.alice,
         provider,
         payer,
       });
     }
     if (
-      orderConfig.dstMint == splToken.NATIVE_MINT &&
-      !orderConfig.dstAssetIsNative
+      orderConfig_.dstMint == splToken.NATIVE_MINT &&
+      !orderConfig_.dstAssetIsNative
     ) {
       await prepareNativeTokens({
-        amount: orderConfig.minDstAmount,
+        amount: orderConfig_.minDstAmount,
         user: this.bob,
         provider,
         payer,
@@ -352,17 +328,17 @@ export class TestState {
     }
 
     const txBuilder = escrowProgram.methods
-      .create(orderConfig as ReducedOrderConfig)
+      .create(orderConfig_)
       .accountsPartial({
         maker: this.alice.keypair.publicKey,
-        makerReceiver: orderConfig.receiver,
-        srcMint: orderConfig.srcMint,
-        dstMint: orderConfig.dstMint,
-        protocolDstAcc: orderConfig.fee.protocolDstAcc,
-        integratorDstAcc: orderConfig.fee.integratorDstAcc,
+        makerReceiver: orderConfig_.receiver,
+        srcMint: orderConfig_.srcMint,
+        dstMint: orderConfig_.dstMint,
+        protocolDstAcc: orderConfig_.fee.protocolDstAcc,
+        integratorDstAcc: orderConfig_.fee.integratorDstAcc,
         escrow,
         srcTokenProgram,
-        makerSrcAta: orderConfig.srcAssetIsNative ? null : undefined,
+        makerSrcAta: orderConfig_.srcAssetIsNative ? null : undefined,
       })
       .signers([this.alice.keypair]);
 
@@ -379,14 +355,22 @@ export class TestState {
 
     return {
       escrow,
-      orderConfig,
-      reducedOrderConfig: orderConfig as ReducedOrderConfig,
+      orderConfig: orderConfig_,
       ata: escrowAta,
     };
   }
 
   orderConfig(params: Partial<OrderConfig> = {}): OrderConfig {
-    return {
+    const definedParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== undefined)
+    );
+    var fee;
+    if (definedParams.fee) {
+      fee = Object.fromEntries(
+        Object.entries(definedParams.fee).filter(([_, v]) => v !== undefined)
+      );
+    }
+    const result = {
       id: this.order_id++,
       srcAmount: this.defaultSrcAmount,
       minDstAmount: this.defaultDstAmount,
@@ -399,18 +383,18 @@ export class TestState {
       cancellationAuctionDuration: 0,
       srcMint: this.tokens[0],
       dstMint: this.tokens[1],
-      ...params,
+      ...definedParams,
       fee: {
         protocolDstAcc: null,
         integratorDstAcc: null,
         protocolFee: 0,
         integratorFee: 0,
         surplusPercentage: 0,
-        minCancellationPremium: new anchor.BN(0),
         maxCancellationPremium: new anchor.BN(0),
-        ...(params.fee ?? {}),
+        ...(fee ?? {}),
       },
     };
+    return result;
   }
 }
 

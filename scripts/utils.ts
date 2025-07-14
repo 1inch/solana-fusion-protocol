@@ -6,49 +6,19 @@ import os from "os";
 import * as splToken from "@solana/spl-token";
 import { sha256 } from "@noble/hashes/sha256";
 import * as borsh from "borsh";
+import { OrderConfig, FeeConfig, AuctionData } from "../ts-common/common";
+export { OrderConfig, FeeConfig };
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+const prompt = require("prompt-sync")({ sigint: true });
 
-const FusionSwapIDL = require("../target/idl/fusion_swap.json");
-
-const reducedOrderConfigType = FusionSwapIDL.types.find(
-  (t) => t.name === "ReducedOrderConfig"
-);
-export type ReducedOrderConfig =
-  (typeof reducedOrderConfigType)["type"]["fields"];
-
-const reducedFeeConfigType = FusionSwapIDL.types.find(
-  (t) => t.name === "ReducedFeeConfig"
-);
-export type ReducedFeeConfig = (typeof reducedFeeConfigType)["type"]["fields"];
-
-export type FeeConfig = {
-  protocolDstAcc: anchor.web3.PublicKey | null;
-  integratorDstAcc: anchor.web3.PublicKey | null;
-  protocolFee: number;
-  integratorFee: number;
-  surplusPercentage: number;
-  maxCancellationPremium: anchor.BN;
-};
-export type OrderConfig = ReducedOrderConfig & {
-  srcMint: anchor.web3.PublicKey;
-  dstMint: anchor.web3.PublicKey;
-  receiver: anchor.web3.PublicKey;
-  fee: FeeConfig;
-  cancellationAuctionDuration: number;
-};
-
-const escrowType = FusionSwapIDL.types.find((t) => t.name === "Escrow");
-export type Escrow = (typeof escrowType)["type"]["fields"];
-
-const auctionDataType = FusionSwapIDL.types.find(
-  (t) => t.name === "AuctionData"
-);
-export type AuctionData = (typeof auctionDataType)["type"]["fields"];
-
-export const defaultFeeConfig: ReducedFeeConfig = {
+export const defaultFeeConfig: FeeConfig = {
   protocolFee: 0,
   integratorFee: 0,
   surplusPercentage: 0,
   maxCancellationPremium: new anchor.BN(0),
+  protocolDstAcc: null,
+  integratorDstAcc: null,
 };
 
 export const defaultAuctionData: AuctionData = {
@@ -227,3 +197,13 @@ const orderConfigSchema = {
     receiver: { array: { type: "u8", len: 32 } },
   },
 };
+
+// return argument if provided in cmd line, else ask the user and get it.
+export function prompt_(key: string, pmpt: string): string {
+  const argv = yargs(hideBin(process.argv)).parse();
+  if (key in argv) {
+    return argv[key];
+  } else {
+    return prompt(pmpt);
+  }
+}

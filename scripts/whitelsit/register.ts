@@ -15,9 +15,8 @@ import {
   findWhitelistStateAddress,
   getClusterUrlEnv,
   loadKeypairFromFile,
+  prompt_,
 } from "../utils";
-
-const prompt = require("prompt-sync")({ sigint: true });
 
 async function register(
   connection: Connection,
@@ -44,6 +43,7 @@ async function register(
     authorityKeypair,
   ]);
   console.log(`Transaction signature ${signature}`);
+  console.log("Resolver access address:" + resolverAccess.toString());
 }
 
 async function main() {
@@ -52,9 +52,12 @@ async function main() {
   const connection = new Connection(clusterUrl, "confirmed");
   const whitelist = new Program<Whitelist>(WHITELIST_IDL, { connection });
 
-  const authorityKeypairPath = prompt("Enter authority keypair path: ");
+  const authorityKeypairPath = prompt_(
+    "authority-kp",
+    "Enter authority keypair path: "
+  );
   const authorityKeypair = await loadKeypairFromFile(authorityKeypairPath);
-  const user = new PublicKey(prompt("Enter user public key: "));
+  const user = new PublicKey(prompt_("user-key", "Enter user public key: "));
 
   await register(connection, whitelist, authorityKeypair, user);
 }
