@@ -502,7 +502,7 @@ pub struct Create<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(order: OrderConfig, amount: u64)]
+#[instruction(order: OrderConfig)]
 pub struct Fill<'info> {
     /// `taker`, who buys `src_mint` for `dst_mint`
     #[account(mut, signer)]

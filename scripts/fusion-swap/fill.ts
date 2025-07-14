@@ -34,6 +34,7 @@ async function fill(
   orderConfig: OrderConfig
 ): Promise<void> {
   const orderHash = calculateOrderHash(orderConfig);
+  let taker = takerKeypair.publicKey;
 
   const escrow = findEscrowAddress(
     program.programId,
@@ -48,12 +49,12 @@ async function fill(
 
   const resolverAccess = findResolverAccessAddress(
     whitelistProgramId,
-    takerKeypair.publicKey
+    taker
   );
 
   const takerSrcAta = await splToken.getAssociatedTokenAddress(
     orderConfig.srcMint,
-    takerKeypair.publicKey
+    taker
   );
 
   const takerDstAta = await splToken.getAssociatedTokenAddress(
@@ -70,8 +71,6 @@ async function fill(
     connection,
     orderConfig.srcMint
   );
-
-  let taker = takerKeypair.publicKey;
 
   const fillIx = await program.methods
     .fill(orderConfig, new BN(amount * Math.pow(10, srcMintDecimals)))
