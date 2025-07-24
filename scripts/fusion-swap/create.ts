@@ -2,7 +2,6 @@ import {
   Connection,
   Keypair,
   PublicKey,
-  SystemProgram,
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
@@ -17,17 +16,15 @@ import {
   defaultAuctionData,
   defaultExpirationTime,
   defaultFeeConfig,
-  AuctionData,
   findEscrowAddress,
   getClusterUrlEnv,
   getTokenDecimals,
   loadKeypairFromFile,
   OrderConfig,
-  ReducedFeeConfig,
-  ReducedOrderConfig,
+  prompt_,
 } from "../utils";
 
-const prompt = require("prompt-sync")({ sigint: true });
+import { AuctionData, FeeConfig } from "../../ts-common/common";
 
 async function create(
   connection: Connection,
@@ -42,7 +39,7 @@ async function create(
   receiver: PublicKey = makerKeypair.publicKey,
   srcAssetIsNative: boolean = false,
   dstAssetIsNative: boolean = false,
-  fee: ReducedFeeConfig = defaultFeeConfig,
+  fee: FeeConfig = defaultFeeConfig,
   protocolDstAcc: PublicKey = null,
   integratorDstAcc: PublicKey = null,
   estimatedDstAmount: BN = minDstAmount,
@@ -50,7 +47,7 @@ async function create(
   cancellationAuctionDuration: number = defaultAuctionData.duration,
   srcTokenProgram: PublicKey = splToken.TOKEN_PROGRAM_ID
 ): Promise<[PublicKey, PublicKey]> {
-  const reducedOrderConfig: ReducedOrderConfig = {
+  const orderConfig: OrderConfig = {
     id: orderId,
     srcAmount,
     minDstAmount,
@@ -58,32 +55,22 @@ async function create(
     expirationTime,
     srcAssetIsNative,
     dstAssetIsNative,
-    fee,
-    dutchAuctionData,
-    cancellationAuctionDuration,
-  };
-
-  const orderConfig: OrderConfig = {
-    ...reducedOrderConfig,
-    srcMint,
-    dstMint,
-    receiver,
     fee: {
       ...fee,
       protocolDstAcc,
       integratorDstAcc,
     },
+    dutchAuctionData,
+    cancellationAuctionDuration,
+    srcMint,
+    dstMint,
+    receiver,
   };
 
   const orderHash = calculateOrderHash(orderConfig);
   console.log(`Order hash hex: ${Buffer.from(orderHash).toString("hex")}`);
 
-  const orderConfigs = {
-    full: orderConfig,
-    reduced: reducedOrderConfig,
-  };
-
-  fs.writeFileSync("order.json", JSON.stringify(orderConfigs));
+  fs.writeFileSync("order.json", JSON.stringify(orderConfig));
   console.log("Saved full and reduced order configs to order.json");
 
   const escrow = findEscrowAddress(
@@ -99,25 +86,8 @@ async function create(
 
   let tx = new Transaction();
 
-  if (srcMint == splToken.NATIVE_MINT) {
-    // Wrap SOL to wSOL
-    const makerNativeAta = await splToken.getAssociatedTokenAddress(
-      splToken.NATIVE_MINT,
-      makerKeypair.publicKey
-    );
-
-    const transferIx = SystemProgram.transfer({
-      fromPubkey: makerKeypair.publicKey,
-      toPubkey: makerNativeAta,
-      lamports: srcAmount.toNumber(),
-    });
-    tx.add(transferIx);
-
-    tx.add(splToken.createSyncNativeInstruction(makerNativeAta));
-  }
-
   const createIx = await program.methods
-    .create(reducedOrderConfig)
+    .create(orderConfig)
     .accountsPartial({
       maker: makerKeypair.publicKey,
       makerReceiver: receiver,
@@ -127,6 +97,9 @@ async function create(
       srcTokenProgram,
       protocolDstAcc,
       integratorDstAcc,
+      makerSrcAta: orderConfig.srcAssetIsNative ? null : undefined,
+      // if srcAssetIsNative then set makerSrcAta as null, else leave
+      // it as undefined so that anchor will compute it using other accounts.
     })
     .signers([makerKeypair])
     .instruction();
@@ -143,12 +116,18 @@ async function create(
 
 async function main() {
   const clusterUrl = getClusterUrlEnv();
-  const makerKeypairPath = prompt("Enter maker keypair path: ");
-  const srcMint = new PublicKey(prompt("Enter src mint public key: "));
-  const dstMint = new PublicKey(prompt("Enter dst mint public key: "));
-  const srcAmount = Number(prompt("Enter src amount: "));
-  const minDstAmount = Number(prompt("Enter min dst amount: "));
-  const orderId = Number(prompt("Enter order id: "));
+  const makerKeypairPath = prompt_("maker", "Enter maker keypair path: ");
+  const srcMint = new PublicKey(
+    prompt_("src-mint", "Enter src mint public key: ")
+  );
+  const dstMint = new PublicKey(
+    prompt_("dst-mint", "Enter dst mint public key: ")
+  );
+  const srcAmount = Number(prompt_("amount", "Enter src amount: "));
+  const minDstAmount = Number(
+    prompt_("min-dst-amount", "Enter min dst amount: ")
+  );
+  const orderId = Number(prompt_("order-id", "Enter order id: "));
 
   const connection = new Connection(clusterUrl, "confirmed");
   const fusionSwap = new Program<FusionSwap>(FUSION_IDL, { connection });
@@ -166,7 +145,10 @@ async function main() {
     new BN(minDstAmount * Math.pow(10, dstMintDecimals)),
     new PublicKey(srcMint),
     new PublicKey(dstMint),
-    orderId
+    orderId,
+    defaultExpirationTime(),
+    makerKeypair.publicKey,
+    srcMint.equals(splToken.NATIVE_MINT) // If source mint is native, then set srcAssetIsNative arg.
   );
 
   console.log(`Escrow account address: ${escrowAddr.toString()}`);

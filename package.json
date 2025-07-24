@@ -23,12 +23,14 @@
     "@coral-xyz/anchor": "^0.31.1",
     "@noble/hashes": "^1.7.1",
     "@solana/spl-token": "^0.4.9",
+    "@types/yargs": "^17.0.33",
     "anchor-bankrun": "^0.5.0",
     "borsh": "^2.0.0",
     "prompt-sync": "^4.2.0",
     "solana-bankrun": "^0.4.0",
     "spl-token-bankrun": "^0.2.6",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@solana-developers/helpers": "^2.7.0",

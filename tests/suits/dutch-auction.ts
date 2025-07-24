@@ -82,7 +82,7 @@ describe("Dutch Auction", () => {
     await setCurrentTime(context, state.defaultExpirationTime);
     await expect(
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accounts(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc()
@@ -128,7 +128,7 @@ describe("Dutch Auction", () => {
 
     const transactionPromise = () =>
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
@@ -166,7 +166,7 @@ describe("Dutch Auction", () => {
 
     const transactionPromise = () =>
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
@@ -219,7 +219,7 @@ describe("Dutch Auction", () => {
 
     const transactionPromise = () =>
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
@@ -267,7 +267,7 @@ describe("Dutch Auction", () => {
 
     const transactionPromise = () =>
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accountsPartial(state.buildAccountsDataForFill({}))
         .signers([state.bob.keypair])
         .rpc();
@@ -302,6 +302,10 @@ describe("Dutch Auction", () => {
           protocolDstAcc:
             state.charlie.atas[state.tokens[1].toString()].address,
           surplusPercentage: 50, // 50%
+          integratorDstAcc: undefined,
+          protocolFee: undefined,
+          integratorFee: undefined,
+          maxCancellationPremium: undefined,
         },
         dutchAuctionData: auction,
       },
@@ -309,7 +313,7 @@ describe("Dutch Auction", () => {
 
     const transactionPromise = () =>
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: state.escrows[0].escrow,
@@ -370,6 +374,7 @@ describe("Dutch Auction", () => {
           protocolFee: 10000, // 10%
           integratorFee: 15000, // 15%
           surplusPercentage: 50, // 50%
+          maxCancellationPremium: undefined,
         },
         dutchAuctionData: auction,
       },
@@ -377,7 +382,7 @@ describe("Dutch Auction", () => {
 
     const transactionPromise = () =>
       program.methods
-        .fill(state.escrows[0].reducedOrderConfig, state.defaultSrcAmount)
+        .fill(state.escrows[0].orderConfig, state.defaultSrcAmount)
         .accountsPartial(
           state.buildAccountsDataForFill({
             escrow: state.escrows[0].escrow,
