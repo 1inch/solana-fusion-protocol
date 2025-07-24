@@ -47,10 +47,7 @@ async function fill(
     true
   );
 
-  const resolverAccess = findResolverAccessAddress(
-    whitelistProgramId,
-    taker
-  );
+  const resolverAccess = findResolverAccessAddress(whitelistProgramId, taker);
 
   const takerSrcAta = await splToken.getAssociatedTokenAddress(
     orderConfig.srcMint,
