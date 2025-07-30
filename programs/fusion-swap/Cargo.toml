@@ -1,6 +1,6 @@
 [package]
 name = "fusion-swap"
-version = "0.1.0"
+version = "1.0.0"
 description = "Created with Anchor"
 edition = "2021"
 
@@ -25,6 +25,7 @@ anchor-spl = "0.31.1"
 common = { path =  "../../common" }
 whitelist = { path = "../whitelist", features = ["no-entrypoint"] }
 muldiv = "1.0.1"
+solana-security-txt = "1.1.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ["cfg(solana)"] }
