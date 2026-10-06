@@ -8,13 +8,14 @@ inputs:
   rustc-version:
     description: "Rust version"
     required: true
-    default: "1.86.0"
+    default: "1.89.0"
   solana-version:
     description: "Solana version"
     required: true
-    # The recommended Solana version for Anchor 0.31.1
-    # https://www.anchor-lang.com/docs/updates/release-notes/0-31-0#recommended-solana-version
-    default: "v2.1.0"
+    # 3.1.14 defaults to platform-tools v1.52 (Rust 1.89). CLI 2.3 and 3.0
+    # default to Rust 1.84, which cannot compile edition 2024.
+    # Agave 4.x refuses the v0 binaries Anchor 0.32.2 still builds.
+    default: "v3.1.14"
 
 runs:
   using: "composite"
@@ -29,7 +30,7 @@ runs:
     - shell: bash
       run: yarn
 
-    # Anchor 0.31.1 requires this library to be installed on the system.
+    # Anchor requires this library to be installed on the system.
     - shell: bash
       run: sudo apt-get install libudev-dev
 
@@ -39,6 +40,10 @@ runs:
       with:
         toolchain: ${{ inputs.rustc-version }}
         components: clippy, rustfmt
+
+    # Anchor builds the IDL with `cargo +stable`, which ignores rust-toolchain.toml.
+    - shell: bash
+      run: rustup toolchain install stable --profile minimal
 
     - name: Cache Cargo dependencies
       uses: Swatinem/rust-cache@v2
@@ -70,7 +75,7 @@ runs:
     # Anchor
     - name: Install Anchor CLI
       shell: bash
-      run: cargo install anchor-cli --version 0.31.1
+      run: cargo install anchor-cli --version 0.32.2
 
     # Verifications
     - name: Verify Yarn installation

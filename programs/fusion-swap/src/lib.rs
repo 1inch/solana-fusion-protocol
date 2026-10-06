@@ -1,4 +1,3 @@
-use anchor_lang::solana_program::hash::hashv;
 use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -11,6 +10,7 @@ use anchor_spl::{
 use auction::{calculate_premium, calculate_rate_bump, AuctionData};
 use common::constants::*;
 use muldiv::MulDiv;
+use solana_sha256_hasher::hashv;
 
 pub mod auction;
 pub mod error;

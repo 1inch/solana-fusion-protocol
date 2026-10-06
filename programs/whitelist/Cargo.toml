@@ -20,8 +20,8 @@ no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-anchor-lang = { version = "0.31.1" }
-anchor-spl = "0.31.1"
+anchor-lang = { version = "0.32.2" }
+anchor-spl = "0.32.2"
 common = { path = "../../common" }
 
 [lints.rust]
